@@ -1,4 +1,4 @@
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 // Client-side photo processing (#8): re-encode to a print-safe ~3500px long
@@ -38,18 +38,25 @@ export function resizeSpec(width: number, height: number, edge: number): { width
 export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPhoto> {
   const takenAt = takenAtFromExif(asset.exif as Record<string, unknown> | undefined);
 
-  const render = async (edge: number): Promise<string> => {
-    const context = ImageManipulator.manipulate(asset.uri);
-    const spec = resizeSpec(asset.width, asset.height, edge);
+  const render = async (source: string | ImageRef, size: { width: number; height: number }, edge: number) => {
+    const context = ImageManipulator.manipulate(source);
+    const spec = resizeSpec(size.width, size.height, edge);
     if (spec) context.resize(spec);
-    const image = await context.renderAsync();
-    const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: QUALITY });
-    return saved.uri;
+    return context.renderAsync();
   };
+  const save = (image: ImageRef) => image.saveAsync({ format: SaveFormat.JPEG, compress: QUALITY });
 
-  return {
-    fullUri: await render(LONG_EDGE),
-    thumbUri: await render(THUMB_EDGE),
-    takenAt,
-  };
+  // The thumbnail starts from the full render, not from the asset (#53), so the
+  // original is decoded once per photo rather than twice. EntryFormScreen
+  // processes up to three at a time and the picker can hand back an 8K frame, so
+  // the second decode was the memory spike. It is the rendered image that is
+  // passed on, not its saved file, which keeps the thumb a single encode of the
+  // same pixels and keeps the original out of reach: reading it again for any
+  // reason would put the EXIF this pipeline strips back into storage.
+  const full = await render(asset.uri, asset, LONG_EDGE);
+  const fullSaved = await save(full);
+  const thumb = await render(full, full, THUMB_EDGE);
+  const thumbSaved = await save(thumb);
+
+  return { fullUri: fullSaved.uri, thumbUri: thumbSaved.uri, takenAt };
 }

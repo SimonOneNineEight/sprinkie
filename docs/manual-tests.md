@@ -279,9 +279,15 @@ Keyboard cases are in **KB**.
 | EF.39 | Deny the photo-library permission | Nothing happens; no crash, no empty tile |
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** |
+| EF.42 | Attach three of the largest photos on the device at once | All three land in the grid; the form stays responsive and the app is not killed |
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
+
+**EF.42 is device-only.** Each photo used to decode its original twice and
+three are processed at once, so six decodes of an 8K frame ran together (#53).
+Use the biggest frames the library holds — a burst export or a 48MP capture,
+not phone snaps — since a 12MP photo never showed the problem.
 
 Round 2: #44 (cap of 3, saving spinner). Keyboard cases are in **KB**.
 
