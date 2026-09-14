@@ -38,9 +38,9 @@ export function resizeSpec(width: number, height: number, edge: number): { width
 export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPhoto> {
   const takenAt = takenAtFromExif(asset.exif as Record<string, unknown> | undefined);
 
-  const render = async (source: string | ImageRef, size: { width: number; height: number }, edge: number) => {
-    const context = ImageManipulator.manipulate(source);
-    const spec = resizeSpec(size.width, size.height, edge);
+  const render = async (source: ImagePickerAsset | ImageRef, edge: number) => {
+    const context = ImageManipulator.manipulate('uri' in source ? source.uri : source);
+    const spec = resizeSpec(source.width, source.height, edge);
     if (spec) context.resize(spec);
     return context.renderAsync();
   };
@@ -53,9 +53,9 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // passed on, not its saved file, which keeps the thumb a single encode of the
   // same pixels and keeps the original out of reach: reading it again for any
   // reason would put the EXIF this pipeline strips back into storage.
-  const full = await render(asset.uri, asset, LONG_EDGE);
+  const full = await render(asset, LONG_EDGE);
   const fullSaved = await save(full);
-  const thumb = await render(full, full, THUMB_EDGE);
+  const thumb = await render(full, THUMB_EDGE);
   const thumbSaved = await save(thumb);
 
   return { fullUri: fullSaved.uri, thumbUri: thumbSaved.uri, takenAt };

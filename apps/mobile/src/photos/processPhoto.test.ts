@@ -13,7 +13,7 @@ type FakeResult = FakeSize & { uri: string };
 
 const mockDecodes: string[] = [];
 const mockSaves: (FakeSaveOptions & FakeSize)[] = [];
-const mockSourceSizes: Record<string, FakeSize> = {};
+let mockSourceSize: FakeSize = { width: 0, height: 0 };
 
 jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
@@ -23,7 +23,7 @@ jest.mock('expo-image-manipulator', () => ({
       mockDecodes.push(label);
       let size: FakeSize =
         typeof source === 'string'
-          ? { ...mockSourceSizes[source] }
+          ? { ...mockSourceSize }
           : { width: source.width, height: source.height };
       const context = {
         resize({ width, height }: { width?: number; height?: number }) {
@@ -52,7 +52,7 @@ jest.mock('expo-image-manipulator', () => ({
 const ORIGINAL = 'file:///DCIM/IMG_0001.HEIC';
 
 function pickerAsset(size: FakeSize, exif?: Record<string, unknown>): ImagePickerAsset {
-  mockSourceSizes[ORIGINAL] = size;
+  mockSourceSize = size;
   return { uri: ORIGINAL, ...size, exif } as unknown as ImagePickerAsset;
 }
 
