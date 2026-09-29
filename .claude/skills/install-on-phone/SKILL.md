@@ -81,6 +81,13 @@ its comment.
    sign-in screen calls no API), so ask them whether the phone shows 登入 or a
    blank white screen before calling it done.
 
+   The `Sprinkie` in that filter is the user agent iOS derives from
+   `CFBundleName`, which `expo prebuild` takes from `app.json`'s `expo.name`
+   (nothing in the app sets a User-Agent itself). It moved with the #55 rename
+   and has not been observed in the logs since. If a launch you can see on the
+   phone returns no rows, check the real agent before concluding the install
+   failed — drop the `userAgent` clause and read what the row actually says.
+
 6. **Report** the commit installed, which phones got it, and the expiry date:
    install day + 7 days (free Apple ID profiles).
 

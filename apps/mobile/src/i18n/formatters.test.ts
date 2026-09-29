@@ -1,9 +1,9 @@
 import { catalogFor } from './appLanguage';
 
-// The per-language tests in the suite (#32 testing decision; wordmark.test.ts
-// is the other): word order comes from each catalog's formatter functions, so
-// both languages pin their exact output here, in the style of the month-math
-// tests.
+// One of the suite's two per-language test files (#32 testing decision;
+// wordmark.test.ts is the other): word order comes from each catalog's
+// formatter functions, so both languages pin their exact output here, in the
+// style of the month-math tests.
 const zh = catalogFor('zh-TW');
 const en = catalogFor('en');
 

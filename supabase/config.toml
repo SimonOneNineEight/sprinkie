@@ -2,6 +2,15 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
+#
+# The CLI names local containers after this, so changing it orphans a running
+# stack: `supabase status` starts looking for supabase_db_<new> while
+# supabase_db_<old> is what exists, and the Go server tests then panic with
+# "SUPABASE_SECRET_KEY is unset and `supabase status` failed". Recover with
+# `supabase stop --project-id <old>` (keeps the data volume) then
+# `supabase start`. Renamed daily-wlog -> sprinkie in #56; if your stack predates
+# that, this is the one-time fix. Note `go test ./...` hides it by replaying
+# cached results — only api/scripts/coverage.sh (-count=1) catches it.
 project_id = "sprinkie"
 
 [api]

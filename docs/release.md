@@ -138,9 +138,13 @@ first; the external group opens only when #61's gates are met.
 
 ## Names that stay daily-wlog
 
-Four entries below are **not** part of the rename, and a repo-wide search will
-always find them. The first three are console-only strings; nobody on the team
-reads them daily.
+Six entries below are **not** part of the rename, and a repo-wide search will
+always find them. The list covers every old name still *in use*, and is meant to
+be exhaustive: if a search turns up a live one it does not cover, that is a real
+gap. It does not cover prose that names daily-wlog in order to talk about it —
+this section, `CONTEXT.md`'s **Wordmark** entry, the leftover-app warning in
+`install-on-phone`, the recovery note in `supabase/config.toml`. The first three
+entries are console-only strings; nobody on the team reads them daily.
 
 - **GCP project id `daily-wlog-198`** — project ids cannot be renamed, only
   recreated, which would mean new Secret Manager secrets, re-linked billing,
@@ -165,9 +169,18 @@ reads them daily.
   regenerated one). `window.WLOG` in `design/screens/` is left alone for the
   stronger reason: the harness that reads it was never pulled into this repo, so
   nothing here can prove a rename didn't break it.
+- **The two Claude Design project names** — `"daily-wlog Design System"` and
+  `"Daily-wlog iOS prototype"`, quoted in `design/README.md` and
+  `design/canvas/README.md`. Those quotes name projects that still carry the old
+  name upstream, so they are accurate as written and go stale the moment #62
+  renames them. Same ticket, same re-pull.
+- **The local clone directory** `/Users/simon/projects/daily-wlog`, in the path
+  `install-on-phone` gives for `.env.hosted`. #56 renamed the repo, not the
+  folder; GitHub redirects the old URL, and renaming the working directory would
+  only break shell history and every worktree beside it for nothing.
 
 This is deliberate (#56). Do not file it as unfinished rename work. Only the
-last one is expected to change, and #62 owns it.
+design-side entries are expected to change, and #62 owns them.
 
 ## Already in the repo
 
