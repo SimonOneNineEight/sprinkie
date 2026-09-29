@@ -1,9 +1,0 @@
-# /etc/systemd/system/daily-wlog-purge.service
-[Unit]
-Description=daily-wlog account purge (30-day grace, #15)
-
-[Service]
-Type=oneshot
-ExecStart=/opt/daily-wlog/purge
-EnvironmentFile=/etc/daily-wlog/api.env
-User=daily-wlog

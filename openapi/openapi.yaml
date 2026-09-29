@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: daily-wlog API
+  title: Sprinkie API
   description: >
-    Contract source of truth for the daily-wlog API. Go server stubs
+    Contract source of truth for the Sprinkie API. Go server stubs
     (oapi-codegen) and the app's TypeScript client types (openapi-typescript)
     are both generated from this file; regenerate whenever it changes.
   version: 0.1.0

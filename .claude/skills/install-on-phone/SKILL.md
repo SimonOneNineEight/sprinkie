@@ -34,7 +34,9 @@ its comment.
 
 2. **Preflight the checkout.** Use absolute paths (zoxide breaks relative `cd`).
    - `<checkout>/apps/mobile/.env.hosted` exists. It is gitignored; a fresh
-     worktree needs it copied from `/Users/simon/projects/daily-wlog/apps/mobile/.env.hosted`.
+     worktree needs it copied from the main clone at
+     `/Users/simon/projects/daily-wlog/apps/mobile/.env.hosted` — that working
+     directory keeps its old name; #56 renamed the repo, not the folder.
    - `<checkout>/apps/mobile/node_modules` exists, else `pnpm install --frozen-lockfile`.
 
 3. **Reach the phone.** `xcrun devicectl list devices` must show it as

@@ -5,9 +5,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/apigen"
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/dbgen"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/apigen"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
 )
 
 // colorRecentsCap is the saved-custom-colors LRU cap (~12 per the ratified

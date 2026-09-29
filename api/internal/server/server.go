@@ -16,10 +16,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/apigen"
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/dbgen"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/logging"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/apigen"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/logging"
 )
 
 // ObjectStore is the slice of the storage client the handlers need; an

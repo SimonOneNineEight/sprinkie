@@ -8,8 +8,8 @@ GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /tmp/dw-api ./cmd/api
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /tmp/dw-purge ./cmd/purge
 scp /tmp/dw-api "$DEPLOY_HOST:/tmp/dw-api"
 scp /tmp/dw-purge "$DEPLOY_HOST:/tmp/dw-purge"
-ssh "$DEPLOY_HOST" 'sudo install -m 755 /tmp/dw-api /opt/daily-wlog/api \
-  && sudo install -m 755 /tmp/dw-purge /opt/daily-wlog/purge \
-  && sudo systemctl restart daily-wlog-api \
-  && systemctl is-active daily-wlog-api'
+ssh "$DEPLOY_HOST" 'sudo install -m 755 /tmp/dw-api /opt/sprinkie/api \
+  && sudo install -m 755 /tmp/dw-purge /opt/sprinkie/purge \
+  && sudo systemctl restart sprinkie-api \
+  && systemctl is-active sprinkie-api'
 echo "deployed"

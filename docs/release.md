@@ -5,9 +5,8 @@ The path from this repo to a TestFlight link a friend can tap. Steps marked
 exist.
 
 The plan below was ratified 2026-09-29 in a grilling session. The app is
-Sprinkie as of #55; the repo follows with #56, so internal names below are
-still written as they are today. See "Names that stay daily-wlog" for the three
-that never change.
+Sprinkie as of #55 and the repo as of #56. See "Names that stay daily-wlog" for
+the four that a search still finds, and why.
 
 ## Two rings, in order
 
@@ -44,7 +43,10 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 3. **Simon — hosted Supabase project** (supabase.com, free tier). Do not paste
    keys into the repo or the chat; they go into EAS/hosting secret stores in
    step 5. Its data is durable from the PM's first Entry — forward migrations
-   only, no destructive migration, ever (ADR-0007).
+   only, no destructive migration, ever (ADR-0007). **Still to do for #56:** set
+   the project's display name to Sprinkie (Project Settings → General, ref
+   `tebfjmsmnhfeapbzytxy`). The CLI has no rename subcommand, so this one is
+   dashboard-only; the ref itself never changes.
 4. **API host: Cloud Run** (superseded the home box, live by 2026-09-11):
    service `daily-wlog-api`, project `daily-wlog-198`, region us-west1.
    Env rides the revision: `SUPABASE_JWKS_URL` / `SUPABASE_STORAGE_URL`
@@ -66,13 +68,13 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
    deploy/home/ has everything. One-time setup on the box:
 
    ```sh
-   sudo useradd --system --no-create-home daily-wlog
-   sudo mkdir -p /opt/daily-wlog /etc/daily-wlog
-   sudo cp deploy/home/daily-wlog-*.service deploy/home/daily-wlog-purge.timer /etc/systemd/system/
-   sudo cp deploy/home/api.env.example /etc/daily-wlog/api.env
-   sudo chmod 600 /etc/daily-wlog/api.env   # then fill in the real values
+   sudo useradd --system --no-create-home sprinkie
+   sudo mkdir -p /opt/sprinkie /etc/sprinkie
+   sudo cp deploy/home/sprinkie-*.service deploy/home/sprinkie-purge.timer /etc/systemd/system/
+   sudo cp deploy/home/api.env.example /etc/sprinkie/api.env
+   sudo chmod 600 /etc/sprinkie/api.env   # then fill in the real values
    sudo systemctl daemon-reload
-   sudo systemctl enable --now daily-wlog-purge.timer
+   sudo systemctl enable --now sprinkie-purge.timer
    # Public HTTPS without opening router ports:
    curl -fsSL https://tailscale.com/install.sh | sh
    sudo tailscale up
@@ -136,17 +138,36 @@ first; the external group opens only when #61's gates are met.
 
 ## Names that stay daily-wlog
 
-Three names are **not** part of the rename, and a repo-wide search will always
-find them. They are console-only strings; nobody on the team reads them daily.
+Four entries below are **not** part of the rename, and a repo-wide search will
+always find them. The first three are console-only strings; nobody on the team
+reads them daily.
 
 - **GCP project id `daily-wlog-198`** — project ids cannot be renamed, only
   recreated, which would mean new Secret Manager secrets, re-linked billing,
   and a redeploy.
 - **The Supabase project ref** — immutable, and it lives in the project URL.
+  Only the ref. The project's *display name* does become Sprinkie, by hand in
+  the dashboard; step 3 carries it.
 - **Cloud Run service `daily-wlog-api`** — its name is in the URL, so renaming
   it means a new `EXPO_PUBLIC_API_URL` and another build.
+- **The design system's id and global** — `daily-wlog-design-system-afe7e188-…`
+  in the artboard's asset paths, and `DailyWlogDesignSystem_afe7e1` in the
+  artboard and in `design/screens/*.jsx`. Both are handles into the Claude
+  Design prototype project, whose `_ds/` tree is deliberately not duplicated
+  here, so rewriting them in the repo stops the artboard and the UI kit
+  resolving their design system. Changing them for real starts on the design
+  side: renaming the design system there regenerates the id and the global, and
+  a re-pull brings them in. That is #62, which also takes the artboard's
+  filename. Most of `design/` is pulled, so the re-pull overwrites whatever is
+  here — which is why its **titles and prose** were renamed anyway (a re-pull
+  merely redoes them, and until then the repo would read two names) while the
+  **filename** was not (renaming it now leaves a second file sitting beside the
+  regenerated one). `window.WLOG` in `design/screens/` is left alone for the
+  stronger reason: the harness that reads it was never pulled into this repo, so
+  nothing here can prove a rename didn't break it.
 
-This is deliberate (#56). Do not file it as unfinished rename work.
+This is deliberate (#56). Do not file it as unfinished rename work. Only the
+last one is expected to change, and #62 owns it.
 
 ## Already in the repo
 

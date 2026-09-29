@@ -1,4 +1,4 @@
-# daily-wlog 核心畫面 — design canvas
+# Sprinkie 核心畫面 — design canvas
 
 Pulled from the Claude Design project **"Daily-wlog iOS prototype"**
 (`https://claude.ai/design/p/9dca8ca9-1042-4f06-ae22-137ec2d24c04`), 2026-08-18;

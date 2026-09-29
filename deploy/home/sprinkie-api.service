@@ -1,15 +1,15 @@
-# /etc/systemd/system/daily-wlog-api.service
+# /etc/systemd/system/sprinkie-api.service
 [Unit]
-Description=daily-wlog API
+Description=Sprinkie API
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStart=/opt/daily-wlog/api
-EnvironmentFile=/etc/daily-wlog/api.env
+ExecStart=/opt/sprinkie/api
+EnvironmentFile=/etc/sprinkie/api.env
 Restart=always
 RestartSec=3
-User=daily-wlog
+User=sprinkie
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

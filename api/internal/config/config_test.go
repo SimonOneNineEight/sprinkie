@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/config"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/config"
 )
 
 func env(vars map[string]string) func(string) string {

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/config"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/server"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/config"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/server"
 )
 
 // freeAddr reserves a free TCP port and releases it for the server to claim.

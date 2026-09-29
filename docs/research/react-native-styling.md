@@ -216,7 +216,7 @@ project with the default template"
 
 ---
 
-## 5. Fit for daily-wlog specifically
+## 5. Fit for Sprinkie specifically
 
 - **Token-enforcement strength.** The project rule is "no hardcoded colors", planned as
   lint + typed-theme enforcement. Typed theme delivers this at **compile time**: if components
@@ -283,7 +283,7 @@ project with the default template"
    breakpoints, adaptive themes), migrate incrementally to **Unistyles v3** — it is a typed
    superset of StyleSheet, New-Architecture-native, with first-class RN-web support.
 
-This wins on every constraint that is specific to daily-wlog: compile-time token enforcement,
+This wins on every constraint that is specific to Sprinkie: compile-time token enforcement,
 a completeness-checked dark-mode-later story, zero dependency risk for the MVP, native RN-web
 compatibility, alignment with what RN and Expo first-party docs assume, and the tightest feedback
 loop for TDD agents. It is also the reversible choice: a typed theme is trivially consumable

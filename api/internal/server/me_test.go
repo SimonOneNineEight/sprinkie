@@ -18,9 +18,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/server"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/storage"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/server"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/storage"
 )
 
 func envOr(key, fallback string) string {
