@@ -9,7 +9,7 @@ const weekdaysFull = ['星期日', '星期一', '星期二', '星期三', '星�
 
 const zhTW = {
   signIn: {
-    wordmark: 'daily-wlog',
+    wordmark: 'Sprinkie',
     promise: '每天五分鐘，留下你的生活',
     google: '使用 Google 帳戶登入',
     emailButton: '使用電子郵件登入',

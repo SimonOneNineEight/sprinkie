@@ -4,9 +4,10 @@ The path from this repo to a TestFlight link a friend can tap. Steps marked
 **Simon** need his accounts; everything else is agent-runnable once those
 exist.
 
-The plan below was ratified 2026-09-29 in a grilling session. Names are written
-as they are **today**; the app becomes Sprinkie with #55 and the repo follows
-with #56. See "Names that stay daily-wlog" for the three that never change.
+The plan below was ratified 2026-09-29 in a grilling session. The app is
+Sprinkie as of #55; the repo follows with #56, so internal names below are
+still written as they are today. See "Names that stay daily-wlog" for the three
+that never change.
 
 ## Two rings, in order
 
@@ -151,9 +152,9 @@ This is deliberate (#56). Do not file it as unfinished rename work.
 
 - `apps/mobile/eas.json` — development / preview / production profiles. No
   Expo project id, owner, or App Store Connect app id yet; #57 adds them.
-- `apps/mobile/app.json` — bundle id `com.simononenineeight.dailywlog`
-  (becomes `…sprinkie` with #55, and is permanent from the first upload),
-  light-only UI, zh_TW region, camera/photo permission copy, placeholder icon
+- `apps/mobile/app.json` — bundle id `com.simononenineeight.sprinkie` (#55,
+  and permanent from the first upload), light-only UI, zh_TW region,
+  camera/photo permission copy, placeholder icon
   (the app's + mark; #58 replaces it). Apple sign-in is declared **off**
   (`usesAppleSignIn: false`) while #52 is open, even though the sign-in screen
   offers the button.

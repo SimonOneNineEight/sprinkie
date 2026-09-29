@@ -1,6 +1,6 @@
 ---
 name: install-on-phone
-description: Install daily-wlog on a real iPhone (Simon's or Yunchi's) as a Release build and prove it runs without the Mac. Use whenever a build goes onto a phone for real use — "install on my phone", "put it on Yunchi's phone", "sideload", the weekly re-sign, a release pass. Never use `expo run:ios --device` or Xcode's Run button for this.
+description: Install Sprinkie on a real iPhone (Simon's or Yunchi's) as a Release build and prove it runs without the Mac. Use whenever a build goes onto a phone for real use — "install on my phone", "put it on Yunchi's phone", "sideload", the weekly re-sign, a release pass. Never use `expo run:ios --device` or Xcode's Run button for this.
 ---
 
 # Install on a phone
@@ -51,20 +51,27 @@ its comment.
    If it stops with `refusing to install`, do not install the app by hand.
    Fix the cause the message names and run it again.
 
+   The bundle id changed with the Sprinkie rename (#55), so iOS treats this as
+   a new app: the old daily-wlog icon stays on the phone with its own data and
+   its own sign-in. Have the owner delete it on the first install after the
+   rename. Step 5's launch and log filter both name the new app, so a leftover
+   cannot fake a pass there — but step 5's question to the owner can only be
+   answered about whichever icon they tapped.
+
 5. **Prove it runs without the Mac.** A signed-in app calls `/me` on every
    launch, so a fresh request in the Cloud Run logs shows the embedded bundle
    works:
 
    ```sh
    date -u +%Y-%m-%dT%H:%M:%SZ
-   xcrun devicectl device process launch --device <UDID> --terminate-existing com.simononenineeight.dailywlog
+   xcrun devicectl device process launch --device <UDID> --terminate-existing com.simononenineeight.sprinkie
    ```
 
    About 15 seconds later, paste the printed time in as `<launch time>` (a
    shell variable would not survive to this separate command):
 
    ```sh
-   gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"daily-wlog-api\" AND httpRequest.userAgent:\"dailywlog\" AND timestamp>=\"<launch time>\"" \
+   gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"daily-wlog-api\" AND httpRequest.userAgent:\"Sprinkie\" AND timestamp>=\"<launch time>\"" \
      --project daily-wlog-198 --limit=5 --format='value(timestamp,httpRequest.status,httpRequest.requestUrl)'
    ```
 
@@ -88,8 +95,8 @@ Check whether a Debug build was ever installed:
 
 ```sh
 xcrun devicectl device copy from --device <UDID> --domain-type appDataContainer \
-  --domain-identifier com.simononenineeight.dailywlog \
-  --source Library/Preferences/com.simononenineeight.dailywlog.plist --destination <scratch>/prefs.plist
+  --domain-identifier com.simononenineeight.sprinkie \
+  --source Library/Preferences/com.simononenineeight.sprinkie.plist --destination <scratch>/prefs.plist
 plutil -p <scratch>/prefs.plist
 ```
 

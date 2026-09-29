@@ -63,7 +63,7 @@ it('shows the sign-in screen when no session exists', async () => {
   render(<AppRoot />);
 
   expect(await screen.findByText('每天五分鐘，留下你的生活')).toBeTruthy();
-  expect(screen.getByText('daily-wlog')).toBeTruthy();
+  expect(screen.getByText('Sprinkie')).toBeTruthy();
 });
 
 it('shows the app and provisions the world when a session exists', async () => {
