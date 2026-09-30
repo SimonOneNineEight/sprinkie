@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sprinkie",
     "slug": "sprinkie",
-    "version": "1.0.0",
+    "version": "0.9.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,8 @@
       "infoPlist": {
         "CFBundleDevelopmentRegion": "zh_TW",
         "NSCameraUsageDescription": "拍照加入紀錄。",
-        "NSPhotoLibraryUsageDescription": "從相簿選擇照片加入紀錄。"
+        "NSPhotoLibraryUsageDescription": "從相簿選擇照片加入紀錄。",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -41,6 +42,18 @@
           "supportedLocales": ["zh-Hant", "en"]
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7dfa6da3-8887-454c-b2c1-f3465f7501ad"
+      }
+    },
+    "owner": "simon198tw",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7dfa6da3-8887-454c-b2c1-f3465f7501ad"
+    }
   }
 }

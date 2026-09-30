@@ -11,8 +11,11 @@ the four that a search still finds, and why.
 ## Two rings, in order
 
 **Internal (#16).** Simon and the PM, as App Store Connect users. No Beta App
-Review, so a build installs minutes after processing. Build 1 is `0.9.0 (1)`,
-cut from `main` plus #52 and #53.
+Review, so a build installs minutes after processing. Build 1 carries marketing
+version `0.9.0`, cut from `main` plus #52 and #53. Its build *number* is not
+pinned here: EAS holds it remotely and `autoIncrement` moves it on every
+attempt, including ones that fail before building, so it was already past 1
+before the first real build. See "Build config" for what is chosen by hand.
 
 **External (#61).** A shareable link for people without an App Store Connect
 login. Beta App Review applies the App Store guidelines, so this ring waits on
@@ -96,10 +99,14 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
      `supabase db push`; create the private `photos` bucket per
      `supabase/config.toml` (10MiB, image/jpeg).
    - API host: the four env vars above, from the hosted project's settings.
-   - EAS: `eas init` first — the project has no Expo project id or owner yet.
-     Then `eas env:create` for `EXPO_PUBLIC_SUPABASE_URL`,
-     `EXPO_PUBLIC_SUPABASE_KEY` (publishable key only — never the secret),
-     `EXPO_PUBLIC_API_URL` (the deployed API's URL).
+   - EAS: **done in #57.** The project is `@simon198tw/sprinkie` and its five
+     `EXPO_PUBLIC_*` variables live in the `production` and `preview`
+     environments. The set is every variable the app reads, not a shorter list:
+     #57's criteria named only the Supabase pair and the API URL, and a build
+     carrying just those three ships `undefined` Google client IDs and a
+     sign-in screen where neither provider works. Check
+     `grep -rn EXPO_PUBLIC_ apps/mobile/src` against `eas env:list production`
+     whenever either changes.
    - The App Store Connect app id goes into the production submit profile once
      the app record from step 2 exists.
 6. **Auth providers** (Supabase dashboard → Authentication). Google: the OAuth
@@ -127,7 +134,26 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 - **Export compliance.** ADR-0004 confirms there is no client-side encryption,
   only TLS, which is exempt — so `app.json` declares
   `ITSAppUsesNonExemptEncryption: false`. Without it every single upload stops
-  and asks the encryption question by hand.
+  and asks the encryption question by hand. **This declaration expires with
+  ADR-0004.** That ADR returns E2EE to the table before public launch, and the
+  day client-side encryption ships, `false` becomes an untrue answer to Apple —
+  so whoever implements E2EE flips this and answers the export questions
+  properly, rather than inheriting a declaration that was true when written.
+- **OTA updates (#57).** `expo-updates` is installed and each build profile
+  carries a channel, so a JS-only fix reaches testers with `eas update --branch
+  production` instead of a new TestFlight build and another Beta App Review —
+  which works because the `production` channel points at the `production`
+  branch; a channel aimed at no branch delivers nothing, silently.
+  Two constraints that bite if you forget them:
+  - **`runtimeVersion` is `{"policy": "appVersion"}`**, so an update only
+    reaches builds whose marketing version matches. Bump `0.9.0` to `0.9.1` and
+    every already-installed build stops receiving updates until it is replaced.
+    That is the trade for not having to reason about native compatibility by
+    hand.
+  - **Native changes never travel over the air.** A new dependency with native
+    code, a permission, or anything in `app.json` that lands in `Info.plist`
+    needs a fresh build. Shipping such a change as an update produces a binary
+    whose JS expects native code it does not have.
 
 ## Per-release
 
@@ -195,8 +221,13 @@ design-side entries are expected to change, and #62 owns them.
 
 ## Already in the repo
 
-- `apps/mobile/eas.json` — development / preview / production profiles. No
-  Expo project id, owner, or App Store Connect app id yet; #57 adds them.
+- `apps/mobile/eas.json` — development / preview / production profiles, each
+  with an update channel. The Expo project id and owner landed with #57; the
+  App Store Connect app id is still missing and cannot exist until the app
+  record does (step 2). The `development` profile also asks for a dev client
+  (`developmentClient: true`) while `expo-dev-client` is not installed, so that
+  one profile cannot build — left alone deliberately, since devices go through
+  `deploy/sideload.sh` and nothing uses it.
 - `apps/mobile/app.json` — bundle id `com.simononenineeight.sprinkie` (#55,
   and permanent from the first upload), light-only UI, zh_TW region,
   camera/photo permission copy, placeholder icon
