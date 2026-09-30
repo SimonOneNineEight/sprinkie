@@ -44,6 +44,11 @@ const zhTW = {
     // The App Language row and picker (#35). 系統預設 translates with the
     // UI; the two language names are fixed endonyms, never translated.
     generalHeader: '一般',
+    // The two legal rows (#60). 關於 rather than 法律: the section is where a
+    // person looks for what the app is, not a lawyer's heading.
+    aboutHeader: '關於',
+    privacyPolicy: '隱私權政策',
+    termsOfService: '服務條款',
     language: '語言',
     systemDefault: '系統預設',
     zhHant: '繁體中文',

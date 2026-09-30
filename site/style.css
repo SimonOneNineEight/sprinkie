@@ -1,0 +1,89 @@
+/* Shared by every page under site/ (#60).
+ *
+ * Values are the app's theme tokens verbatim (apps/mobile/src/theme/theme.gen.ts),
+ * so a policy opened from 設定 in an in-app browser sheet reads as the same
+ * product rather than a stranger's web page.
+ *
+ * Light only, deliberately: app.json sets userInterfaceStyle "light" and
+ * DESIGN.md defers dark mode to a later pass. A dark policy page sliding up out
+ * of a light app would be the inconsistency, not the courtesy.
+ *
+ * PingFang TC leads the stack because these documents are almost entirely
+ * zh-Hant, and DESIGN.md § Typography is explicit that it "is the face users
+ * actually read"; SF Pro follows to carry Latin text and numerals.
+ */
+:root {
+  --ink: #1c1c1e; /* textPrimary */
+  --muted: #6b6b70; /* textSecondary */
+  --ground: #ffffff; /* surface */
+  --rule: #e4e4e7; /* lineSeparator */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 40px 20px 72px;
+  background: var(--ground);
+  color: var(--ink);
+  font:
+    17px / 1.75 'PingFang TC',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Noto Sans TC',
+    sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 38rem;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.updated {
+  margin: 0 0 40px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+h2 {
+  margin: 40px 0 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+p,
+li {
+  margin: 0 0 14px;
+}
+
+ul {
+  padding-left: 1.4em;
+}
+
+strong {
+  font-weight: 600;
+}
+
+a {
+  color: inherit;
+}
+
+footer {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 15px;
+}

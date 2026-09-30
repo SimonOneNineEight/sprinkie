@@ -405,7 +405,7 @@ Round 2: #47 (CD.16–CD.20). Keyboard cases are in **KB**.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| ST.1 | Open it | The account's email, the 語言 row, 登出, 刪除帳號 |
+| ST.1 | Open it | The account's email, the 語言 row, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
 | ST.2 | Tap 語言 | The sheet offers exactly 系統預設 / 繁體中文 / English |
 | ST.3 | The two language names | Shown as endonyms, never translated |
 | ST.4 | Pick 繁體中文 | The UI switches immediately; the row's value updates |
@@ -422,6 +422,11 @@ Round 2: #47 (CD.16–CD.20). Keyboard cases are in **KB**.
 | ST.15 | 登出 from the deactivated screen | Sign-in screen; signing back in returns to the gate **[API]** |
 | ST.16 | Deactivate on one device, use the app on another | The second device meets the gate **[API]** |
 | ST.17 | Deactivate on a second device while this one sits open, then act here | The next request meets the gate rather than failing oddly **[API]** |
+| ST.18 | Tap 隱私權政策 | An in-app sheet opens the policy — the page renders, not a 404 |
+| ST.19 | Tap 服務條款 | Same, for the terms |
+| ST.20 | Close the sheet | Back on 設定 where you were; the app was never left for Safari |
+| ST.21 | The contact address on either page | hello.sprinkie.journal@gmail.com, and tapping it opens a mail draft |
+| ST.22 | Both pages on a narrow phone | Text wraps, nothing scrolls sideways, the 關於 links at the foot work |
 
 ### VI — Visibility, across surfaces
 

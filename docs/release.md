@@ -107,6 +107,17 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
    provider's Client IDs list** — that is all the native `signInWithIdToken`
    flow needs. The Services ID and `.p8` key belong to the web redirect flow,
    which this app does not use; do not generate one.
+7. **Publish the legal documents (#60), before any build reaches a phone.**
+   `設定 → 隱私權政策 / 服務條款` already ship and already point at
+   `simononenineeight.github.io/sprinkie`, so until the site exists those two
+   rows open a 404. Two steps, in order:
+   - **Simon**: create the privacy contact address and replace the
+     `PRIVACY_CONTACT_EMAIL` placeholder in `site/`. `deploy/publish-site.sh`
+     refuses to publish while it is there, which is deliberate — a policy naming
+     an address nobody reads is worse than no policy.
+   - `sh deploy/publish-site.sh`, then enable GitHub Pages on the `gh-pages`
+     branch once. The privacy policy URL also goes into the App Store Connect
+     app record from step 2.
 
 ## Build config
 
@@ -207,13 +218,20 @@ Data collected, linked to identity:
 - Account deletion: in-app (設定 → 刪除帳號), 30-day grace, then permanent
   purge — App Store guideline 5.1.1(v) satisfied.
 
-#60 turns these answers into the published privacy policy. Nothing in that
-document may contradict this list.
+#60 turned these answers into the published privacy policy, in `site/privacy/`.
+Nothing in that document may contradict this list — change one and change the
+other. Two things the policy states that this list does not, both deliberate and
+both true: entry content is **not** end-to-end encrypted (ADR-0004 defers it, so
+the policy says the operator could technically read the database rather than
+implying otherwise), and data is processed in the United States.
+
+The documents publish with `deploy/publish-site.sh`, which pushes `site/` to the
+`gh-pages` branch — the legal pages and nothing else, so the runbook and the ADRs
+never become a website. The privacy policy URL that goes into App Store Connect
+is <https://simononenineeight.github.io/sprinkie/privacy/>.
 
 ## Still open before external testers (#61)
 
-- Privacy policy + terms documents at a stable public URL, reachable from two
-  new 設定 rows (#60). App Store Connect wants the privacy policy URL.
 - A real app icon from the PM, replacing the placeholder (#58).
 - English shipped (#32, #37).
 
