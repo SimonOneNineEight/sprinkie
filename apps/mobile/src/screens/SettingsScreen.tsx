@@ -1,3 +1,4 @@
+import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Modal, ScrollView, Text, View } from 'react-native';
@@ -8,6 +9,7 @@ import { supabase } from '../auth/supabase';
 import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
 import { useAppLanguage, useStrings } from '../i18n/AppLanguageProvider';
+import { legalUrls } from '../legal';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
 
@@ -79,6 +81,36 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
             >
               <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings.language}</Text>
               <Text style={styles.rowValue}>{languageLabel(strings, override)}</Text>
+              <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
+            </Pressable>
+          </View>
+        </View>
+
+        <View>
+          <Text style={styles.sectionHeader}>{strings.settings.aboutHeader}</Text>
+          <View style={styles.card}>
+            <Pressable
+              accessibilityRole="button"
+              style={[styles.row, styles.rowDivided]}
+              onPress={() => {
+                void WebBrowser.openBrowserAsync(legalUrls.privacy);
+              }}
+            >
+              <Text style={[styles.rowTitle, styles.rowText]}>
+                {strings.settings.privacyPolicy}
+              </Text>
+              <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.row}
+              onPress={() => {
+                void WebBrowser.openBrowserAsync(legalUrls.terms);
+              }}
+            >
+              <Text style={[styles.rowTitle, styles.rowText]}>
+                {strings.settings.termsOfService}
+              </Text>
               <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
             </Pressable>
           </View>

@@ -8,6 +8,10 @@ const mockSignOut = jest.fn(async () => ({ error: null }));
 jest.mock('../auth/supabase', () => ({
   supabase: { auth: { signOut: () => mockSignOut() } },
 }));
+const mockOpenBrowser = jest.fn(async (_url: string) => ({ type: 'cancel' as const }));
+jest.mock('expo-web-browser', () => ({
+  openBrowserAsync: (url: string) => mockOpenBrowser(url),
+}));
 jest.mock('../auth/useSession', () => ({
   useSession: () => ({ access_token: 'tok', user: { id: 'u1', email: 'simon@wlog.local' } }),
 }));
@@ -16,6 +20,7 @@ let api: MockApi;
 
 beforeEach(() => {
   mockSignOut.mockClear();
+  mockOpenBrowser.mockClear();
   api = installMockApi();
 });
 
@@ -33,6 +38,27 @@ it('shows the account row', () => {
   // 類別 moved out (ratified 2026-08-20): it lives behind the calendar's
   // 類別 sheet, not in settings.
   expect(screen.queryByText('類別')).toBeNull();
+});
+
+// The two legal rows (#60). Beta App Review expects a reachable privacy
+// policy from an app that collects journal content, and App Store Connect
+// wants the same URL. The literal URLs are asserted here rather than the
+// constants the screen reads: a test that compares a value to the value it
+// came from would pass through any typo.
+it('opens the privacy policy in an in-app browser', () => {
+  renderSettings();
+  fireEvent.press(screen.getByText('隱私權政策'));
+  expect(mockOpenBrowser).toHaveBeenCalledWith(
+    'https://simononenineeight.github.io/sprinkie/privacy/',
+  );
+});
+
+it('opens the terms in an in-app browser', () => {
+  renderSettings();
+  fireEvent.press(screen.getByText('服務條款'));
+  expect(mockOpenBrowser).toHaveBeenCalledWith(
+    'https://simononenineeight.github.io/sprinkie/terms/',
+  );
 });
 
 it('signs out from its own row', () => {

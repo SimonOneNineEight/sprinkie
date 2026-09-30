@@ -77,6 +77,9 @@ export const en: StringCatalog = {
     restoreFailed: 'Restore failed. Please try again',
     // 系統預設 translates with the UI; the endonyms never do.
     generalHeader: 'General',
+    aboutHeader: 'About',
+    privacyPolicy: 'Privacy Policy',
+    termsOfService: 'Terms of Service',
     language: 'Language',
     systemDefault: 'System Default',
     zhHant: '繁體中文',
