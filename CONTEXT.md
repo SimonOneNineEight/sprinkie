@@ -1,4 +1,4 @@
-# daily-wlog
+# Sprinkie
 
 A personal life-journaling app: a few minutes a day of writing and photos, accumulating into weekly reflections and, eventually, a printed book of your year.
 
@@ -35,6 +35,10 @@ _Avoid_: attachment, image (for the stored thing), media
 **App Language**:
 The language the interface renders in: Traditional Chinese or English. Follows the phone's language (any Chinese → Traditional Chinese, anything else → English) unless the User overrides it with an explicit per-device choice. Changing it never changes data: Categories and Entries keep their names.
 _Avoid_: locale, system language (for the app's own setting)
+
+**Wordmark**:
+The app's name as a person reads it: **Sprinkie**, the same Latin string in every App Language. Ratified 2026-09-29: a brand name does not translate, and coining a Chinese one means defending it later. It is the one catalog entry a translation pass leaves alone, which makes it the standing exception to the zh-TW-first rule in DESIGN.md § Identity.
+_Avoid_: app name, logo, daily-wlog (the pre-rename name; internal ids that keep it are listed in docs/release.md)
 
 **Starter Category**:
 One of the five Categories created for a new User at signup, named in the App Language in effect at that moment. An ordinary Category from then on: renameable, hideable, deletable, and never retranslated.

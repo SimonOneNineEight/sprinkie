@@ -1,4 +1,4 @@
-module github.com/SimonOneNineEight/daily-wlog/api
+module github.com/SimonOneNineEight/sprinkie/api
 
 go 1.26.1
 

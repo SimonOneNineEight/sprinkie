@@ -12,7 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
 )
 
 // ObjectStore is the storage slice the purge needs; storage.Client satisfies

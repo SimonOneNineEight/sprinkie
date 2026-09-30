@@ -14,9 +14,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/logging"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/server"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/logging"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/server"
 )
 
 // testDatabaseURL returns the local Supabase database, overridable for CI.

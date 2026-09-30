@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/dbgen"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/purge"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/purge"
 )
 
 func deactivate(t *testing.T, ts *httptest.Server, token string) *http.Response {

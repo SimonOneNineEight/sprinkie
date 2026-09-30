@@ -44,7 +44,7 @@ const monthsShort = [
 
 export const en: StringCatalog = {
   signIn: {
-    wordmark: 'daily-wlog',
+    wordmark: 'Sprinkie',
     promise: 'Five minutes a day to capture your life',
     google: 'Sign in with Google',
     emailButton: 'Sign in with email',

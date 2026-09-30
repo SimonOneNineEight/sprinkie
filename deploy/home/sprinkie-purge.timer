@@ -1,0 +1,10 @@
+# /etc/systemd/system/sprinkie-purge.timer
+[Unit]
+Description=Run the Sprinkie account purge once a day
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,7 @@
-# daily-wlog — iOS UI kit
+# Sprinkie — iOS UI kit
 
 Click-through recreation of the five MVP screens described in `DESIGN.md`
-(`SimonOneNineEight/daily-wlog`). Open `index.html`; the pill row under the phone
+(`SimonOneNineEight/sprinkie`). Open `index.html`; the pill row under the phone
 jumps between screens, and the screens navigate each other for real
 (select a day → open the day → tap an entry → the form).
 

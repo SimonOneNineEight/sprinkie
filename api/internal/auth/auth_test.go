@@ -14,7 +14,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
 )
 
 // These unit tests exercise the verifier's own logic (JWKS parsing, claim

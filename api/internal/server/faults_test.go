@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/dbgen"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/server"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/server"
 )
 
 // failingQuerier fault-injects database errors that are unreachable through

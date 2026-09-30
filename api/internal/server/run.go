@@ -11,9 +11,9 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/auth"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/config"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/storage"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/config"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/storage"
 )
 
 // Run serves the API until ctx is cancelled, then shuts down gracefully.

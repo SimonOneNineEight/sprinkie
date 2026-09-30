@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
 )
 
 type photoUpload struct {

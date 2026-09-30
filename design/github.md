@@ -1,4 +1,4 @@
-repo: SimonOneNineEight/daily-wlog
+repo: SimonOneNineEight/sprinkie
 branch: main
 
 ## Last sync

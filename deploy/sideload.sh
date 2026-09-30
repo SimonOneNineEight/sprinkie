@@ -10,10 +10,14 @@ DEVICE="${1:-00008110-000909313A06401E}" # Simon's iPhone
 TEAM=8CQBP36BAC                          # personal team of the signed-in Apple ID
 
 MOBILE="$(cd "$(dirname "$0")/../apps/mobile" && pwd)"
-ENTITLEMENTS="$MOBILE/ios/dailywlog/dailywlog.entitlements"
+SCHEME=Sprinkie # app.json's expo.name, as `expo prebuild` sanitizes it
+ENTITLEMENTS="$MOBILE/ios/$SCHEME/$SCHEME.entitlements"
 
-if [ ! -d "$MOBILE/ios" ]; then
-  (cd "$MOBILE" && npx expo prebuild -p ios --no-install)
+# A checkout from before the Sprinkie rename has an ios/ named for the old
+# app, which would build the wrong scheme. --clean regenerates it, discarding
+# anything hand-edited in ios/ (the entitlement strip below is reapplied).
+if [ ! -d "$MOBILE/ios/$SCHEME.xcodeproj" ]; then
+  (cd "$MOBILE" && npx expo prebuild -p ios --no-install --clean)
 fi
 
 if grep -q applesignin "$ENTITLEMENTS" 2>/dev/null; then
@@ -26,7 +30,7 @@ if grep -q applesignin "$ENTITLEMENTS" 2>/dev/null; then
   echo "stripped Sign in with Apple entitlement (restore for TestFlight builds)"
 fi
 
-if [ ! -d "$MOBILE/ios/dailywlog.xcworkspace" ]; then
+if [ ! -d "$MOBILE/ios/$SCHEME.xcworkspace" ]; then
   (cd "$MOBILE/ios" && pod install)
 fi
 
@@ -35,14 +39,14 @@ set -a
 set +a
 
 cd "$MOBILE/ios"
-xcodebuild -workspace dailywlog.xcworkspace -scheme dailywlog \
+xcodebuild -workspace "$SCHEME.xcworkspace" -scheme "$SCHEME" \
   -configuration Release -destination "id=$DEVICE" \
   -derivedDataPath build -allowProvisioningUpdates \
   DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic build
 
 # The phone must run without this Mac: the JS has to be inside the app and
 # point at the hosted stack, or it opens blank (or signed out) away from here.
-APP="$MOBILE/ios/build/Build/Products/Release-iphoneos/dailywlog.app"
+APP="$MOBILE/ios/build/Build/Products/Release-iphoneos/$SCHEME.app"
 BUNDLE="$APP/main.jsbundle"
 if [ ! -f "$BUNDLE" ]; then
   echo "refusing to install: no embedded JS bundle (not a Release build)"

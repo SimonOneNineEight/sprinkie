@@ -1,18 +1,53 @@
-# TestFlight release runbook (#16)
+# TestFlight release runbook
 
 The path from this repo to a TestFlight link a friend can tap. Steps marked
 **Simon** need his accounts; everything else is agent-runnable once those
 exist.
 
+The plan below was ratified 2026-09-29 in a grilling session. The app is
+Sprinkie as of #55 and the repo as of #56. See "Names that stay daily-wlog" for
+the four that a search still finds, and why.
+
+## Two rings, in order
+
+**Internal (#16).** Simon and the PM, as App Store Connect users. No Beta App
+Review, so a build installs minutes after processing. Build 1 is `0.9.0 (1)`,
+cut from `main` plus #52 and #53.
+
+**External (#61).** A shareable link for people without an App Store Connect
+login. Beta App Review applies the App Store guidelines, so this ring waits on
+the privacy documents (#60), a real icon (#58), and English (#32, #37). The
+motion pass (#38) and VoiceOver month stepping (#18) are deliberately **not**
+gates — neither blocks review, and neither is worth delaying feedback for.
+
+Build 1 is also the vehicle for #49, the round-2 regression pass: both testers
+walk `manual-tests.md` on the TestFlight build rather than waiting for a green
+pass before cutting one. Build 1 is expected to be rough. The point is to
+exercise distribution early, on two devices and two OS versions.
+
+Tell the PM to skip the year view. #51 replaces that surface outright.
+
 ## One-time setup
 
-1. **Simon — Apple Developer Program** (developer.apple.com, $99/yr).
-   Approval usually takes 1–2 days. Unblocks TestFlight and Sign in with
-   Apple (App Store review requires Apple sign-in because we offer Google).
-2. **Simon — hosted Supabase project** (supabase.com, free tier).
-   Do not paste keys into the repo or the chat; they go into EAS/hosting
-   secret stores in step 4.
-3. **API host: Cloud Run** (superseded the home box, live by 2026-09-11):
+1. **The app name is final (#55).** This gates everything Apple. The bundle
+   identifier is permanent from the first upload, so no App ID may be
+   registered until the name has settled.
+2. **Simon — Apple Developer Program (#59)** (developer.apple.com, $99/yr).
+   **Individual** enrollment on Simon's existing personal Apple ID; ID
+   verification runs 1–2 days. Organization enrollment was rejected: it needs a
+   legal entity and a D-U-N-S number for weeks of lead time, and an Individual
+   account can still invite App Store Connect users, which is all the PM needs.
+   Register the App ID **with the Sign In with Apple capability** — without it
+   `expo prebuild` writes an entitlement no profile accepts (#52). Create the
+   app record: name Sprinkie, primary language zh-Hant.
+3. **Simon — hosted Supabase project** (supabase.com, free tier). Do not paste
+   keys into the repo or the chat; they go into EAS/hosting secret stores in
+   step 5. Its data is durable from the PM's first Entry — forward migrations
+   only, no destructive migration, ever (ADR-0007). **Still to do for #56:** set
+   the project's display name to Sprinkie (Project Settings → General, ref
+   `tebfjmsmnhfeapbzytxy`). The CLI has no rename subcommand, so this one is
+   dashboard-only; the ref itself never changes.
+4. **API host: Cloud Run** (superseded the home box, live by 2026-09-11):
    service `daily-wlog-api`, project `daily-wlog-198`, region us-west1.
    Env rides the revision: `SUPABASE_JWKS_URL` / `SUPABASE_STORAGE_URL`
    as plain vars, `DATABASE_URL` / `SUPABASE_SECRET_KEY` from Secret
@@ -33,13 +68,13 @@ exist.
    deploy/home/ has everything. One-time setup on the box:
 
    ```sh
-   sudo useradd --system --no-create-home daily-wlog
-   sudo mkdir -p /opt/daily-wlog /etc/daily-wlog
-   sudo cp deploy/home/daily-wlog-*.service deploy/home/daily-wlog-purge.timer /etc/systemd/system/
-   sudo cp deploy/home/api.env.example /etc/daily-wlog/api.env
-   sudo chmod 600 /etc/daily-wlog/api.env   # then fill in the real values
+   sudo useradd --system --no-create-home sprinkie
+   sudo mkdir -p /opt/sprinkie /etc/sprinkie
+   sudo cp deploy/home/sprinkie-*.service deploy/home/sprinkie-purge.timer /etc/systemd/system/
+   sudo cp deploy/home/api.env.example /etc/sprinkie/api.env
+   sudo chmod 600 /etc/sprinkie/api.env   # then fill in the real values
    sudo systemctl daemon-reload
-   sudo systemctl enable --now daily-wlog-purge.timer
+   sudo systemctl enable --now sprinkie-purge.timer
    # Public HTTPS without opening router ports:
    curl -fsSL https://tailscale.com/install.sh | sh
    sudo tailscale up
@@ -56,17 +91,32 @@ exist.
    connection string (direct db.<ref> hosts are IPv6-only, and pgx needs
    session mode), and the project must be **migrated to JWT signing keys**
    (Project Settings → JWT Keys) or every token verification 401s.
-4. **Wire secrets.**
+5. **Wire secrets (#57).**
    - Hosted Supabase: apply `supabase/migrations/` via `supabase link` +
      `supabase db push`; create the private `photos` bucket per
      `supabase/config.toml` (10MiB, image/jpeg).
    - API host: the four env vars above, from the hosted project's settings.
-   - EAS: `eas env:create` for `EXPO_PUBLIC_SUPABASE_URL`,
+   - EAS: `eas init` first — the project has no Expo project id or owner yet.
+     Then `eas env:create` for `EXPO_PUBLIC_SUPABASE_URL`,
      `EXPO_PUBLIC_SUPABASE_KEY` (publishable key only — never the secret),
      `EXPO_PUBLIC_API_URL` (the deployed API's URL).
-5. **Auth providers** (Supabase dashboard → Authentication): enable Apple
-   (needs the Developer account's key) and Google (the OAuth client ids
-   tracked on closed #4).
+   - The App Store Connect app id goes into the production submit profile once
+     the app record from step 2 exists.
+6. **Auth providers** (Supabase dashboard → Authentication). Google: the OAuth
+   client ids tracked on closed #4. Apple: add the **bundle identifier to the
+   provider's Client IDs list** — that is all the native `signInWithIdToken`
+   flow needs. The Services ID and `.p8` key belong to the web redirect flow,
+   which this app does not use; do not generate one.
+
+## Build config
+
+- **Version.** The beta runs `0.9.x`; `1.0.0` is reserved for the App Store
+  launch. The production profile auto-increments the build number, so only the
+  marketing version is ever set by hand.
+- **Export compliance.** ADR-0004 confirms there is no client-side encryption,
+  only TLS, which is exempt — so `app.json` declares
+  `ITSAppUsesNonExemptEncryption: false`. Without it every single upload stops
+  and asks the encryption question by hand.
 
 ## Per-release
 
@@ -74,30 +124,82 @@ Walk `manual-tests.md` on a device first: the whole document before a build,
 the **[API]** cases after any `gcloud run deploy`. Post the run as a comment on
 the release issue, naming the build and the Cloud Run revision it tested.
 
+**Build 1 is the exception** — its pass runs on the TestFlight build itself, by
+both testers, because the distribution path is as untested as the app is.
+
 ```sh
 cd apps/mobile
 eas build --platform ios --profile production
 eas submit --platform ios
 ```
 
-Then App Store Connect → TestFlight → add testers (internal, up to 100, no
-review) or create an external group (light beta review, shareable link).
+Then App Store Connect → TestFlight. Internal testers (up to 100, no review)
+first; the external group opens only when #61's gates are met.
+
+## Names that stay daily-wlog
+
+Six entries below are **not** part of the rename, and a repo-wide search will
+always find them. The list covers every old name still *in use*, and is meant to
+be exhaustive: if a search turns up a live one it does not cover, that is a real
+gap. It does not cover prose that names daily-wlog in order to talk about it —
+this section, `CONTEXT.md`'s **Wordmark** entry, the leftover-app warning in
+`install-on-phone`, the recovery note in `supabase/config.toml`. The first three
+entries are console-only strings; nobody on the team reads them daily.
+
+- **GCP project id `daily-wlog-198`** — project ids cannot be renamed, only
+  recreated, which would mean new Secret Manager secrets, re-linked billing,
+  and a redeploy.
+- **The Supabase project ref** — immutable, and it lives in the project URL.
+  Only the ref. The project's *display name* does become Sprinkie, by hand in
+  the dashboard; step 3 carries it.
+- **Cloud Run service `daily-wlog-api`** — its name is in the URL, so renaming
+  it means a new `EXPO_PUBLIC_API_URL` and another build.
+- **The design system's id and global** — `daily-wlog-design-system-afe7e188-…`
+  in the artboard's asset paths, and `DailyWlogDesignSystem_afe7e1` in the
+  artboard and in `design/screens/*.jsx`. Both are handles into the Claude
+  Design prototype project, whose `_ds/` tree is deliberately not duplicated
+  here, so rewriting them in the repo stops the artboard and the UI kit
+  resolving their design system. Changing them for real starts on the design
+  side: renaming the design system there regenerates the id and the global, and
+  a re-pull brings them in. That is #62, which also takes the artboard's
+  filename. Most of `design/` is pulled, so the re-pull overwrites whatever is
+  here — which is why its **titles and prose** were renamed anyway (a re-pull
+  merely redoes them, and until then the repo would read two names) while the
+  **filename** was not (renaming it now leaves a second file sitting beside the
+  regenerated one). `window.WLOG` in `design/screens/` is left alone for the
+  stronger reason: the harness that reads it was never pulled into this repo, so
+  nothing here can prove a rename didn't break it.
+- **The two Claude Design project names** — `"daily-wlog Design System"` and
+  `"Daily-wlog iOS prototype"`, quoted in `design/README.md` and
+  `design/canvas/README.md`. Those quotes name projects that still carry the old
+  name upstream, so they are accurate as written and go stale the moment #62
+  renames them. Same ticket, same re-pull.
+- **The local clone directory** `/Users/simon/projects/daily-wlog`, in the path
+  `install-on-phone` gives for `.env.hosted`. #56 renamed the repo, not the
+  folder; GitHub redirects the old URL, and renaming the working directory would
+  only break shell history and every worktree beside it for nothing.
+
+This is deliberate (#56). Do not file it as unfinished rename work. Only the
+design-side entries are expected to change, and #62 owns them.
 
 ## Already in the repo
 
-- `apps/mobile/eas.json` — development / preview / production profiles.
-- `apps/mobile/app.json` — bundle id `com.simononenineeight.dailywlog`
-  (changeable until the first upload), light-only UI, zh_TW region,
-  camera/photo permission copy, Apple sign-in capability, placeholder icon
-  (the app's + mark; replace when a real identity exists).
-- `api/cmd/purge` — the 30-day account purge binary for step 3's schedule.
+- `apps/mobile/eas.json` — development / preview / production profiles. No
+  Expo project id, owner, or App Store Connect app id yet; #57 adds them.
+- `apps/mobile/app.json` — bundle id `com.simononenineeight.sprinkie` (#55,
+  and permanent from the first upload), light-only UI, zh_TW region,
+  camera/photo permission copy, placeholder icon
+  (the app's + mark; #58 replaces it). Apple sign-in is declared **off**
+  (`usesAppleSignIn: false`) while #52 is open, even though the sign-in screen
+  offers the button.
+- `api/cmd/purge` — the 30-day account purge binary for step 4's schedule.
 
 ## App Store privacy questionnaire (answer truthfully)
 
 Data collected, linked to identity:
-- **User content**: journal entries (encrypted blobs server-side, not
-  parsed — ADR-0004), photos. Purpose: app functionality. Not used for
-  tracking, not shared with third parties.
+- **User content**: journal entries (opaque blobs server-side, never parsed —
+  ADR-0004), photos. Purpose: app functionality. Not used for tracking, not
+  shared with third parties.
 - **Identifiers / contact info**: account id and email (via Apple/Google
   sign-in through Supabase Auth). Purpose: app functionality.
 - No analytics SDK, no advertising, no tracking. Sentry collects crash
@@ -105,12 +207,17 @@ Data collected, linked to identity:
 - Account deletion: in-app (設定 → 刪除帳號), 30-day grace, then permanent
   purge — App Store guideline 5.1.1(v) satisfied.
 
-## Still open before external testers
+#60 turns these answers into the published privacy policy. Nothing in that
+document may contradict this list.
 
-- Privacy policy + terms documents (the deferred settings rows, and App
-  Store Connect wants a privacy policy URL).
-- Replace the placeholder icon if a real identity lands first.
-- Motion pass, second half: press states shipped (theme/press.tsx), but
-  the 150ms selection, 240ms content-swap, and 300ms screen-push token
-  timings are unimplemented — route changes are instant cuts. Sheets and
-  the month pager ride native timings.
+## Still open before external testers (#61)
+
+- Privacy policy + terms documents at a stable public URL, reachable from two
+  new 設定 rows (#60). App Store Connect wants the privacy policy URL.
+- A real app icon from the PM, replacing the placeholder (#58).
+- English shipped (#32, #37).
+
+**Not gates**, recorded so nobody re-adds them: the second half of the motion
+pass (#38 — press states shipped in `theme/press.tsx`, but the 150ms selection,
+240ms content-swap and 300ms screen-push token timings are unimplemented, so
+route changes are instant cuts) and VoiceOver month stepping (#18).

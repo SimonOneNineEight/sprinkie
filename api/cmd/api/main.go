@@ -1,4 +1,4 @@
-// Command api runs the daily-wlog API server. It stays a thin, logic-free
+// Command api runs the Sprinkie API server. It stays a thin, logic-free
 // shim over internal packages: the CI coverage gate enforces 100% on
 // internal/..., so any behavior added here would escape it. Put behavior in
 // internal packages instead.
@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/config"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/logging"
-	"github.com/SimonOneNineEight/daily-wlog/api/internal/server"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/config"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/logging"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/server"
 )
 
 func main() {

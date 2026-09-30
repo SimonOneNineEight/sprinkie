@@ -1,4 +1,4 @@
-# daily-wlog Design System
+# Sprinkie Design System
 
 > Local note (added on pull, 2026-08-18): this directory is the repo's copy of the
 > "daily-wlog Design System" project on claude.ai/design (the design source of truth for
@@ -12,7 +12,7 @@
 > surfaces (see `canvas/README.md`) — the five screens here plus the category sheet, custom
 > color drawer, sign-in, and the filter explorations.
 
-A design system for **daily-wlog**, a mobile-first personal life journal (React Native, iOS
+A design system for **Sprinkie**, a mobile-first personal life journal (React Native, iOS
 first). A person writes a few short entries a day — title, optional note, up to ten photos —
 each carrying exactly one category. The month calendar is the product's face: as the habit
 grows, the grid fills with colored dots. The five-minute session should feel like closing a
@@ -26,7 +26,7 @@ and neutral; color belongs to the user's categories and nowhere else.
 Everything here derives from the brief and domain docs in the linked repository — read them
 before extending this system, they are the ratified guardrails:
 
-- **Repo:** <https://github.com/SimonOneNineEight/daily-wlog>
+- **Repo:** <https://github.com/SimonOneNineEight/sprinkie>
   - `DESIGN.md` — the ratified design brief: identity, typography, color, theming, the five MVP
     screens, eleven explicit bans, and the intended feel. This system fills in exact values
     inside those rules and adds nothing that contradicts them.

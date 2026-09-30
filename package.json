@@ -1,5 +1,5 @@
 {
-  "name": "daily-wlog",
+  "name": "sprinkie",
   "private": true,
   "scripts": {
     "generate:api-types": "openapi-typescript openapi/openapi.yaml -o apps/mobile/src/api/types.gen.ts",
