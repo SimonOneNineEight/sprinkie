@@ -1,9 +1,0 @@
-# /etc/systemd/system/sprinkie-purge.service
-[Unit]
-Description=Sprinkie account purge (30-day grace, #15)
-
-[Service]
-Type=oneshot
-ExecStart=/opt/sprinkie/purge
-EnvironmentFile=/etc/sprinkie/api.env
-User=sprinkie

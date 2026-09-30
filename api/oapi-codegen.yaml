@@ -1,6 +1,0 @@
-package: apigen
-output: gen/apigen/api.gen.go
-generate:
-  models: true
-  chi-server: true
-  strict-server: true
