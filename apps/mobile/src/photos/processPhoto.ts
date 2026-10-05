@@ -38,8 +38,11 @@ export function resizeSpec(width: number, height: number, edge: number): { width
 export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPhoto> {
   const takenAt = takenAtFromExif(asset.exif as Record<string, unknown> | undefined);
 
+  // Discriminates on the ref, not on `uri`: the web ImageRef carries a `uri` of
+  // its own, so testing for that would send web down the re-read-a-file path and
+  // quietly undo this whole function. Only an ImagePickerAsset lacks saveAsync.
   const render = async (source: ImagePickerAsset | ImageRef, edge: number) => {
-    const context = ImageManipulator.manipulate('uri' in source ? source.uri : source);
+    const context = ImageManipulator.manipulate('saveAsync' in source ? source : source.uri);
     const spec = resizeSpec(source.width, source.height, edge);
     if (spec) context.resize(spec);
     return context.renderAsync();
@@ -47,16 +50,28 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   const save = (image: ImageRef) => image.saveAsync({ format: SaveFormat.JPEG, compress: QUALITY });
 
   // The thumbnail starts from the full render, not from the asset (#53), so the
-  // original is decoded once per photo rather than twice. EntryFormScreen
-  // processes up to three at a time and the picker can hand back an 8K frame, so
-  // the second decode was the memory spike. It is the rendered image that is
-  // passed on, not its saved file, which keeps the thumb a single encode of the
-  // same pixels and keeps the original out of reach: reading it again for any
-  // reason would put the EXIF this pipeline strips back into storage.
+  // original is decoded once per photo rather than twice. It is the rendered
+  // image that is passed on, not its saved file, which keeps the thumb a single
+  // encode of the same pixels rather than a q0.85 encode of a q0.85 encode.
+  //
+  // Both refs are released explicitly. Deriving the thumb from the full render
+  // is what makes this worth doing: the full's bitmap (~37 MB for a 48MP
+  // source) stays reachable across the thumb's decode, where the old
+  // two-decode version dropped it when render() returned. SharedObject.release
+  // exists for exactly this ("the native object is known to exclusively retain
+  // some native memory (such as binary data or image bitmap)"). A call on a
+  // released ref throws, so each is released only after its last use.
+  //
+  // Measuring whether this lowers the peak was inconclusive: on a simulator the
+  // same build varied by 116 MB between runs, which is wider than the gap
+  // between any two versions tested, so treat it as hygiene rather than as a
+  // measured win. The peak is owned by EntryFormScreen's Promise.all (#69).
   const full = await render(asset, LONG_EDGE);
   const fullSaved = await save(full);
   const thumb = await render(full, THUMB_EDGE);
+  full.release();
   const thumbSaved = await save(thumb);
+  thumb.release();
 
   return { fullUri: fullSaved.uri, thumbUri: thumbSaved.uri, takenAt };
 }

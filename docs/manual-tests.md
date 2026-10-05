@@ -279,23 +279,25 @@ Keyboard cases are in **KB**.
 | EF.39 | Deny the photo-library permission | Nothing happens; no crash, no empty tile |
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** |
-| EF.42 | Attach three of the largest photos on the device at once | All three tiles appear together, and the wait is about half what the old build took |
+| EF.42 | Attach three of the largest photos on the device at once | All three tiles appear together, and the wait is visibly shorter than the old build |
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
 
 **EF.42 times the attach; it does not watch for a crash.** Each photo used to
-decode its original twice, so #53 halved the decoding (#53). Use the biggest
-frames the library holds, a burst export or a 48MP capture, since a 12MP photo
-is too quick to tell apart. Expect a wait with nothing on screen either way:
-there is no progress indicator, so a slow return is the case passing. What
-changed is how slow — measured on a simulator, three large frames went from
-~1150ms to ~700ms.
+decode its original twice, and #53 halved that. Use the biggest frames the
+library holds, a burst export or a 48MP capture, since a 12MP photo is too
+quick to tell apart. Expect a wait with nothing on screen either way: there is
+no progress indicator, so a slow return is the case passing. What changed is
+how slow — on a simulator, three large frames went from ~1150ms to ~700ms.
 
-Do not expect this case to stop the app being killed. Peak memory is
-unchanged: the two decodes per photo were always sequential, so three photos
-were the most ever decoded at once before the change and still are. That peak
-belongs to the Promise.all in EntryFormScreen, which #53 left alone.
+Do not expect this case to stop the app being killed, and do not treat a crash
+here as a #53 regression. The two decodes per photo were always sequential, so
+three photos were the most ever decoded at once before the change and still
+are. Whether the peak moved at all is unmeasured: on a simulator the same build
+varied by 116 MB between runs, wider than the gap between versions, so the
+method could not answer it. The peak belongs to the Promise.all in
+EntryFormScreen, tracked as #69, and a device has never been measured.
 
 Round 2: #44 (cap of 3, saving spinner). Keyboard cases are in **KB**.
 
