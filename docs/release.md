@@ -35,14 +35,36 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 1. **The app name is final (#55).** This gates everything Apple. The bundle
    identifier is permanent from the first upload, so no App ID may be
    registered until the name has settled.
-2. **Simon — Apple Developer Program (#59)** (developer.apple.com, $99/yr).
-   **Individual** enrollment on Simon's existing personal Apple ID; ID
-   verification runs 1–2 days. Organization enrollment was rejected: it needs a
-   legal entity and a D-U-N-S number for weeks of lead time, and an Individual
-   account can still invite App Store Connect users, which is all the PM needs.
-   Register the App ID **with the Sign In with Apple capability** — without it
-   `expo prebuild` writes an entitlement no profile accepts (#52). Create the
-   app record: name Sprinkie, primary language zh-Hant.
+2. **Apple Developer Program (#59) — done 2026-10-05.** **Individual**
+   enrollment on Simon's existing personal Apple ID. Organization enrollment was
+   rejected: it needs a legal entity and a D-U-N-S number for weeks of lead
+   time, and an Individual account can still invite App Store Connect users,
+   which is all the PM needs. What exists now:
+
+   | | |
+   | --- | --- |
+   | Team id | `8CQBP36BAC` |
+   | App ID | `com.simononenineeight.sprinkie`, explicit, **Sign In with Apple** ticked |
+   | App record | Sprinkie, primary language zh-Hant |
+   | App Store Connect app id | `6819454740` (in `eas.json` → `submit.production`) |
+   | PM | invited as **App Manager**, which is TestFlight access without user management |
+
+   Sign In with Apple is the only capability the App ID carries, and the only
+   one the app needs: `expo-apple-authentication` is the sole dependency that
+   maps to one. Google sign-in works through a URL scheme and photo access
+   through a privacy string, both `Info.plist`, neither a capability. The
+   capability had to exist **before** `usesAppleSignIn` was flipped to `true` in
+   `app.json` — the other order writes an entitlement no profile accepts (#52).
+   Capabilities stay editable afterwards, and EAS regenerates profiles on the
+   next build, so adding one later costs a rebuild and nothing else.
+
+   One identifier is left over from before the rename:
+   `com.simononenineeight.dailywlog`, auto-created by Xcode (the `XC` prefix).
+   Nothing uses it.
+
+   **Not done, and not blocking the internal ring:** EU trader status. It gates
+   *submission* for EU distribution, so #16 is unaffected, but #61 and any App
+   Store release need it declared or EU availability turned off.
 3. **Simon — hosted Supabase project** (supabase.com, free tier). Do not paste
    keys into the repo or the chat; they go into EAS/hosting secret stores in
    step 5. Its data is durable from the PM's first Entry — forward migrations
@@ -114,6 +136,11 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
    provider's Client IDs list** — that is all the native `signInWithIdToken`
    flow needs. The Services ID and `.p8` key belong to the web redirect flow,
    which this app does not use; do not generate one.
+
+   **Still to do for #52:** `com.simononenineeight.sprinkie` is not yet in that
+   Client IDs list. The App ID now carries the capability and `app.json` asks
+   for it, so a build will offer the Apple button and Supabase will reject the
+   token until this is set. Dashboard-only, so no agent can do it.
 7. **Publish the legal documents (#60), before any build reaches a phone.**
    `設定 → 隱私權政策 / 服務條款` already ship and already point at
    `simononenineeight.github.io/sprinkie`, so until the site exists those two
