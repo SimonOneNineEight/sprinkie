@@ -9,7 +9,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.simononenineeight.sprinkie",
-      "usesAppleSignIn": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleDevelopmentRegion": "zh_TW",
         "NSCameraUsageDescription": "拍照加入紀錄。",
