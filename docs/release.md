@@ -155,7 +155,7 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
      #57's criteria named only the Supabase pair and the API URL, and a build
      carrying just those three ships `undefined` Google client IDs and a
      sign-in screen where neither provider works. Check
-     `grep -rn EXPO_PUBLIC_ apps/mobile/src` against `eas env:list production`
+     `grep -rn EXPO_PUBLIC_ apps/mobile/src` against `pnpm dlx eas-cli@latest env:list production`
      whenever either changes.
    - The App Store Connect app id goes into the production submit profile once
      the app record from step 2 exists.
@@ -195,7 +195,7 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
   so whoever implements E2EE flips this and answers the export questions
   properly, rather than inheriting a declaration that was true when written.
 - **OTA updates (#57).** `expo-updates` is installed and each build profile
-  carries a channel, so a JS-only fix reaches testers with `eas update --branch
+  carries a channel, so a JS-only fix reaches testers with `pnpm dlx eas-cli@latest update --branch
   production` instead of a new TestFlight build and another Beta App Review —
   which works because the `production` channel points at the `production`
   branch; a channel aimed at no branch delivers nothing, silently.
@@ -221,9 +221,14 @@ both testers, because the distribution path is as untested as the app is.
 
 ```sh
 cd apps/mobile
-eas build --platform ios --profile production
-eas submit --platform ios
+pnpm dlx eas-cli@latest build --platform ios --profile production
+pnpm dlx eas-cli@latest submit --platform ios
 ```
+
+`eas-cli` is deliberately not a dependency and not installed globally:
+`pnpm dlx` fetches it per run, so there is nothing to keep current and
+nothing that can drift from what EAS expects. Every `eas …` elsewhere in
+this document runs the same way.
 
 Then App Store Connect → TestFlight. Internal testers (up to 100, no review)
 first; the external group opens only when #61's gates are met.
