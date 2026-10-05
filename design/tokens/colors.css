@@ -1,57 +1,67 @@
-/* Chrome is white / grey / black only. No brand accent color exists.
-   Every saturated color on screen comes from tokens/categories.css. */
+/* Chrome is warm paper, warm grey and ink. Still no brand accent color: the ink
+   does the action job as well as the reading job, so the "+" and today's marker
+   carry weight through shape, fill and depth rather than hue (DESIGN.md § Color).
+   Every saturated color on screen comes from tokens/categories.css.
+
+   The ramp is #514A45's own hue held across the lightness steps the app already
+   used, which is why surfaces and lines sit with the text instead of against it.
+   Ratified 2026-10-05 with the brand palette: background #FAF7F2, ink #514A45,
+   secondary button #D8D1C5. */
 :root {
   --white: #FFFFFF;
-  --grey-50: #FAFAFA;
-  --grey-100: #F4F4F5;
-  --grey-150: #EDEDEF;
-  --grey-200: #E4E4E7;
-  --grey-300: #D3D3D8;
-  --grey-400: #B4B4BB;
-  --grey-500: #8E8E93;
-  --grey-600: #6B6B70;
-  --grey-700: #4A4A4F;
-  --grey-800: #2C2C2E;
-  --grey-900: #1C1C1E;
-  --black: #000000;
+  --warm-50: #FEF8F4;
+  --warm-100: #FAF4F0;
+  --warm-150: #F3EDE9;
+  --warm-200: #E9E3DE;
+  --warm-300: #DBD5D0;
+  --warm-400: #BCB5B0;
+  --warm-500: #938B86;
+  --warm-600: #756E69;
+  --warm-700: #5F5854;
+  --ink: #514A45;
+  --ink-strong: #443F3B;
+  --paper: #FAF7F2;
+  --button-soft: #D8D1C5;
 
   /* Surfaces */
-  --background: var(--grey-100);
+  --background: var(--paper);
   --surface: var(--white);
   --surface-raised: var(--white);
-  --surface-sunken: var(--grey-50);
-  --surface-fill: var(--grey-150);
-  --surface-fill-strong: var(--grey-200);
-  --surface-today: var(--grey-900);
-  --scrim: rgba(0, 0, 0, 0.28);
-  --material-bar: rgba(255, 255, 255, 0.82);
+  --surface-sunken: var(--warm-50);
+  --surface-fill: var(--warm-150);
+  --surface-fill-strong: var(--warm-200);
+  --surface-today: var(--ink);
+  --scrim: rgba(40, 34, 30, 0.28);
+  --material-bar: rgba(250, 247, 242, 0.82);
 
   /* Text */
-  --text-primary: var(--grey-900);
-  --text-secondary: var(--grey-600);
-  --text-tertiary: var(--grey-500);
-  --text-quaternary: var(--grey-400);
+  --text-primary: var(--ink);
+  --text-secondary: var(--warm-600);
+  --text-tertiary: var(--warm-500);
+  --text-quaternary: var(--warm-400);
   --text-on-dark: var(--white);
-  --text-placeholder: var(--grey-400);
+  --text-placeholder: var(--warm-400);
   --text-destructive: #A33A2E;
 
   /* Lines */
-  --line-grid: var(--grey-200);
-  --line-separator: var(--grey-200);
-  --line-separator-strong: var(--grey-300);
-  --line-field: var(--grey-300);
-  --focus-ring: var(--grey-900);
+  --line-grid: var(--warm-200);
+  --line-separator: var(--warm-200);
+  --line-separator-strong: var(--warm-300);
+  --line-field: var(--warm-300);
+  --focus-ring: var(--ink);
 
-  /* Controls */
-  --control-primary-bg: var(--grey-900);
-  --control-primary-bg-pressed: var(--black);
+  /* Controls. Primary is the ink, because the ink is also the action color;
+     secondary is the brand's soft button, which is too faint to lead (1.42
+     against the paper) and right for the quieter half of a pair. */
+  --control-primary-bg: var(--ink);
+  --control-primary-bg-pressed: var(--ink-strong);
   --control-primary-fg: var(--white);
-  --control-secondary-bg: var(--grey-150);
-  --control-secondary-bg-pressed: var(--grey-200);
-  --control-secondary-fg: var(--grey-900);
-  --control-ghost-fg: var(--grey-700);
-  --control-disabled-bg: var(--grey-100);
-  --control-disabled-fg: var(--grey-400);
-  --icon-default: var(--grey-700);
-  --icon-muted: var(--grey-500);
+  --control-secondary-bg: var(--button-soft);
+  --control-secondary-bg-pressed: var(--warm-300);
+  --control-secondary-fg: var(--ink);
+  --control-ghost-fg: var(--warm-700);
+  --control-disabled-bg: var(--warm-150);
+  --control-disabled-fg: var(--warm-400);
+  --icon-default: var(--warm-700);
+  --icon-muted: var(--warm-500);
 }

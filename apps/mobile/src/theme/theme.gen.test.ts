@@ -5,16 +5,24 @@ import { theme } from './theme.gen';
 // and this spec must be updated deliberately.
 describe('generated theme', () => {
   it('resolves semantic colors through var() indirection', () => {
-    expect(theme.colors.background).toBe('#F4F4F5'); // --background: var(--grey-100)
+    expect(theme.colors.background).toBe('#FAF7F2'); // --background: var(--paper)
     expect(theme.colors.surface).toBe('#FFFFFF');
-    expect(theme.colors.textPrimary).toBe('#1C1C1E'); // var(--grey-900)
+    expect(theme.colors.textPrimary).toBe('#514A45'); // var(--ink)
     expect(theme.colors.textDestructive).toBe('#A33A2E');
-    expect(theme.colors.scrim).toBe('rgba(0, 0, 0, 0.28)');
-    expect(theme.colors.controlPrimaryBg).toBe('#1C1C1E');
-    expect(theme.colors.focusRing).toBe('#1C1C1E');
+    expect(theme.colors.scrim).toBe('rgba(40, 34, 30, 0.28)');
+    expect(theme.colors.focusRing).toBe('#514A45');
   });
 
-  it('does not expose raw greys as semantic tokens', () => {
+  // The ink is the action color too: primary controls are the ink, and the
+  // brand's soft button is the secondary half of the pair (DESIGN.md § Color).
+  it('gives primary controls the ink and secondary the soft button', () => {
+    expect(theme.colors.controlPrimaryBg).toBe('#514A45');
+    expect(theme.colors.controlPrimaryFg).toBe('#FFFFFF');
+    expect(theme.colors.controlSecondaryBg).toBe('#D8D1C5');
+    expect(theme.colors.surfaceToday).toBe('#514A45');
+  });
+
+  it('does not expose raw neutrals as semantic tokens', () => {
     const keys = Object.keys(theme.colors);
     expect(keys).not.toContain('white');
     expect(keys).not.toContain('black');
