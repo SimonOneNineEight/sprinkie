@@ -150,8 +150,8 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | # | Case | Expected |
 | --- | --- | --- |
 | SI.1 | The screen at rest | Wordmark, one line of promise, provider buttons. Nothing else |
-| SI.2 | Sign in with Apple | Completes and lands on the month view **[API]** **[#52]** |
-| SI.3 | Cancel the Apple sheet | Returns to sign-in with **no** error message — a cancelled sheet is a decision **[#52]** |
+| SI.2 | Sign in with Apple | Completes and lands on the month view **[API]** |
+| SI.3 | Cancel the Apple sheet | Returns to sign-in with **no** error message — a cancelled sheet is a decision |
 | SI.4 | Sign in with Google | Completes and lands on the month view **[API]** |
 | SI.5 | Cancel the Google sheet | Returns to sign-in; an error here is acceptable, a crash is not |
 | SI.6 | 使用電子郵件登入 | The email page opens on its own |
@@ -163,11 +163,12 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.12 | Airplane mode, submit | Plain error, no crash |
 | SI.13 | Password field | Masked, and offers the right autofill (current vs new) per mode |
 
-**SI.2 and SI.3 fail on every build today (#52).** Apple sign-in is offered
-but not set up: the App ID has no Sign In with Apple capability, so a dev
-build signs only with the entitlement emptied, which removes the feature. The
-button still renders, because it gates on `isAvailableAsync()` rather than on
-whether anything backs it.
+**SI.2 and SI.3 passed on build 5 (0.9.0), 2026-10-05**, the first build signed
+against a real App ID. Both had failed on every previous build: the App ID
+carried no Sign In with Apple capability, so a dev build could only be signed
+with the entitlement emptied, which removed the feature while the button went
+on rendering. A failure here now means something regressed, not that it was
+never finished.
 
 Keyboard cases are in **KB**.
 
