@@ -18,11 +18,50 @@ A mobile-first personal life journal. Aesthetic family: **Apple Calendar's airin
 
 ## Color
 
-- Primary colors of the app: white, grey, black. Chrome (backgrounds, bars, buttons, grid lines) is neutral only — **no brand accent color exists**. The "+" button and today's marker carry weight through shape, fill, and depth, never through hue.
+- Primary colors of the app: warm paper `#FAF7F2`, warm greys, and ink `#514A45` (amended 2026-10-05, superseding white/grey/black). Chrome (backgrounds, bars, buttons, grid lines) is neutral only — **no brand accent color exists**. The "+" button and today's marker carry weight through shape, fill, and depth, never through hue.
+- **The ink is also the action color.** Primary controls, the selection fill, today's ring and the focus ring are all `#514A45`; the brand's soft button `#D8D1C5` is the secondary half of a button pair, never the leading action — at 1.42 against the paper it cannot carry one. A hue accent was considered and declined: candidates derived from the icon's brand colors are recorded in `docs/icon-brief.md`, and the decision was that one quiet ink doing both jobs suits the product better than a second color competing with the category dots.
+- The neutral ramp is the ink's own hue held across the lightness steps, so surfaces and lines sit with the text rather than against it. Values live in `design/tokens/colors.css`; nothing in implementation may hardcode a hex.
 - Category colors are the only saturated colors on screen. **Preset palette of 10 muted, dusty mid-tones** that harmonize with the neutral chrome — no neon, no pastel — with lightness deliberately varied across the ten so all remain mutually distinguishable at dot size (6–8px) on white. Exact values are chosen in the design session on the real month-view mock, plus a custom color picker for users.
 - Dots may run a point or two larger than saturated equivalents would, compensating for the muted palette.
 - A day cell shows up to 4 dots in entry order; overflow is a plain "+" with no count (amended 2026-08-19 from "+n"), never a fifth dot.
 - Year view: a day with entries gets a rounded box in the day's FIRST entry's category color, rendered as a solid fill with the day numeral punched out in white. One color per day, never stripes.
+
+## The mark (ratified 2026-10-05, #58)
+
+The app icon is **seven written days in a month with room for nine**: a 3 × 3
+grid of rounded squares on warm paper, the centre and bottom-right left empty.
+It is the year view abstracted, where a written day is already a rounded box in
+its category's color.
+
+Geometry on a 100 × 100 canvas: margin 16, gap 3.13, cell 20.58, corner radius
+28% of the cell, footprint 68 × 68. The margin went 12 → 16 after seeing it on a
+real home screen: at 12 the corner cells ran toward the squircle's curve and the
+mark read as pressed against its container. Each block sits on a shadow offset 0.9
+down-right, blurred 1.2, `rgb(90 74 63)` at 22%. Ground `#F7F3ED`.
+
+```
+1 #FAA4B5   2 #B3DFEB   3 #F5AA65
+4 #DDE48E   5 —         6 #FFF3C4
+7 #FDD0D0   8 #B3DFEB   9 —
+```
+
+`#B3DFEB` appears twice: six unique colors across seven cells, two days sharing
+a category. The vector original is `design/brand/sprinkie-icon.svg`; every
+shipped size derives from it.
+
+Three rules this mark lives by, each learned by testing rather than asserted:
+
+- **The hierarchy is the point.** Two main accents anchor five sub-accents.
+  Evenly weighted palettes lost the stranger test 30/70; this one won.
+- **The shadow carries the pale cells.** At 22% it reaches 1.40 against the
+  paper, more than four of the seven cells manage alone. Removing it loses cells
+  at small sizes.
+- **It does not survive one ink.** In the tinted iOS variant and in one-color
+  print it is seven grey squares. Accepted cost of choosing color as the idea.
+
+Brand colors are not UI colors. These seven are for the icon, the sign-in
+screen, the printed book and marketing. Category dots inside the app keep their
+own palette, which is tuned for legibility at 6–8px and documented above.
 
 ## Theming
 
@@ -32,7 +71,7 @@ A mobile-first personal life journal. Aesthetic family: **Apple Calendar's airin
 
 ## Screens (MVP)
 
-1. **Month view** (landing): Apple Calendar-style grid, horizontal swipe between months (swipe-only; the nav bar holds the ‹ 年 label, 類別 and 設定 — no month chevrons), colored dots per day (dots touch — 0px gap), selected-day panel beneath the grid listing that day's entry titles with category icons. **The filled black circle is the selection** and moves with taps (defaulting to today on open); today, when not selected, wears the thin ring. The "+" creates into the **selected day**, not blindly into today (ratified 2026-09-10, PM feedback round 1); it stays the **floating** black circle bottom-right, 44pt, the same height as 今天 so the pair lines up (2026-08-19 for the circle; 44 supersedes its original 56, and a brief 2026-09-12 detour into a bottom bar was reverted — depth here is shadow and layering, per ban 7). 今天 returns this surface to now — today's month, with today selected — always present rather than appearing only when you are away from now, and it floats bottom-left as a capsule carrying the word, never a calendar glyph, which in an app made of calendars names the wrong thing. Both controls fade while you scroll and return when you stop, so content passes under them cleanly; scrolling surfaces pad their content to clear them. The nav bar keeps only tools: 類別 and 設定. The ‹ 年 label zooms out to the year containing the month you are viewing, not the current year. (Ratified 2026-09-12, PM feedback round 2.)
+1. **Month view** (landing): Apple Calendar-style grid, horizontal swipe between months (swipe-only; the nav bar holds the ‹ 年 label, 類別 and 設定 — no month chevrons), colored dots per day (dots touch — 0px gap), selected-day panel beneath the grid listing that day's entry titles with category icons. **The filled ink circle is the selection** and moves with taps (defaulting to today on open); today, when not selected, wears the thin ring. The "+" creates into the **selected day**, not blindly into today (ratified 2026-09-10, PM feedback round 1); it stays the **floating** ink circle bottom-right, 44pt, the same height as 今天 so the pair lines up (2026-08-19 for the circle; 44 supersedes its original 56, and a brief 2026-09-12 detour into a bottom bar was reverted — depth here is shadow and layering, per ban 7). 今天 returns this surface to now — today's month, with today selected — always present rather than appearing only when you are away from now, and it floats bottom-left as a capsule carrying the word, never a calendar glyph, which in an app made of calendars names the wrong thing. Both controls fade while you scroll and return when you stop, so content passes under them cleanly; scrolling surfaces pad their content to clear them. The nav bar keeps only tools: 類別 and 設定. The ‹ 年 label zooms out to the year containing the month you are viewing, not the current year. (Ratified 2026-09-12, PM feedback round 2.)
 2. **Day view**: the date's entries as cards (title, category icon, note preview, photo thumbnails), drag to reorder. Horizontal swipe moves to the previous/next date. 今天 and the + float over the list. (Ratified 2026-09-10; 今天 2026-09-12, PM round 2.)
 3. **Entry form**: category picker first (inline "Create …" when typing a new name, plus a pinned 新增類別 row so creation is discoverable before typing), short title field, optional note, photo grid up to 3 with drag order (3 supersedes the original 10, ratified 2026-09-12, PM round 2: a day's record is a glance, not an album). The cap is the server's to enforce, and it compares what an Entry already holds against what it is gaining, so an Entry saved under the old cap keeps every photo and can only fail to add more. Saving runs under a spinner on 儲存 with the form inert beneath it, and the photos upload together rather than one after another; the print-safe image size is untouched, because the printed book is the product. A **date row** defaults to the day the form was opened for and is editable; editing an existing entry may move it to another date, where it appends last. A typed-but-unconfirmed subcategory is created **at save time** together with the entry — it renders as pending in the category line before save, 建立 remains for explicit confirmation, and the return key never creates. Fast path: category + title + save in under a minute. (Date row, save-time creation, pinned row ratified 2026-09-10.)
 4. **Year view**: 12 mini-month grids, rounded single-color highlights on entry days, tap a month to enter it. Swipe-only paging between years — no back button, no year chevrons; 今天 returns this surface to the current year and **stays on the year view**, replacing the jump into today's month (ratified 2026-09-12, PM round 2: 今天 means "now, on the surface you are on", and navigation depth never changes); the entry count rides under the year as a **sub-line in the header**, the shape the month view uses for its year — the whole year is on one screen, so scrolling purely to read a total was a wasted scroll — and there is **no +** — the year view has no selected day, so a + could only mean today, and it is the one calendar surface that is not about writing; tapping the year title opens an **endless year wheel** (future years allowed — backfilling old memories is the product). (Ratified 2026-09-10.)

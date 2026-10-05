@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 100 100">
+<defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+<feGaussianBlur stdDeviation="1.2"/></filter></defs>
+<rect width="100" height="100" fill="#F7F3ED"/>
+<g filter="url(#s)" opacity="0.22">
+<rect x="16.90" y="16.90" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+<rect x="40.61" y="16.90" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+<rect x="64.32" y="16.90" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+<rect x="16.90" y="40.61" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+<rect x="64.32" y="40.61" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+<rect x="16.90" y="64.32" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+<rect x="40.61" y="64.32" width="20.58" height="20.58" rx="5.76" fill="rgb(90,74,63)"/>
+</g>
+<rect x="16.00" y="16.00" width="20.58" height="20.58" rx="5.76" fill="#FAA4B5"/>
+<rect x="39.71" y="16.00" width="20.58" height="20.58" rx="5.76" fill="#B3DFEB"/>
+<rect x="63.42" y="16.00" width="20.58" height="20.58" rx="5.76" fill="#F5AA65"/>
+<rect x="16.00" y="39.71" width="20.58" height="20.58" rx="5.76" fill="#DDE48E"/>
+<rect x="63.42" y="39.71" width="20.58" height="20.58" rx="5.76" fill="#FFF3C4"/>
+<rect x="16.00" y="63.42" width="20.58" height="20.58" rx="5.76" fill="#FDD0D0"/>
+<rect x="39.71" y="63.42" width="20.58" height="20.58" rx="5.76" fill="#B3DFEB"/>
+</svg>
