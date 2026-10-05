@@ -116,6 +116,34 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
    connection string (direct db.<ref> hosts are IPv6-only, and pgx needs
    session mode), and the project must be **migrated to JWT signing keys**
    (Project Settings → JWT Keys) or every token verification 401s.
+
+   **The Postgres log is permanently full of errors, and that is correct.**
+   Roughly 112 an hour, one every ~32 seconds:
+
+   ```
+   ERROR  schema "pg_pgrst_no_exposed_schemas" does not exist
+   ```
+
+   That name is the sentinel Supabase uses when **no schemas are exposed to
+   PostgREST**. Supabase runs PostgREST whether or not anything uses it, and
+   it reloads its schema cache on a timer; with nothing exposed it looks for
+   that placeholder, fails, and logs. Forever.
+
+   Nothing is wrong. This app reaches Supabase for **auth only** —
+   `supabase.auth.getSession` and `onAuthStateChange`, no `.from()` and no
+   `.rpc()` anywhere. Data goes through the Go API over pgx as the service
+   role, and every table carries RLS enabled with **no policies**, which is
+   deny-all for everyone the service role is not. Exposing no schemas is the
+   posture that matches.
+
+   Do **not** silence it by adding `public` back under Project Settings → API.
+   That switches on a REST API over the tables to serve a client that does not
+   exist. Deny-all RLS means anon would read nothing, so it is not quite
+   dangerous, but it is surface for no gain.
+
+   The real cost is that this log cannot be used to spot a genuine problem:
+   anything true would be buried in the noise. Judge database health from the
+   API's own logs instead.
 5. **Wire secrets (#57).**
    - Hosted Supabase: apply `supabase/migrations/` via `supabase link` +
      `supabase db push`; create the private `photos` bucket per
