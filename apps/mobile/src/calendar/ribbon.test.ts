@@ -25,8 +25,8 @@ describe('monthsInRow', () => {
       { year: 1876, month: 1 },
       { year: 1876, month: 2 },
     ]);
-    // December of one year sits beside January of the next, which is the
-    // whole point of the ribbon (#51).
+    // December closes a row and January opens the next, with no page between
+    // them — the continuity the ribbon exists for (#51).
     const december = rowOfMonth(span, 2026, 12);
     expect(monthsInRow(span, december)).toEqual([
       { year: 2026, month: 11 },
@@ -58,7 +58,7 @@ describe('weekRows', () => {
 });
 
 describe('rowMetrics', () => {
-  const sizes = { labelBlock: 20, weekRow: 10, gap: 8, yearCaption: 30 };
+  const sizes = { labelBlock: 20, weekRow: 10, gap: 8, yearCaption: 30, topPadding: 16 };
 
   it('makes a row as tall as its tallest month', () => {
     const { heights } = rowMetrics(span, sizes);
@@ -70,10 +70,13 @@ describe('rowMetrics', () => {
 
   it('offsets are the running sum, so a scroll target is exact not approximate', () => {
     const { heights, offsets, total } = rowMetrics(span, sizes);
-    expect(offsets[0]).toBe(0);
-    expect(offsets[1]).toBe(heights[0]);
-    expect(offsets[5]).toBe(heights.slice(0, 5).reduce((a, b) => a + b, 0));
-    expect(total).toBe(heights.reduce((a, b) => a + b, 0));
+    // Offsets start at the content container's top padding: they are measured
+    // from the top of the content view, which that padding shifts. Starting at
+    // 0 put every scroll target short by exactly that much.
+    expect(offsets[0]).toBe(16);
+    expect(offsets[1]).toBe(16 + heights[0]);
+    expect(offsets[5]).toBe(16 + heights.slice(0, 5).reduce((a, b) => a + b, 0));
+    expect(total).toBe(16 + heights.reduce((a, b) => a + b, 0));
   });
 
   it('never assumes a uniform row height', () => {
@@ -93,7 +96,7 @@ describe('startsYear', () => {
   });
 
   it('a captioned row is taller by exactly the caption', () => {
-    const sizes = { labelBlock: 20, weekRow: 10, gap: 8, yearCaption: 30 };
+    const sizes = { labelBlock: 20, weekRow: 10, gap: 8, yearCaption: 30, topPadding: 16 };
     const { heights } = rowMetrics(span, sizes);
     const january = rowOfMonth(span, 2027, 1);
     const tallest = Math.max(weekRows(2027, 1), weekRows(2027, 2));
@@ -108,5 +111,17 @@ describe('openingRow', () => {
 
   it('never runs off the top of the list', () => {
     expect(openingRow(span, span.baseYear, 1)).toBe(0);
+  });
+});
+
+describe('rowOfMonth clamping', () => {
+  it('never returns a row outside the list', () => {
+    // scrollToIndex invariants on the range and THROWS rather than calling
+    // onScrollToIndexFailed, so a year past either end must land on the
+    // nearest row instead of crashing the surface.
+    expect(rowOfMonth(span, span.baseYear - 50, 1)).toBe(0);
+    expect(rowOfMonth(span, 3000, 12)).toBe(span.rowCount - 1);
+    expect(rowOfMonth(span, 2026, 10)).toBeGreaterThan(0);
+    expect(rowOfMonth(span, 2026, 10)).toBeLessThan(span.rowCount);
   });
 });

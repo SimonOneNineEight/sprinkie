@@ -309,7 +309,7 @@ is about scrolling rather than paging.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| YR.1 | Open it | Today's month on screen with the previous two months above it, not flush against the top **[API]** |
+| YR.1 | Open it | Today's month on screen with the preceding months already above it, not flush against the top **[API]** |
 | YR.2 | A recorded day | A solid box in its first visible Entry's Category color **[API]** |
 | YR.3 | Today | Marked in its mini month |
 | YR.4 | Scroll down past December | January follows with no break and no page turn |
@@ -319,9 +319,9 @@ is about scrolling rather than paging.
 | YR.8 | The count, current year vs a past year | This-year wording on the current year, total wording on any other **[API]** |
 | YR.9 | Scroll up, years into the past | Months load as they arrive; a year already seen does not refetch **[API]** |
 | YR.10 | Tap a mini month | The month view opens on it |
-| YR.11 | Tap the year title | The wheel opens directly under the header, the current year centred; the count beneath is not a tap target |
+| YR.11 | Tap the year title | The wheel opens directly under the header, the year the header is showing centred; the count beneath is not a tap target |
 | YR.12 | Pick a year from the wheel | The ribbon scrolls to that year rather than swapping a page **[API]** |
-| YR.13 | Pick a future year | Allowed; backfilling is the product |
+| YR.13 | Pick a year at either end of the wheel | Scrolls there without crashing; future years are allowed, since backfilling is the product |
 | YR.14 | Tap the scrim | The wheel closes, the position unchanged |
 | YR.15 | Scroll far away, then tap 今天 | Scrolls back to today's month and stays on the year view |
 | YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now |

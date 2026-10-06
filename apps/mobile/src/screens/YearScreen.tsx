@@ -83,6 +83,7 @@ export function YearScreen({
         weekRow: theme.yearBox.size + theme.spacing.space1,
         gap: theme.spacing.space8,
         yearCaption: theme.typography.meta.lineHeight + theme.spacing.space4,
+        topPadding: theme.spacing.space6,
       }),
     [span],
   );
@@ -100,14 +101,20 @@ export function YearScreen({
   const cacheKey = `${hidden.categoryIds.join(',')}|${hidden.subcategoryIds.join(',')}|${categories
     .map((c) => `${c.id}${c.color}`)
     .join(',')}`;
-  const [cached, setCached] = useState<{ key: string; byYear: Record<number, YearData> }>({
-    key: cacheKey,
-    byYear: {},
-  });
-  const cache = useMemo(
-    () => (cached.key === cacheKey ? cached.byYear : {}),
-    [cached, cacheKey],
-  );
+  // Keyed "<cacheKey>|<year>", not {key, byYear}. A response that lands after
+  // the hidden-set changed writes into its own slot and is simply never read,
+  // so no request needs cancelling — and an effect re-run cannot invalidate a
+  // sibling request that is still in the air, which is what dropped a year
+  // whenever two were on screen at once.
+  const [cached, setCached] = useState<Record<string, YearData>>({});
+  const cache = useMemo(() => {
+    const byYear: Record<number, YearData> = {};
+    const prefix = `${cacheKey}|`;
+    for (const [slot, data] of Object.entries(cached)) {
+      if (slot.startsWith(prefix)) byYear[Number(slot.slice(prefix.length))] = data;
+    }
+    return byYear;
+  }, [cached, cacheKey]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const { visible: actionsVisible, scrollHandlers, clearance } = useFloatingActions();
@@ -123,14 +130,15 @@ export function YearScreen({
   // its own year's slot, never in the one you have scrolled to since.
   const inFlight = useRef(new Map<number, string>());
   useEffect(() => {
-    let active = true;
     for (const year of visibleYears) {
       if (cache[year] || inFlight.current.get(year) === cacheKey) continue;
-      inFlight.current.set(year, cacheKey);
+      const requestKey = cacheKey;
+      inFlight.current.set(year, requestKey);
       getYear(accessToken, String(year), hiddenParams(hidden))
         .then((data) => {
-          inFlight.current.delete(year);
-          if (!active) return;
+          // Only clear the marker this request owns: a newer key's request for
+          // the same year must keep its own.
+          if (inFlight.current.get(year) === requestKey) inFlight.current.delete(year);
           const colors: Record<number, Record<number, string>> = {};
           for (const day of data.days) {
             const month = Number(day.date.slice(5, 7));
@@ -140,20 +148,14 @@ export function YearScreen({
             (colors[month] ??= {})[dayNumber] = color;
           }
           setCached((current) => ({
-            key: cacheKey,
-            byYear: {
-              ...(current.key === cacheKey ? current.byYear : {}),
-              [year]: { colors, total: data.totalEntries },
-            },
+            ...current,
+            [`${requestKey}|${year}`]: { colors, total: data.totalEntries },
           }));
         })
         .catch(() => {
-          inFlight.current.delete(year);
+          if (inFlight.current.get(year) === requestKey) inFlight.current.delete(year);
         });
     }
-    return () => {
-      active = false;
-    };
   }, [accessToken, categories, hidden, visibleYears, cache, cacheKey]);
 
   const onViewable = useCallback(
@@ -298,10 +300,10 @@ export function YearScreen({
             <View style={[styles.wheelCard, { top: navHeight }]}>
               <FlatList
                 testID="year-wheel"
-                data={Array.from(
-                  { length: SPAN_YEARS * 2 + 1 },
-                  (_, i) => headerYear - SPAN_YEARS + i,
-                )}
+                // The span, not headerYear ± SPAN: the wheel is anchored to
+                // today like the ribbon is, so it can never offer a year the
+                // ribbon has no row for.
+                data={Array.from({ length: SPAN_YEARS * 2 + 1 }, (_, i) => span.baseYear + i)}
                 keyExtractor={(item) => String(item)}
                 getItemLayout={(_, index) => ({
                   length: WHEEL_ROW_HEIGHT,
@@ -310,7 +312,7 @@ export function YearScreen({
                 })}
                 // Two rows above the viewed year: it sits centered in the
                 // five-row window.
-                initialScrollIndex={SPAN_YEARS - 2}
+                initialScrollIndex={Math.max(0, headerYear - span.baseYear - 2)}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
                   <Pressable

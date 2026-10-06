@@ -41,10 +41,14 @@ export function monthsInRow(span: RibbonSpan, row: number): { year: number; mont
   });
 }
 
-/** The row holding a given month. */
+/** The row holding a given month, clamped into the list. */
 export function rowOfMonth(span: RibbonSpan, year: number, month: number): number {
   const absolute = (year - span.baseYear) * 12 + (month - 1);
-  return Math.floor(absolute / MONTHS_PER_ROW);
+  const row = Math.floor(absolute / MONTHS_PER_ROW);
+  // Clamped because scrollToIndex invariants on the range and throws rather
+  // than calling onScrollToIndexFailed: a year outside the span must scroll to
+  // the nearest end, never crash the surface.
+  return Math.min(Math.max(row, 0), span.rowCount - 1);
 }
 
 /** Rows per year, which is where a year caption falls. */
@@ -78,11 +82,20 @@ export function openingRow(span: RibbonSpan, year: number, month: number): numbe
  */
 export function rowMetrics(
   span: RibbonSpan,
-  sizes: { labelBlock: number; weekRow: number; gap: number; yearCaption: number },
+  sizes: {
+    labelBlock: number;
+    weekRow: number;
+    gap: number;
+    yearCaption: number;
+    /** The list's contentContainer paddingTop: offsets are measured from the
+     * top of the content view, which that padding shifts. Without it every
+     * scroll target lands short by exactly this much. */
+    topPadding: number;
+  },
 ) {
   const heights = new Array<number>(span.rowCount);
   const offsets = new Array<number>(span.rowCount);
-  let running = 0;
+  let running = sizes.topPadding;
   for (let row = 0; row < span.rowCount; row += 1) {
     const tallest = monthsInRow(span, row).reduce(
       (most, { year, month }) => Math.max(most, weekRows(year, month)),

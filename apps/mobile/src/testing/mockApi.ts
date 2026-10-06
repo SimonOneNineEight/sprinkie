@@ -99,6 +99,7 @@ export function installMockApi(
   // Month responses can be held in flight, so a suite can assert what the
   // grid paints while the month it is looking at has no answer yet.
   let monthHold: { month?: string; promise: Promise<void>; release: () => void } | null = null;
+  let yearHold: { year?: string; promise: Promise<void>; release: () => void } | null = null;
   // Storage uploads can be held the same way (#44), which is how a suite
   // sees which transfers are already in the air while none has answered,
   // and what the form shows while a save is still running.
@@ -195,7 +196,10 @@ export function installMockApi(
       return ok({ days: world.monthDays[month] ?? [] });
     }
     if (u.includes('/years/')) {
-      const year = u.split('/years/')[1];
+      const year = u.split('/years/')[1].split('?')[0];
+      if (yearHold && (yearHold.year === undefined || yearHold.year === year)) {
+        await yearHold.promise;
+      }
       return ok(world.years[year] ?? { days: [], totalEntries: 0 });
     }
     if (u.includes('/order') && method === 'PUT') {
@@ -267,6 +271,23 @@ export function installMockApi(
       return release;
     },
     /**
+     * Hold year responses in flight until the returned release() is called;
+     * one year when named, otherwise all of them. The ribbon (#51) fetches
+     * several years at once, and a year dropped because a sibling response
+     * landed first is invisible unless they can be staggered.
+     */
+    holdYears(year?: string) {
+      let release = () => {};
+      const promise = new Promise<void>((resolve) => {
+        release = () => {
+          yearHold = null;
+          resolve();
+        };
+      });
+      yearHold = { ...(year !== undefined ? { year } : {}), promise, release };
+      return release;
+    },
+    /**
      * Hold every storage upload in flight until the returned release() is
      * called. restore() releases too, so a suite that fails before
      * releasing cannot leave the handler pending.
@@ -289,6 +310,7 @@ export function installMockApi(
       calls().find(([u, init]) => (init?.method ?? 'GET') === method && String(u).includes(urlPart)),
     restore() {
       monthHold?.release();
+      yearHold?.release();
       uploadHold?.release();
       globalThis.fetch = realFetch;
     },

@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { FlatList } from 'react-native';
 
-import { monthsInRow, openingRow, ribbonSpan, rowOfMonth } from '../calendar/ribbon';
+import { monthsInRow, openingRow, ribbonSpan, rowMetrics, rowOfMonth } from '../calendar/ribbon';
+import { theme } from '../theme';
 import { cat } from '../testing/fixtures';
 import { installMockApi, type MockApi } from '../testing/mockApi';
 import { YearScreen } from './YearScreen';
@@ -58,6 +59,64 @@ function scrollTo(rows: number[]) {
     });
   });
 }
+
+it('measures rows from the real theme tokens, not a guess', () => {
+  renderScreen();
+
+  // The precomputation only buys precision if the measurements match what
+  // MiniMonth actually renders. Replacing getItemLayout with a constant used
+  // to pass the whole suite.
+  const metrics = rowMetrics(span, {
+    labelBlock: theme.typography.meta.lineHeight + theme.spacing.space3,
+    weekRow: theme.yearBox.size + theme.spacing.space1,
+    gap: theme.spacing.space8,
+    yearCaption: theme.typography.meta.lineHeight + theme.spacing.space4,
+    topPadding: theme.spacing.space6,
+  });
+  const row = rowOfMonth(span, 2026, 8);
+  expect(ribbon().props.getItemLayout(null, row)).toEqual({
+    length: metrics.heights[row],
+    offset: metrics.offsets[row],
+    index: row,
+  });
+});
+
+it('names the year of the TOPMOST visible month, not the bottom one', async () => {
+  renderScreen();
+
+  // Several rows visible at once, spanning a year boundary: the header must
+  // follow the top of the viewport. Feeding one row at a time let a min/max
+  // swap pass unnoticed.
+  scrollTo([rowOfMonth(span, 2025, 11), rowOfMonth(span, 2026, 1)]);
+
+  await waitFor(() => expect(screen.getByText('2025年')).toBeTruthy());
+  expect(screen.queryByText('2026年')).toBeNull();
+});
+
+it('keeps a year whose response lands after a sibling\u2019s', async () => {
+  renderScreen();
+
+  // Two years in view, their responses landing in different ticks — the
+  // ordinary case, since a screenful is about eight months. A shared
+  // cancellation flag used to be invalidated by the first response, so the
+  // second was discarded and, with its in-flight marker already cleared,
+  // never refetched. The year stayed blank.
+  const release2025 = api.holdYears('2025');
+  scrollTo([rowOfMonth(span, 2025, 11), rowOfMonth(span, 2026, 1)]);
+
+  // 2025 is topmost, so the header names it. Its count is still unknown while
+  // 2026's response lands and re-runs the effect.
+  await waitFor(() => expect(screen.getByText('2025年')).toBeTruthy());
+  // Wait for 2026's data to PAINT, not merely for its request to be issued:
+  // the bug needs 2026's response to have landed and re-run the effect while
+  // 2025 is still in the air. August 2026 is in the rendered window.
+  await waitFor(() => expect(screen.getByTestId('year-day-8-2')).toBeTruthy());
+
+  release2025();
+
+  // 2025's data must survive and reach the header.
+  await waitFor(() => expect(screen.getByText('共 1 則紀錄')).toBeTruthy());
+});
 
 it('is one continuous ribbon, not twelve months of one year (#51)', () => {
   renderScreen();

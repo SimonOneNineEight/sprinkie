@@ -78,7 +78,7 @@ canvas re-pulled 2026-09-10 for the new 設定 artboard (#35).
 > - **年視圖**: the artboard's twelve mini months of one year, and the
 >   swipe-only year paging recorded above, are both retired. The surface is now
 >   one continuous vertical ribbon of months running through the years, two up,
->   opening on today's month with the previous two above it. December flows
+>   opening on today's month with the months before it already on screen. December flows
 >   into January with no break, and the header carries the topmost visible
 >   month's year and that year's count rather than naming a page.
 >
