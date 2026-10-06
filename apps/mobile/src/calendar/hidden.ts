@@ -85,6 +85,16 @@ export function allHidden(hidden: HiddenSet, categories: CategoryLike[]): boolea
 }
 
 /** The API's hidden-set query params; undefined when nothing is hidden. */
+/**
+ * A stable string for the hidden-set, for tagging cached data with the
+ * visibility it answers. MonthScreen's dots and the year ribbon both need it;
+ * ADR-0005 keeps visibility per-surface, so this shares the one expression
+ * rather than introducing the visible-world module that ADR rejected.
+ */
+export function hiddenKey(hidden: HiddenSet): string {
+  return `${hidden.categoryIds.join(',')}|${hidden.subcategoryIds.join(',')}`;
+}
+
 export function hiddenParams(hidden: HiddenSet): HiddenParams | undefined {
   if (!hasHidden(hidden)) return undefined;
   return { hiddenCategories: hidden.categoryIds, hiddenSubcategories: hidden.subcategoryIds };

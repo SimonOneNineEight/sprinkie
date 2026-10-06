@@ -331,6 +331,12 @@ is about scrolling rather than paging.
 | YR.20 | Airplane mode | Mini months render empty, no crash |
 | YR.21 | From a month in a past year, tap ‹年 | The ribbon opens on **that month**, not that year's January and not this year |
 
+| YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
+| YR.23 | Scroll, then stop | 今天 fades out while moving and returns when the ribbon settles |
+| YR.24 | The home indicator | Clears the floating control, and the control clears the content |
+
+**YR.22–YR.24 come from #50** and were lost when this section was rewritten for the ribbon; the controls outlived the grid.
+
 **YR.1 and YR.21 are the ones worth being fussy about.** Both are about landing
 precisely: the row heights are precomputed so a scroll target is exact rather
 than approximate, and an off-by-one lands you on the wrong month without ever

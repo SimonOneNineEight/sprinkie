@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { FlatList } from 'react-native';
 
+import { miniMonthHeight } from '../calendar/MiniMonth';
 import { monthsInRow, openingRow, ribbonSpan, rowMetrics, rowOfMonth } from '../calendar/ribbon';
 import { theme } from '../theme';
 import { cat } from '../testing/fixtures';
@@ -60,25 +61,29 @@ function scrollTo(rows: number[]) {
   });
 }
 
-it('measures rows from the real theme tokens, not a guess', () => {
+it('takes its row heights from MiniMonth itself, not a copy of its tokens', () => {
   renderScreen();
 
-  // The precomputation only buys precision if the measurements match what
-  // MiniMonth actually renders. Replacing getItemLayout with a constant used
-  // to pass the whole suite.
+  // The precomputation only buys precision if the heights match what
+  // MiniMonth actually renders. Rebuilding its geometry from tokens at this
+  // call site meant a margin changed there silently shortened every offset
+  // here, and a test that re-derived the same numbers could never see it.
+  const row = rowOfMonth(span, 2026, 8);
   const metrics = rowMetrics(span, {
-    labelBlock: theme.typography.meta.lineHeight + theme.spacing.space3,
-    weekRow: theme.yearBox.size + theme.spacing.space1,
-    gap: theme.spacing.space8,
+    monthHeight: miniMonthHeight,
+    gap: theme.spacing.space10,
     yearCaption: theme.typography.meta.lineHeight + theme.spacing.space4,
     topPadding: theme.spacing.space6,
   });
-  const row = rowOfMonth(span, 2026, 8);
   expect(ribbon().props.getItemLayout(null, row)).toEqual({
     length: metrics.heights[row],
     offset: metrics.offsets[row],
     index: row,
   });
+  // And the height genuinely comes from the component: a row is at least as
+  // tall as the taller of its two months plus the gap between rows.
+  const tallest = Math.max(miniMonthHeight(2026, 7), miniMonthHeight(2026, 8));
+  expect(metrics.heights[row]).toBe(tallest + theme.spacing.space10);
 });
 
 it('names the year of the TOPMOST visible month, not the bottom one', async () => {
@@ -116,6 +121,41 @@ it('keeps a year whose response lands after a sibling\u2019s', async () => {
 
   // 2025's data must survive and reach the header.
   await waitFor(() => expect(screen.getByText('共 1 則紀錄')).toBeTruthy());
+});
+
+it('refetches when an Entry is saved elsewhere', async () => {
+  const { rerender } = renderScreen();
+  await waitFor(() =>
+    expect(api.calls().filter(([u]) => String(u).includes('/years/2026')).length).toBe(1),
+  );
+
+  // #51: "changing the hidden-set OR saving an Entry refetches". The route
+  // happening to unmount while the form is open hid the absence of this.
+  rerender(
+    <YearScreen
+      accessToken="tok"
+      categories={categories}
+      today={today}
+      onOpenMonth={jest.fn()}
+      onChangeHidden={jest.fn()}
+      refresh={1}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(api.calls().filter(([u]) => String(u).includes('/years/2026')).length).toBe(2),
+  );
+});
+
+it('holds no back button and no year chevrons (#27)', () => {
+  renderScreen();
+
+  // Dropped when the paging tests went; the rule outlived the pages.
+  expect(screen.queryByLabelText('返回')).toBeNull();
+  expect(screen.queryByLabelText('上一年')).toBeNull();
+  expect(screen.queryByLabelText('下一年')).toBeNull();
+  expect(screen.getByLabelText('今天')).toBeTruthy();
+  expect(screen.getByLabelText('類別')).toBeTruthy();
 });
 
 it('is one continuous ribbon, not twelve months of one year (#51)', () => {

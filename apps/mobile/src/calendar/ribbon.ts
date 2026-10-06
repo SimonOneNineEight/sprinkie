@@ -14,13 +14,6 @@
 export const SPAN_YEARS = 150;
 export const MONTHS_PER_ROW = 2;
 
-/** Week rows a month needs: the leading blanks plus its days, over seven. */
-export function weekRows(year: number, month: number): number {
-  const leading = new Date(year, month - 1, 1).getDay();
-  const dayCount = new Date(year, month, 0).getDate();
-  return Math.ceil((leading + dayCount) / 7);
-}
-
 export type RibbonSpan = {
   /** First year in the list. */
   baseYear: number;
@@ -83,8 +76,10 @@ export function openingRow(span: RibbonSpan, year: number, month: number): numbe
 export function rowMetrics(
   span: RibbonSpan,
   sizes: {
-    labelBlock: number;
-    weekRow: number;
+    /** A month's own rendered height. Passed in rather than rebuilt here:
+     * MiniMonth owns those tokens, and reconstructing them meant a margin
+     * changed there silently shortened every offset here. */
+    monthHeight: (year: number, month: number) => number;
     gap: number;
     yearCaption: number;
     /** The list's contentContainer paddingTop: offsets are measured from the
@@ -98,14 +93,10 @@ export function rowMetrics(
   let running = sizes.topPadding;
   for (let row = 0; row < span.rowCount; row += 1) {
     const tallest = monthsInRow(span, row).reduce(
-      (most, { year, month }) => Math.max(most, weekRows(year, month)),
+      (most, { year, month }) => Math.max(most, sizes.monthHeight(year, month)),
       0,
     );
-    heights[row] =
-      sizes.labelBlock +
-      tallest * sizes.weekRow +
-      sizes.gap +
-      (startsYear(row) ? sizes.yearCaption : 0);
+    heights[row] = tallest + sizes.gap + (startsYear(row) ? sizes.yearCaption : 0);
     offsets[row] = running;
     running += heights[row];
   }

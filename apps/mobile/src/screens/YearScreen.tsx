@@ -9,8 +9,8 @@ import { getYear } from '../api/client';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
 import type { HiddenSet } from '../calendar/hidden';
-import { hiddenParams, nothingHidden } from '../calendar/hidden';
-import { MiniMonth } from '../calendar/MiniMonth';
+import { hiddenKey, hiddenParams, nothingHidden } from '../calendar/hidden';
+import { MiniMonth, miniMonthHeight } from '../calendar/MiniMonth';
 import {
   monthsInRow,
   openingRow,
@@ -37,6 +37,10 @@ type Props = {
   onChangeHidden?: (hidden: HiddenSet) => void;
   /** Fired after the 類別 sheet changes a category, so /me refetches. */
   onCategoriesChanged?: () => void;
+  /** Bump to refetch every visible year (after a save elsewhere), the shape
+   * MonthScreen already uses. #51 asks for a saved Entry to refetch, and the
+   * route unmounting while the form is open only hid the absence. */
+  refresh?: number;
   onOpenMonth: (year: number, month: number) => void;
 };
 
@@ -48,6 +52,13 @@ const WHEEL_ROW_HEIGHT = 44;
 // between renders, and this surface re-renders on every scroll as the header
 // follows the topmost month.
 const VIEWABILITY = { itemVisiblePercentThreshold: 10 };
+
+// Read by both the row style and the row measurements. Declared once because
+// they must agree: a gap changed in one place and not the other shortens every
+// scroll offset by that much per row, silently.
+const ROW_GAP = theme.spacing.space10;
+const YEAR_CAPTION = theme.typography.meta.lineHeight + theme.spacing.space4;
+const TOP_PADDING = theme.spacing.space6;
 
 /** A year's days keyed by month, plus the year's own total. */
 type YearData = { colors: Record<number, Record<number, string>>; total: number };
@@ -68,6 +79,7 @@ export function YearScreen({
   hidden = nothingHidden,
   onChangeHidden,
   onCategoriesChanged,
+  refresh = 0,
   onOpenMonth,
 }: Props) {
   const strings = useStrings();
@@ -79,11 +91,10 @@ export function YearScreen({
   const metrics = useMemo(
     () =>
       rowMetrics(span, {
-        labelBlock: theme.typography.meta.lineHeight + theme.spacing.space3,
-        weekRow: theme.yearBox.size + theme.spacing.space1,
-        gap: theme.spacing.space8,
-        yearCaption: theme.typography.meta.lineHeight + theme.spacing.space4,
-        topPadding: theme.spacing.space6,
+        monthHeight: miniMonthHeight,
+        gap: ROW_GAP,
+        yearCaption: YEAR_CAPTION,
+        topPadding: TOP_PADDING,
       }),
     [span],
   );
@@ -98,26 +109,28 @@ export function YearScreen({
   // MonthScreen's dots already use (#40 item 8). Hiding a Category or
   // recoloring one changes every year at once, so a stale key reads as empty
   // rather than being cleared from an effect.
-  const cacheKey = `${hidden.categoryIds.join(',')}|${hidden.subcategoryIds.join(',')}|${categories
-    .map((c) => `${c.id}${c.color}`)
-    .join(',')}`;
+  const cacheKey = `${hiddenKey(hidden)}|${categories.map((c) => `${c.id}${c.color}`).join(',')}|${refresh}`;
   // Keyed "<cacheKey>|<year>", not {key, byYear}. A response that lands after
   // the hidden-set changed writes into its own slot and is simply never read,
   // so no request needs cancelling — and an effect re-run cannot invalidate a
   // sibling request that is still in the air, which is what dropped a year
   // whenever two were on screen at once.
-  const [cached, setCached] = useState<Record<string, YearData>>({});
-  const cache = useMemo(() => {
+  const [slots, setSlots] = useState<Record<string, YearData>>({});
+  const yearsForKey = useMemo(() => {
     const byYear: Record<number, YearData> = {};
     const prefix = `${cacheKey}|`;
-    for (const [slot, data] of Object.entries(cached)) {
+    for (const [slot, data] of Object.entries(slots)) {
       if (slot.startsWith(prefix)) byYear[Number(slot.slice(prefix.length))] = data;
     }
     return byYear;
-  }, [cached, cacheKey]);
+  }, [slots, cacheKey]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const { visible: actionsVisible, scrollHandlers, clearance } = useFloatingActions();
+  // The wheel drops in under the nav bar, which stopped being a fixed height
+  // when the count became a second line (#50). The initial value is that
+  // layout derived from its own tokens rather than the stale navBarHeight,
+  // and onLayout corrects it if anything wraps.
   const [navHeight, setNavHeight] = useState(
     theme.spacing.space6 +
       theme.typography.navTitle.lineHeight +
@@ -131,7 +144,7 @@ export function YearScreen({
   const inFlight = useRef(new Map<number, string>());
   useEffect(() => {
     for (const year of visibleYears) {
-      if (cache[year] || inFlight.current.get(year) === cacheKey) continue;
+      if (yearsForKey[year] || inFlight.current.get(year) === cacheKey) continue;
       const requestKey = cacheKey;
       inFlight.current.set(year, requestKey);
       getYear(accessToken, String(year), hiddenParams(hidden))
@@ -147,7 +160,7 @@ export function YearScreen({
             if (!color) continue;
             (colors[month] ??= {})[dayNumber] = color;
           }
-          setCached((current) => ({
+          setSlots((current) => ({
             ...current,
             [`${requestKey}|${year}`]: { colors, total: data.totalEntries },
           }));
@@ -156,7 +169,7 @@ export function YearScreen({
           if (inFlight.current.get(year) === requestKey) inFlight.current.delete(year);
         });
     }
-  }, [accessToken, categories, hidden, visibleYears, cache, cacheKey]);
+  }, [accessToken, categories, hidden, visibleYears, yearsForKey, cacheKey]);
 
   const onViewable = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -188,7 +201,7 @@ export function YearScreen({
     [span],
   );
 
-  const total = cache[headerYear]?.total ?? 0;
+  const total = yearsForKey[headerYear]?.total ?? 0;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -260,7 +273,7 @@ export function YearScreen({
                   <MiniMonth
                     year={year}
                     month={month}
-                    colors={cache[year]?.colors[month] ?? {}}
+                    colors={yearsForKey[year]?.colors[month] ?? {}}
                     todayDay={
                       year === thisYear && month === today.getMonth() + 1
                         ? today.getDate()
@@ -409,21 +422,26 @@ const styles = createStyles((t) => ({
     fontWeight: '600',
     color: t.colors.textPrimary,
   },
+  // The bar is a sibling below, so the scroller has to claim its space
+  // rather than size to its content and push the bar off the screen.
   scroll: {
     flex: 1,
   },
   body: {
     paddingHorizontal: t.spacing.screenGutter,
-    paddingTop: t.spacing.space6,
+    paddingTop: TOP_PADDING,
   },
-  // Two up, with room to breathe now that nothing has to fit one screen (#51).
+  // Two up, breathing (#51): the old grid packed twelve months into one
+  // screen because it had to. Nothing has to now, so the columns narrow and
+  // the rows open up, which lands roughly eight months in view instead of
+  // twelve. The mini months stay large enough that one recorded day reads.
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: t.spacing.space8,
+    marginBottom: ROW_GAP,
   },
   rowItem: {
-    width: '48%',
+    width: '44%',
   },
   yearCaption: {
     ...t.typography.meta,
@@ -431,4 +449,6 @@ const styles = createStyles((t) => ({
     color: t.colors.textTertiary,
     marginBottom: t.spacing.space4,
   },
+  // paddingTop is TOP_PADDING: the measurements start there, since offsets are
+  // taken from the top of the content view which this padding shifts.
 }));

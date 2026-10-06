@@ -74,6 +74,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         categories={categories}
         hidden={hidden}
         initialFocus={route.focus}
+        refresh={monthRefresh}
         onChangeHidden={changeHidden}
         onCategoriesChanged={onCategoriesChanged}
         onOpenMonth={(year, month) => setRoute({ name: 'month', focus: { year, month } })}

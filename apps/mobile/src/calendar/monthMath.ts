@@ -18,6 +18,13 @@ export function buildWeeks(year: number, month: number): WeekCell[][] {
   return weeks;
 }
 
+/** Week rows a month occupies: leading blanks plus its days, over seven. */
+export function weekRows(year: number, month: number): number {
+  const start = new Date(year, month - 1, 1).getDay();
+  const days = new Date(year, month, 0).getDate();
+  return Math.ceil((start + days) / 7);
+}
+
 /** Up to max dots in entry order; the rest collapse into "+n", never a fifth dot. */
 export function dayDots<T>(items: T[], max: number): { shown: T[]; overflow: number } {
   const shown = items.slice(0, max);

@@ -1,3 +1,4 @@
+import { weekRows } from './monthMath';
 import {
   monthsInRow,
   openingRow,
@@ -5,8 +6,10 @@ import {
   rowMetrics,
   rowOfMonth,
   startsYear,
-  weekRows,
 } from './ribbon';
+
+/** A stand-in MiniMonth: tall in proportion to the weeks it needs. */
+const monthHeight = (year: number, month: number) => 20 + weekRows(year, month) * 10;
 
 const span = ribbonSpan(2026);
 
@@ -58,14 +61,14 @@ describe('weekRows', () => {
 });
 
 describe('rowMetrics', () => {
-  const sizes = { labelBlock: 20, weekRow: 10, gap: 8, yearCaption: 30, topPadding: 16 };
+  const sizes = { monthHeight, gap: 8, yearCaption: 30, topPadding: 16 };
 
   it('makes a row as tall as its tallest month', () => {
     const { heights } = rowMetrics(span, sizes);
     // March/April: mid-year, so no caption in the measurement.
     const row = rowOfMonth(span, 2026, 3);
-    const tallest = Math.max(weekRows(2026, 3), weekRows(2026, 4));
-    expect(heights[row]).toBe(20 + tallest * 10 + 8);
+    const tallest = Math.max(monthHeight(2026, 3), monthHeight(2026, 4));
+    expect(heights[row]).toBe(tallest + 8);
   });
 
   it('offsets are the running sum, so a scroll target is exact not approximate', () => {
@@ -96,11 +99,11 @@ describe('startsYear', () => {
   });
 
   it('a captioned row is taller by exactly the caption', () => {
-    const sizes = { labelBlock: 20, weekRow: 10, gap: 8, yearCaption: 30, topPadding: 16 };
+    const sizes = { monthHeight, gap: 8, yearCaption: 30, topPadding: 16 };
     const { heights } = rowMetrics(span, sizes);
     const january = rowOfMonth(span, 2027, 1);
-    const tallest = Math.max(weekRows(2027, 1), weekRows(2027, 2));
-    expect(heights[january]).toBe(20 + tallest * 10 + 8 + 30);
+    const tallest = Math.max(monthHeight(2027, 1), monthHeight(2027, 2));
+    expect(heights[january]).toBe(tallest + 8 + 30);
   });
 });
 
