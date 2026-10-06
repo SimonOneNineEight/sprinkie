@@ -233,7 +233,7 @@ func TestForgettingAColorLeavesCategoriesWearingItAlone(t *testing.T) {
 	token := signUpTestUser(t)
 	postMe(t, ts, token).Body.Close()
 
-	// A Saved Color is a memory of use, not a possession (CONTEXT.md,
+	// A Saved Color is a memory of use, not a possession (GLOSSARY.md,
 	// 2026-09-12): tidying the drawer must never recolor the Journal.
 	created := decodeCategory(t, createCategory(t, ts, token, map[string]string{"name": "園藝", "color": "#AABB0C"}))
 	checkStatus(t, saveColorRecent(t, ts, token, "#AABB0C"), http.StatusOK)

@@ -103,8 +103,8 @@ design-system-driven markup. The project's own screen map:
 | 日視圖 (Day) | DESIGN.md § Screens 2, ban 11 |
 | 新增日記 (Entry form) | DESIGN.md § Screens 3, 6 (inline creation rule) |
 | 年視圖 (Year) | DESIGN.md § Screens 4, § Color (year view) |
-| 分類管理 (Category management) | DESIGN.md § Screens 5, CONTEXT.md |
-| 新增/編輯分類 sheet | DESIGN.md § Screens 6, CONTEXT.md (inheritance) |
+| 分類管理 (Category management) | DESIGN.md § Screens 5, GLOSSARY.md |
+| 新增/編輯分類 sheet | DESIGN.md § Screens 6, GLOSSARY.md (inheritance) |
 | 自訂顏色 drawer | DESIGN.md § Color (custom picker, dot-size legibility) |
 | 登入 (Sign-in) | DESIGN.md § Screens 7, bans 6 & 9 |
 | 篩選 A / 篩選 B (Filter explorations) | Both directions mocked; **direction A (filter sheet) is the ratified decision** per spec issue #1 |

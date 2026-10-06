@@ -975,7 +975,7 @@ Verified against [Expo's splash screen and app icon docs](https://docs.expo.dev/
 [#58](https://github.com/SimonOneNineEight/daily-wlog/issues/58) is open, labelled `ready-for-human`, and
 says the PM is drawing it. What this research changes about that ticket:
 
-- **The brief is already written, and it is unusually good.** `CONTEXT.md` and `DESIGN.md § Identity`
+- **The brief is already written, and it is unusually good.** `GLOSSARY.md` and `DESIGN.md § Identity`
   supply the whole output of Phases 1–2 for free: the aesthetic family ("Apple Calendar's airiness × Apple
   Journal's warmth"), the rule that "colour belongs to the user's categories and nowhere else", the
   Wordmark decision (ratified 2026-09-29: "Sprinkie", the same Latin string in both App Languages), and

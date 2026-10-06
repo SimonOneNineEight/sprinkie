@@ -50,7 +50,7 @@ func (h handlers) SaveColorRecent(ctx context.Context, request apigen.SaveColorR
 }
 
 // ForgetColorRecent drops one Saved Color. A Saved Color is a memory of use,
-// not a possession (CONTEXT.md, 2026-09-12), so this touches color_recents
+// not a possession (GLOSSARY.md, 2026-09-12), so this touches color_recents
 // and nothing else: every category wearing the color keeps it.
 func (h handlers) ForgetColorRecent(ctx context.Context, request apigen.ForgetColorRecentRequestObject) (apigen.ForgetColorRecentResponseObject, error) {
 	// The path carries the six digits bare; a "#" would have to travel

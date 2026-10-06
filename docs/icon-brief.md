@@ -15,7 +15,7 @@ briefed against where the product is going, not only what it ships today.
 
 ## The promise it leads with
 
-**This becomes a book you keep.** `CONTEXT.md` ends at a printed book of your
+**This becomes a book you keep.** `GLOSSARY.md` ends at a printed book of your
 year and `DESIGN.md` calls the printed book the product.
 
 Known tension, accepted deliberately: the book does not exist yet, so the icon

@@ -30,7 +30,7 @@ before extending this system, they are the ratified guardrails:
   - `DESIGN.md` — the ratified design brief: identity, typography, color, theming, the five MVP
     screens, eleven explicit bans, and the intended feel. This system fills in exact values
     inside those rules and adds nothing that contradicts them.
-  - `CONTEXT.md` — the domain glossary (User, Journal, Category, Subcategory, Entry) and the
+  - `GLOSSARY.md` — the domain glossary (User, Journal, Category, Subcategory, Entry) and the
     words to avoid (tag, label, habit, diary, post, log).
   - `docs/adr/` — React Native + Expo, thin API over Supabase.
   - `docs/research/` — background research, not design input.

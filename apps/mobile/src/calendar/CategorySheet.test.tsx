@@ -212,7 +212,7 @@ it('forgetting a Saved Color leaves the Category wearing it alone (#47)', async 
 
   // Leaving the drawer with 完成 — the drawer's, not the sheet's — the
   // Category is still the color it was. A Saved Color is a memory of use,
-  // not a possession (CONTEXT.md, 2026-09-12): tidying the picker never
+  // not a possession (GLOSSARY.md, 2026-09-12): tidying the picker never
   // recolors the Journal.
   const dones = screen.getAllByText('完成');
   fireEvent.press(dones[dones.length - 1]);

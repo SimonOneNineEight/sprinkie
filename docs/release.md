@@ -240,7 +240,7 @@ Six entries below are **not** part of the rename, and a repo-wide search will
 always find them. The list covers every old name still *in use*, and is meant to
 be exhaustive: if a search turns up a live one it does not cover, that is a real
 gap. It does not cover prose that names daily-wlog in order to talk about it —
-this section, `CONTEXT.md`'s **Wordmark** entry, the leftover-app warning in
+this section, `GLOSSARY.md`'s **Wordmark** entry, the leftover-app warning in
 `install-on-phone`, the recovery note in `supabase/config.toml`. The first three
 entries are console-only strings; nobody on the team reads them daily.
 

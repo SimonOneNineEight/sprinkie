@@ -5,7 +5,7 @@ import { type StringCatalog, strings as zhTW } from './strings';
 
 export type { StringCatalog } from './strings';
 
-// The App Language (CONTEXT.md): the language the interface renders in.
+// The App Language (GLOSSARY.md): the language the interface renders in.
 // Follows the phone — any Chinese language → 繁體中文, anything else →
 // English — unless the User stored an explicit per-device override.
 export type AppLanguage = 'zh-TW' | 'en';
