@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { FlatList } from 'react-native';
 
 import { miniMonthHeight } from '../calendar/MiniMonth';
-import { monthsInRow, openingRow, ribbonSpan, rowMetrics, rowOfMonth } from '../calendar/ribbon';
+import { monthsInRow, ribbonSpan, rowMetrics, rowOfMonth } from '../calendar/ribbon';
 import { theme } from '../theme';
 import { cat } from '../testing/fixtures';
 import { installMockApi, type MockApi } from '../testing/mockApi';
