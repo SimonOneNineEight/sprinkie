@@ -176,7 +176,22 @@ export function MonthScreen({
     <View style={styles.screen}>
       <View style={styles.navBar}>
         <View>
-          <Text style={styles.navTitle}>{strings.month.title(visible.month)}</Text>
+          {/* Swipe is the only way between months, so VoiceOver gets one too
+              (#18): the title is adjustable, and swiping up or down on it
+              steps the month. The title alone, so the year label and the
+              buttons beside it stay separate stops. */}
+          <Text
+            style={styles.navTitle}
+            accessibilityRole="adjustable"
+            accessibilityLabel={strings.month.accessibleTitle(visible.year, visible.month)}
+            accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+            onAccessibilityAction={(event) => {
+              if (event.nativeEvent.actionName === 'increment') moveMonth(1);
+              if (event.nativeEvent.actionName === 'decrement') moveMonth(-1);
+            }}
+          >
+            {strings.month.title(visible.month)}
+          </Text>
           {/* Apple Calendar's zoom-out: the year label is the door to the
               year view, ‹ marking it tappable (ratified 2026-08-20). */}
           {onOpenYear ? (

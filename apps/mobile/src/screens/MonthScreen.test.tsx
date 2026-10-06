@@ -206,6 +206,53 @@ it('creates into the selected day, not blindly into today (#23)', async () => {
   expect(onAddEntry).not.toHaveBeenCalledWith('2026-08-17');
 });
 
+describe('VoiceOver month stepping (#18)', () => {
+  const step = async (actionName: 'increment' | 'decrement') => {
+    await act(async () => {
+      fireEvent(screen.getByRole('adjustable'), 'accessibilityAction', {
+        nativeEvent: { actionName },
+      });
+    });
+  };
+
+  it('steps months from the title with increment and decrement', async () => {
+    renderMonth();
+    expect(await screen.findByRole('adjustable', { name: '2026年8月' })).toBeTruthy();
+
+    await step('increment');
+    expect(await screen.findByText('9月')).toBeTruthy();
+    expect(screen.getByRole('adjustable', { name: '2026年9月' })).toBeTruthy();
+    const monthCalls = (globalThis.fetch as jest.Mock).mock.calls
+      .map(([url]) => String(url))
+      .filter((u) => u.includes('/months/'));
+    expect(monthCalls.some((u) => u.includes('/months/2026-09'))).toBe(true);
+
+    await step('decrement');
+    await step('decrement');
+    expect(await screen.findByText('7月')).toBeTruthy();
+  });
+
+  it('crosses a year boundary', async () => {
+    renderMonth({ today: new Date(2026, 11, 3) });
+    await screen.findByRole('adjustable', { name: '2026年12月' });
+
+    await step('increment');
+    expect(await screen.findByRole('adjustable', { name: '2027年1月' })).toBeTruthy();
+  });
+
+  it('leaves the year label and the nav buttons reachable on their own', async () => {
+    renderMonth({ onOpenYear: jest.fn(), onChangeHidden: jest.fn(), onOpenSettings: jest.fn() });
+    const adjustable = await screen.findByRole('adjustable');
+
+    // The adjustable is the title alone, not a group swallowing its neighbours:
+    // VoiceOver cannot reach a button nested inside an accessible element.
+    for (const name of ['年', '類別', '設定']) {
+      expect(screen.getByRole('button', { name })).toBeTruthy();
+      expect(within(adjustable).queryByRole('button', { name })).toBeNull();
+    }
+  });
+});
+
 it('opens settings from the nav bar gear', async () => {
   const onOpenSettings = jest.fn();
   renderMonth({ onOpenSettings });

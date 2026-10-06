@@ -56,6 +56,8 @@ const zhTW = {
   },
   month: {
     title: (month: number) => `${month}月`,
+    // The title as VoiceOver reads it: the year sits in a separate label (#18).
+    accessibleTitle: (year: number, month: number) => `${year}年${month}月`,
     yearLabel: (year: number) => `${year}年`,
     emptyDay: '這天沒有紀錄',
     // weekday is a 0-Sunday index, per Date#getDay.
