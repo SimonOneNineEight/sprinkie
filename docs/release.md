@@ -68,10 +68,11 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 3. **Simon — hosted Supabase project** (supabase.com, free tier). Do not paste
    keys into the repo or the chat; they go into EAS/hosting secret stores in
    step 5. Its data is durable from the PM's first Entry — forward migrations
-   only, no destructive migration, ever (ADR-0007). **Still to do for #56:** set
-   the project's display name to Sprinkie (Project Settings → General, ref
-   `tebfjmsmnhfeapbzytxy`). The CLI has no rename subcommand, so this one is
-   dashboard-only; the ref itself never changes.
+   only, no destructive migration, ever (ADR-0007). Display name set to Sprinkie
+   on 2026-10-06, which closed #56. It had to be done in the dashboard
+   (Project Settings → General) because the CLI has no rename subcommand. The
+   ref `tebfjmsmnhfeapbzytxy` never changes and is what every connection
+   string uses, so the name is cosmetic.
 4. **API host: Cloud Run** (superseded the home box, live by 2026-09-11):
    service `daily-wlog-api`, project `daily-wlog-198`, region us-west1.
    Env rides the revision: `SUPABASE_JWKS_URL` / `SUPABASE_STORAGE_URL`
