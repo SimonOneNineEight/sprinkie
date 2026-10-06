@@ -41,10 +41,31 @@ it('renders the day entries with decoded titles, in order', async () => {
   expect(screen.getByText('運動 · 健身房')).toBeTruthy();
 });
 
-it('shows the empty state when the day has no entries', async () => {
-  render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
+it('says 今天還沒有紀錄 when today has no entries', async () => {
+  render(
+    <DayScreen
+      accessToken="tok"
+      categories={categories}
+      date="2026-08-19"
+      today={new Date(2026, 7, 19)}
+    />,
+  );
 
   expect(await screen.findByText('今天還沒有紀錄')).toBeTruthy();
+});
+
+it('says 這天沒有紀錄 when another day has no entries (#83)', async () => {
+  render(
+    <DayScreen
+      accessToken="tok"
+      categories={categories}
+      date="2026-08-19"
+      today={new Date(2026, 7, 20)}
+    />,
+  );
+
+  expect(await screen.findByText('這天沒有紀錄')).toBeTruthy();
+  expect(screen.queryByText('今天還沒有紀錄')).toBeNull();
 });
 
 it('swipes to the neighboring dates (#26)', async () => {
@@ -57,7 +78,7 @@ it('swipes to the neighboring dates (#26)', async () => {
       onChangeDate={onChangeDate}
     />,
   );
-  await screen.findByText('今天還沒有紀錄');
+  await screen.findByText('這天沒有紀錄');
 
   fireGestureHandler(getByGestureTestId('day-fling-next'), [
     { state: State.BEGAN },
@@ -348,7 +369,7 @@ it('returns the day view to today (#40 item 11)', async () => {
       onChangeDate={onChangeDate}
     />,
   );
-  await screen.findByText('今天還沒有紀錄');
+  await screen.findByText('這天沒有紀錄');
 
   fireEvent.press(screen.getByLabelText('今天'));
   expect(onChangeDate).toHaveBeenCalledWith('2026-08-17');
@@ -363,7 +384,7 @@ it('opens the full 類別 sheet from the day header (#41)', async () => {
       onChangeHidden={jest.fn()}
     />,
   );
-  await screen.findByText('今天還沒有紀錄');
+  await screen.findByText('這天沒有紀錄');
 
   fireEvent.press(screen.getByLabelText('類別'));
 
