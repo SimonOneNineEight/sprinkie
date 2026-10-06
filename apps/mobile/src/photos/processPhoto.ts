@@ -38,11 +38,13 @@ export function resizeSpec(width: number, height: number, edge: number): { width
 export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPhoto> {
   const takenAt = takenAtFromExif(asset.exif as Record<string, unknown> | undefined);
 
-  // Discriminates on the ref, not on `uri`: the web ImageRef carries a `uri` of
-  // its own, so testing for that would send web down the re-read-a-file path and
-  // quietly undo this whole function. Only an ImagePickerAsset lacks saveAsync.
-  const render = async (source: ImagePickerAsset | ImageRef, edge: number) => {
-    const context = ImageManipulator.manipulate('saveAsync' in source ? source : source.uri);
+  // Every resize is specced from a render, never from the asset (#70). The
+  // picker reports EXIF-orientation 6/8 photos with width and height transposed
+  // against the decoded bitmap, which put the cap on the wrong axis: a 4667px
+  // long edge, or an upscale. A render's size is its orientation-corrected
+  // bitmap's own.
+  const render = async (source: ImageRef, edge: number) => {
+    const context = ImageManipulator.manipulate(source);
     const spec = resizeSpec(source.width, source.height, edge);
     if (spec) context.resize(spec);
     return context.renderAsync();
@@ -54,7 +56,7 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // image that is passed on, not its saved file, which keeps the thumb a single
   // encode of the same pixels rather than a q0.85 encode of a q0.85 encode.
   //
-  // Both refs are released explicitly. Deriving the thumb from the full render
+  // Every ref is released explicitly. Deriving the thumb from the full render
   // is what makes this worth doing: the full's bitmap (~37 MB for a 48MP
   // source) stays reachable across the thumb's decode, where the old
   // two-decode version dropped it when render() returned. SharedObject.release
@@ -66,7 +68,11 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // same build varied by 116 MB between runs, which is wider than the gap
   // between any two versions tested, so treat it as hygiene rather than as a
   // measured win. The peak is owned by EntryFormScreen's Promise.all (#69).
-  const full = await render(asset, LONG_EDGE);
+  // The original is decoded once, unresized, so its real size is known before
+  // the cap is chosen; the full render resizes that bitmap rather than the file.
+  const decoded = await ImageManipulator.manipulate(asset.uri).renderAsync();
+  const full = await render(decoded, LONG_EDGE);
+  decoded.release();
   const fullSaved = await save(full);
   const thumb = await render(full, THUMB_EDGE);
   full.release();
