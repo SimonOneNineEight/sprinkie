@@ -87,10 +87,12 @@ canvas re-pulled 2026-09-10 for the new 設定 artboard (#35).
 >   twelve months no longer fit, and the grid quietly became a scroller. The
 >   ribbon makes scrolling the point instead of a consolation.
 >
->   January rows carry a small year caption, which is **not** in the artboard
->   and not in #51 either. It was added after looking at the ribbon on a
->   device: running through the boundary by design had left December and
->   January indistinguishable.
+>   January rows carry a year caption at `entryTitle`, which is **not** in the
+>   artboard and was not in #51 either. It was added after looking at the
+>   ribbon on a device: running through the boundary by design had left
+>   December and January indistinguishable, and the header names only the
+>   topmost visible month's year. Ratified 2026-10-06 (#79) against two
+>   smaller sizes; at the month labels' own size it read as a third month.
 
 `daily-wlog-核心畫面.dc.html` is the canvas holding **all ten designed surfaces** as
 design-system-driven markup. The project's own screen map:

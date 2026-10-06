@@ -53,12 +53,17 @@ const WHEEL_ROW_HEIGHT = 44;
 // follows the topmost month.
 const VIEWABILITY = { itemVisiblePercentThreshold: 10 };
 
-// Read by both the row style and the row measurements. Declared once because
-// they must agree: a gap changed in one place and not the other shortens every
-// scroll offset by that much per row, silently.
-const ROW_GAP = theme.spacing.space10;
-const YEAR_CAPTION = theme.typography.meta.lineHeight + theme.spacing.space4;
-const TOP_PADDING = theme.spacing.space6;
+/**
+ * Read by the row styles, the row measurements and the tests. Declared once
+ * because they must agree: a gap changed in one place and not the other
+ * shortens every scroll offset by that much per row, silently — and a test
+ * that restates them cannot see the drift it exists to catch.
+ */
+export const RIBBON_LAYOUT = {
+  rowGap: theme.spacing.space10,
+  yearCaption: theme.typography.entryTitle.lineHeight + theme.spacing.space4,
+  topPadding: theme.spacing.space6,
+};
 
 /** A year's days keyed by month, plus the year's own total. */
 type YearData = { colors: Record<number, Record<number, string>>; total: number };
@@ -92,9 +97,9 @@ export function YearScreen({
     () =>
       rowMetrics(span, {
         monthHeight: miniMonthHeight,
-        gap: ROW_GAP,
-        yearCaption: YEAR_CAPTION,
-        topPadding: TOP_PADDING,
+        gap: RIBBON_LAYOUT.rowGap,
+        yearCaption: RIBBON_LAYOUT.yearCaption,
+        topPadding: RIBBON_LAYOUT.topPadding,
       }),
     [span],
   );
@@ -446,26 +451,33 @@ const styles = createStyles((t) => ({
   },
   body: {
     paddingHorizontal: t.spacing.screenGutter,
-    paddingTop: TOP_PADDING,
+    paddingTop: RIBBON_LAYOUT.topPadding,
   },
   // Two up, breathing (#51): the old grid packed twelve months into one
-  // screen because it had to. Nothing has to now, so the columns narrow and
-  // the rows open up, which lands roughly eight months in view instead of
-  // twelve. The mini months stay large enough that one recorded day reads.
+  // screen because it had to. Nothing has to now, so the rows open up and the
+  // columns narrow a little, which lands roughly eight months in view instead
+  // of twelve while the pair still reads as one row.
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: ROW_GAP,
+    marginBottom: RIBBON_LAYOUT.rowGap,
   },
   rowItem: {
-    width: '44%',
+    // 46, not 44: at 44 the gap between the two months grew past the 40 of
+    // space10 between rows, which inverts the grid — each month sits nearer
+    // the one above it than the one beside it, and the eye reads two columns
+    // instead of a row. The ribbon is one surface scanned downward.
+    width: '46%',
   },
+  // Clearly a heading over the two months, not a third label beside them: at
+  // the month labels' own meta size it read as a sibling. entryTitle carries
+  // weight 400, so the 600 is set here. Colour stays quiet — Apple Calendar
+  // keeps its year lighter than its month names, and the months are what you
+  // scan for. (Ratified 2026-10-06, #79.)
   yearCaption: {
-    ...t.typography.meta,
+    ...t.typography.entryTitle,
     fontWeight: '600',
     color: t.colors.textTertiary,
     marginBottom: t.spacing.space4,
   },
-  // paddingTop is TOP_PADDING: the measurements start there, since offsets are
-  // taken from the top of the content view which this padding shifts.
 }));
