@@ -24,7 +24,7 @@ type Route =
   | { name: 'day'; date: string }
   | { name: 'form'; date: string }
   | { name: 'settings' }
-  | { name: 'year'; year?: number };
+  | { name: 'year'; focus?: { year: number; month: number } };
 
 // Home lands on the month view (#6); the day list, entry form, settings, and
 // year view are routes behind it. Real navigation infrastructure can replace
@@ -73,7 +73,8 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         accessToken={accessToken}
         categories={categories}
         hidden={hidden}
-        initialYear={route.year}
+        initialFocus={route.focus}
+        refresh={monthRefresh}
         onChangeHidden={changeHidden}
         onCategoriesChanged={onCategoriesChanged}
         onOpenMonth={(year, month) => setRoute({ name: 'month', focus: { year, month } })}
@@ -116,7 +117,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
           onAddEntry={(date) => setRoute({ name: 'form', date })}
           onOpenSettings={() => setRoute({ name: 'settings' })}
           onCategoriesChanged={onCategoriesChanged}
-          onOpenYear={(year) => setRoute({ name: 'year', year })}
+          onOpenYear={(year, month) => setRoute({ name: 'year', focus: { year, month } })}
         />
       </View>
     </SafeAreaView>

@@ -2,7 +2,24 @@ import { Text, View } from 'react-native';
 
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
-import { createStyles } from '../theme';
+import { createStyles, theme } from '../theme';
+import { weekRows } from './monthMath';
+
+/**
+ * How tall this component renders for a given month. The year ribbon (#51)
+ * virtualises mini months and needs exact heights to land a scroll on a month
+ * rather than near it, and reconstructing these numbers at the call site meant
+ * a margin changed here would silently shorten every offset there. The styles
+ * below are the only place these tokens are read.
+ */
+const LABEL_GAP = theme.spacing.space3;
+const CELL_GAP = theme.spacing.space1;
+/** One week row: a day box plus the gap under it. */
+const WEEK_ROW = theme.yearBox.size + CELL_GAP;
+
+export function miniMonthHeight(year: number, month: number): number {
+  return theme.typography.meta.lineHeight + LABEL_GAP + weekRows(year, month) * WEEK_ROW;
+}
 
 type Props = {
   year: number;
@@ -67,7 +84,7 @@ const styles = createStyles((t) => ({
     ...t.typography.meta,
     fontWeight: '600',
     color: t.colors.textPrimary,
-    marginBottom: t.spacing.space3,
+    marginBottom: LABEL_GAP,
   },
   grid: {
     flexDirection: 'row',
@@ -75,11 +92,11 @@ const styles = createStyles((t) => ({
   },
   cell: {
     width: `${100 / 7}%`,
-    paddingRight: t.spacing.space1,
-    marginBottom: t.spacing.space1,
+    paddingRight: CELL_GAP,
+    marginBottom: CELL_GAP,
   },
   box: {
-    height: t.yearBox.size,
+    height: WEEK_ROW - CELL_GAP,
     borderRadius: t.yearBox.radius,
     alignItems: 'center',
     justifyContent: 'center',

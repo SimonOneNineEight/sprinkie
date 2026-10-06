@@ -304,29 +304,50 @@ Round 2: #44 (cap of 3, saving spinner). Keyboard cases are in **KB**.
 
 ### YR — Year view
 
+The ribbon (#51). A year is no longer a page you turn to, so every case below
+is about scrolling rather than paging.
+
 | # | Case | Expected |
 | --- | --- | --- |
-| YR.1 | Open it | Twelve mini months for the viewed year **[API]** |
+| YR.1 | Open it | Today's month sits centred, with the preceding months above it — never flush against the top **[API]** |
 | YR.2 | A recorded day | A solid box in its first visible Entry's Category color **[API]** |
-| YR.3 | Today, in the current year | Marked in its mini month |
-| YR.4 | The count, current year | The this-year wording, under the year in the header, visible without scrolling **[API]** |
-| YR.5 | The count, a past year | The total wording, in the same place **[API]** |
-| YR.6 | Swipe left / right | One year per swipe, both directions **[API]** |
-| YR.7 | Scroll the mini months vertically | Scrolls without triggering a year swipe |
-| YR.8 | Tap a mini month | The month view opens on it |
-| YR.9 | Tap the year title | The wheel opens directly under the header, the viewed year centred; the count beneath is not a tap target |
-| YR.10 | Scroll the wheel far and pick | That year loads, mini months redraw **[API]** |
-| YR.11 | Pick a future year | Allowed; backfilling is the product |
-| YR.12 | Tap the scrim | The wheel closes, the year unchanged |
-| YR.13 | Tap 類別 | The visibility sheet opens |
-| YR.14 | Tap 今天 | The year view moves to this year and stays on the year view |
-| YR.15 | There is no back button and no year chevrons | Correct; swipes and the title are the navigation |
-| YR.16 | Airplane mode | Mini months render empty, no crash |
-| YR.17 | From a past year, tap a month, then tap ‹年 | Back to that past year, not this one |
-| YR.18 | The floating controls | 今天 only — no +, since there is no day to create into |
-| YR.19 | Scroll the mini months to the end | The last row scrolls clear of 今天 rather than sitting under it |
-| YR.20 | Scroll the mini months | 今天 fades while scrolling and returns when it stops |
-| YR.21 | On a device with a home indicator | 今天 sits above the indicator, never over it |
+| YR.3 | Today | Marked in its mini month |
+| YR.4 | Scroll down past December | January follows with no break and no page turn |
+| YR.5 | The January row | Carries a small year caption, so the new year announces itself |
+| YR.6 | Keep scrolling, several years | Months keep coming in both directions; nothing runs out **[API]** |
+| YR.7 | Watch the header while scrolling | The year and its count follow the topmost visible month, changing as you cross into another year **[API]** |
+| YR.8 | The count, current year vs a past year | This-year wording on the current year, total wording on any other **[API]** |
+| YR.9 | Scroll up, years into the past | Months load as they arrive; a year already seen does not refetch **[API]** |
+| YR.10 | Tap a mini month | The month view opens on it |
+| YR.11 | Tap the year title | The wheel opens directly under the header, the year the header is showing centred; the count beneath is not a tap target |
+| YR.12 | Pick a year from the wheel | The ribbon scrolls to that year rather than swapping a page **[API]** |
+| YR.13 | Pick a year at either end of the wheel | Scrolls there without crashing; future years are allowed, since backfilling is the product |
+| YR.14 | Tap the scrim | The wheel closes, the position unchanged |
+| YR.15 | Scroll far away, then tap 今天 | Scrolls back to today's month and stays on the year view |
+| YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now |
+| YR.17 | There is no back button and no chevrons | Correct; scrolling, the title and a month tap are the navigation |
+| YR.18 | Tap 類別 | The visibility sheet opens |
+| YR.19 | Hide a Category, return | Its days lose their color across every year on screen **[API]** |
+| YR.20 | Airplane mode | Mini months render empty, no crash |
+| YR.21 | From a month in a past year, tap ‹年 | The ribbon opens on **that month**, not that year's January and not this year |
+
+| YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
+| YR.23 | Scroll, then stop | 今天 fades out while moving and returns when the ribbon settles |
+| YR.24 | The home indicator | Clears the floating control, and the control clears the content |
+
+**YR.22–YR.24 come from #50** and were lost when this section was rewritten for the ribbon; the controls outlived the grid.
+
+**YR.1 and YR.21 are the ones worth being fussy about.** Both are about landing
+precisely: the row heights are precomputed so a scroll target is exact rather
+than approximate, and an off-by-one lands you on the wrong month without ever
+looking broken. YR.1 is worth checking on both a small and a large phone, since
+the centring is measured against the viewport rather than a fixed number of
+rows.
+
+**今天 stays hidden for the length of a momentum glide (#76).** Flick hard and
+the floating control is gone until the ribbon stops moving, which is longer
+here than on any other surface because the list is long enough to glide. Known,
+deliberately unchanged until testers say whether it matters. Not a YR failure.
 
 ### CS — 類別 sheet
 

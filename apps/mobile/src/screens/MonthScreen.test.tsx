@@ -315,20 +315,20 @@ describe('calendar navigation (#40)', () => {
     });
   });
 
-  it('hands the viewed year to the year view, not the current one (#40 item 10)', async () => {
+  it('hands the viewed month to the year view, not the current one (#40 item 10, #51)', async () => {
     const onOpenYear = jest.fn();
     renderMonth({ onOpenYear });
     await screen.findByText('8月');
 
     fireEvent.press(screen.getByLabelText('年'));
-    expect(onOpenYear).toHaveBeenCalledWith(2026);
+    expect(onOpenYear).toHaveBeenCalledWith(2026, 8);
 
     // Five months forward crosses into 2027; ‹年 follows the month you see.
     for (let i = 0; i < 5; i += 1) await settleForward();
     expect(await screen.findByText('1月')).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText('年'));
-    expect(onOpenYear).toHaveBeenLastCalledWith(2027);
+    expect(onOpenYear).toHaveBeenLastCalledWith(2027, 1);
   });
 
   it('returns the month view to now, wherever you have swiped to (#40 item 11)', async () => {
