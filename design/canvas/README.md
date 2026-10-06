@@ -73,6 +73,25 @@ canvas re-pulled 2026-09-10 for the new 設定 artboard (#35).
 > The prototype project still shows the pre-round designs; redrawing those
 > artboards there (then re-pulling) is open design debt.
 
+> **Also superseded, 2026-10-06** (#51):
+>
+> - **年視圖**: the artboard's twelve mini months of one year, and the
+>   swipe-only year paging recorded above, are both retired. The surface is now
+>   one continuous vertical ribbon of months running through the years, two up,
+>   opening on today's month with the previous two above it. December flows
+>   into January with no break, and the header carries the topmost visible
+>   month's year and that year's count rather than naming a page.
+>
+>   The canvas drew a year you could take in whole. That stopped being true
+>   before this change: #50's floating controls needed bottom clearance, the
+>   twelve months no longer fit, and the grid quietly became a scroller. The
+>   ribbon makes scrolling the point instead of a consolation.
+>
+>   January rows carry a small year caption, which is **not** in the artboard
+>   and not in #51 either. It was added after looking at the ribbon on a
+>   device: running through the boundary by design had left December and
+>   January indistinguishable.
+
 `daily-wlog-核心畫面.dc.html` is the canvas holding **all ten designed surfaces** as
 design-system-driven markup. The project's own screen map:
 

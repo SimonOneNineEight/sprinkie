@@ -1,11 +1,10 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
-import { State } from 'react-native-gesture-handler';
-import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
 import { cat } from './testing/fixtures';
 import { installMockApi, type MockApi } from './testing/mockApi';
+import { openingRow, ribbonSpan } from './calendar/ribbon';
 import { AppRoot } from './AppRoot';
 
 type MockSession = { access_token: string; user: { id: string } };
@@ -115,38 +114,24 @@ it('gates a deactivated account and restores only on the deliberate tap', async 
 // so it is only true end to end: the month view hands its year over, the
 // route carries it, and the year view opens on it. Asserting the two ends
 // separately would leave the join untested.
-it('returns to the year you came from, not the current one (#40 item 10)', async () => {
-  const thisYear = new Date().getFullYear();
-  const lastYear = thisYear - 1;
+it('zooms out to the month you came from, not the top of a year (#40 item 10, #51)', async () => {
+  const now = new Date();
   mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
   render(<AppRoot />);
   await screen.findByLabelText('新增紀錄');
 
-  // Month view → year view, back one year, into that year's March.
   await act(async () => {
     fireEvent.press(screen.getByLabelText('年'));
   });
   await screen.findByLabelText('選擇年份');
-  act(() => {
-    fireGestureHandler(getByGestureTestId('year-fling-prev'), [
-      { state: State.BEGAN },
-      { state: State.ACTIVE },
-      { state: State.END },
-    ]);
-  });
-  expect(screen.getByText(`${lastYear}年`)).toBeTruthy();
-  await act(async () => {
-    fireEvent.press(screen.getByLabelText('3月'));
-  });
-  expect(await screen.findByText('3月')).toBeTruthy();
 
-  // ‹年 from there zooms back out to the year that month belongs to.
-  await act(async () => {
-    fireEvent.press(screen.getByLabelText('年'));
-  });
-  await waitFor(() => expect(screen.getByLabelText('選擇年份')).toBeTruthy());
-  expect(screen.getByText(`${lastYear}年`)).toBeTruthy();
-  expect(screen.queryByText(`${thisYear}年`)).toBeNull();
+  // The ribbon lands on the exact month the month view was showing. There is
+  // no page to land on any more, and no year-level approximation: the row is
+  // computed, so this is the precise version of what #40 item 10 asked for.
+  const span = ribbonSpan(now.getFullYear());
+  expect(screen.getByTestId('year-ribbon').props.initialScrollIndex).toBe(
+    openingRow(span, now.getFullYear(), now.getMonth() + 1),
+  );
 });
 
 // Visibility is a property of the Journal, not of a screen (#41 items 12-14).

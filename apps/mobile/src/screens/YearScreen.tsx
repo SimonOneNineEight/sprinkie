@@ -1,16 +1,25 @@
 import { Tags } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { FlatList, ScrollView, Text, View } from 'react-native';
-import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Text, View } from 'react-native';
+import type { ViewToken } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category } from '../api/client';
 import { getYear } from '../api/client';
-import type { HiddenSet } from '../calendar/hidden';
-import { hiddenParams, nothingHidden } from '../calendar/hidden';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
+import type { HiddenSet } from '../calendar/hidden';
+import { hiddenParams, nothingHidden } from '../calendar/hidden';
 import { MiniMonth } from '../calendar/MiniMonth';
+import {
+  monthsInRow,
+  openingRow,
+  ribbonSpan,
+  rowMetrics,
+  rowOfMonth,
+  SPAN_YEARS,
+  startsYear,
+} from '../calendar/ribbon';
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
@@ -20,9 +29,9 @@ type Props = {
   categories: Category[];
   /** Injectable for tests; defaults to the device's now. */
   today?: Date;
-  /** Land on this year instead of the current one — the month view's
-   * zoom-out hands over the year it was showing (#40). */
-  initialYear?: number;
+  /** Open on this month rather than today's — the month view's zoom-out hands
+   * over the month it was showing (#40, sharpened by #51). */
+  initialFocus?: { year: number; month: number };
   /** The persistent hidden-set (#30), owned by HomeScreen. */
   hidden?: HiddenSet;
   onChangeHidden?: (hidden: HiddenSet) => void;
@@ -31,40 +40,77 @@ type Props = {
   onOpenMonth: (year: number, month: number) => void;
 };
 
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
-
-// The year wheel (#27): ±150 years around the viewed year, recentered on
-// every open — practically endless in both directions, future allowed
-// (backfilling old memories is the product). Fixed row height so the list
-// can start centered.
-const WHEEL_SPAN = 150;
+// The year wheel (#27): ±150 years around the viewed year. Fixed row height so
+// the list can start centered.
 const WHEEL_ROW_HEIGHT = 44;
 
-// The year view (#12): twelve mini months, each recorded day a solid box in
-// its first Entry's color — the "look how much life I've captured" screen.
-// One endpoint call delivers the whole year.
+// Hoisted: React Native does not support viewabilityConfig changing identity
+// between renders, and this surface re-renders on every scroll as the header
+// follows the topmost month.
+const VIEWABILITY = { itemVisiblePercentThreshold: 10 };
+
+/** A year's days keyed by month, plus the year's own total. */
+type YearData = { colors: Record<number, Record<number, string>>; total: number };
+
+// The year view (#51): one vertical ribbon of mini months running continuously
+// through the years, opening on today's month. It replaces twelve mini months
+// paged a year at a time — a year stopped being something you could see whole
+// the moment #50's floating controls needed clearance and the grid became a
+// ScrollView, so this makes scrolling the point rather than a consolation.
+//
+// The header is now the only thing that says which year you are in, since the
+// ribbon itself never announces a boundary: December simply runs into January.
 export function YearScreen({
   accessToken,
   categories,
   today = new Date(),
-  initialYear,
+  initialFocus,
   hidden = nothingHidden,
   onChangeHidden,
   onCategoriesChanged,
   onOpenMonth,
 }: Props) {
   const strings = useStrings();
-  const [year, setYear] = useState(initialYear ?? today.getFullYear());
-  const isCurrentYear = year === today.getFullYear();
-  const [colorsByMonth, setColorsByMonth] = useState<Record<number, Record<number, string>>>({});
-  const [totalEntries, setTotalEntries] = useState(0);
+  const listRef = useRef<FlatList<number>>(null);
+  const thisYear = today.getFullYear();
+  const focus = initialFocus ?? { year: thisYear, month: today.getMonth() + 1 };
+
+  const span = useMemo(() => ribbonSpan(thisYear), [thisYear]);
+  const metrics = useMemo(
+    () =>
+      rowMetrics(span, {
+        labelBlock: theme.typography.meta.lineHeight + theme.spacing.space3,
+        weekRow: theme.yearBox.size + theme.spacing.space1,
+        gap: theme.spacing.space8,
+        yearCaption: theme.typography.meta.lineHeight + theme.spacing.space4,
+      }),
+    [span],
+  );
+  const rows = useMemo(
+    () => Array.from({ length: span.rowCount }, (_, i) => i),
+    [span.rowCount],
+  );
+
+  const [headerYear, setHeaderYear] = useState(focus.year);
+  const [visibleYears, setVisibleYears] = useState<number[]>([focus.year]);
+  // The cache carries the hidden-set and categories it answers, the shape
+  // MonthScreen's dots already use (#40 item 8). Hiding a Category or
+  // recoloring one changes every year at once, so a stale key reads as empty
+  // rather than being cleared from an effect.
+  const cacheKey = `${hidden.categoryIds.join(',')}|${hidden.subcategoryIds.join(',')}|${categories
+    .map((c) => `${c.id}${c.color}`)
+    .join(',')}`;
+  const [cached, setCached] = useState<{ key: string; byYear: Record<number, YearData> }>({
+    key: cacheKey,
+    byYear: {},
+  });
+  const cache = useMemo(
+    () => (cached.key === cacheKey ? cached.byYear : {}),
+    [cached, cacheKey],
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
   const [wheelOpen, setWheelOpen] = useState(false);
   const { visible: actionsVisible, scrollHandlers, clearance } = useFloatingActions();
-  // The wheel drops in under the nav bar, which stopped being a fixed height
-  // when the count became a second line (#50). The initial value is that
-  // layout derived from its own tokens rather than the stale navBarHeight,
-  // and onLayout corrects it if anything wraps.
   const [navHeight, setNavHeight] = useState(
     theme.spacing.space6 +
       theme.typography.navTitle.lineHeight +
@@ -72,159 +118,223 @@ export function YearScreen({
       theme.spacing.space4,
   );
 
+  // Fetching stays per-year and keyed by year, which is what makes the
+  // dot-ghosting class (#40) impossible here: a late response can only land in
+  // its own year's slot, never in the one you have scrolled to since.
+  const inFlight = useRef(new Map<number, string>());
   useEffect(() => {
     let active = true;
-    getYear(accessToken, String(year), hiddenParams(hidden))
-      .then((data) => {
-        if (!active) return;
-        const byMonth: Record<number, Record<number, string>> = {};
-        for (const day of data.days) {
-          const month = Number(day.date.slice(5, 7));
-          const dayNumber = Number(day.date.slice(8, 10));
-          const color = categories.find((c) => c.id === day.categoryId)?.color;
-          if (!color) continue;
-          (byMonth[month] ??= {})[dayNumber] = color;
-        }
-        setColorsByMonth(byMonth);
-        setTotalEntries(data.totalEntries);
-      })
-      .catch(() => {
-        if (active) setColorsByMonth({});
-      });
+    for (const year of visibleYears) {
+      if (cache[year] || inFlight.current.get(year) === cacheKey) continue;
+      inFlight.current.set(year, cacheKey);
+      getYear(accessToken, String(year), hiddenParams(hidden))
+        .then((data) => {
+          inFlight.current.delete(year);
+          if (!active) return;
+          const colors: Record<number, Record<number, string>> = {};
+          for (const day of data.days) {
+            const month = Number(day.date.slice(5, 7));
+            const dayNumber = Number(day.date.slice(8, 10));
+            const color = categories.find((c) => c.id === day.categoryId)?.color;
+            if (!color) continue;
+            (colors[month] ??= {})[dayNumber] = color;
+          }
+          setCached((current) => ({
+            key: cacheKey,
+            byYear: {
+              ...(current.key === cacheKey ? current.byYear : {}),
+              [year]: { colors, total: data.totalEntries },
+            },
+          }));
+        })
+        .catch(() => {
+          inFlight.current.delete(year);
+        });
+    }
     return () => {
       active = false;
     };
-  }, [accessToken, year, categories, hidden]);
+  }, [accessToken, categories, hidden, visibleYears, cache, cacheKey]);
 
-  // Year ↔ year swipes (#26), the month pager's gesture family; the mini
-  // months' vertical scroll passes underneath the horizontal flings.
-  const flingNext = Gesture.Fling()
-    .direction(Directions.LEFT)
-    .runOnJS(true)
-    .withTestId('year-fling-next')
-    .onStart(() => setYear((current) => current + 1));
-  const flingPrev = Gesture.Fling()
-    .direction(Directions.RIGHT)
-    .runOnJS(true)
-    .withTestId('year-fling-prev')
-    .onStart(() => setYear((current) => current - 1));
+  const onViewable = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      const visibleRows = viewableItems
+        .map((item) => item.index)
+        .filter((index): index is number => index !== null);
+      if (visibleRows.length === 0) return;
+      const years = new Set<number>();
+      for (const row of visibleRows) {
+        for (const { year } of monthsInRow(span, row)) years.add(year);
+      }
+      // The topmost visible month names the year, so scrolling into 2022
+      // reads 2022 with 2022's total.
+      setHeaderYear(monthsInRow(span, Math.min(...visibleRows))[0].year);
+      setVisibleYears((current) => {
+        const next = [...years].sort();
+        return next.length === current.length && next.every((y, i) => y === current[i])
+          ? current
+          : next;
+      });
+    },
+    [span],
+  );
+
+  const scrollToMonth = useCallback(
+    (year: number, month: number) => {
+      listRef.current?.scrollToIndex({ index: rowOfMonth(span, year, month), animated: true });
+    },
+    [span],
+  );
+
+  const total = cache[headerYear]?.total ?? 0;
 
   return (
-    <GestureDetector gesture={Gesture.Exclusive(flingNext, flingPrev)}>
-      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-        {/* The floats position against this View, not the SafeAreaView: an
-            absolute child ignores its parent's safe-area padding. */}
-        <View style={styles.fill}>
-          <View
-            style={styles.navBar}
-            onLayout={(event) => setNavHeight(event.nativeEvent.layout.height)}
-          >
-            {/* No back and no chevrons (ratified 2026-09-10): swipes page the
-                years, tapping a month leaves, and the title opens the wheel.
-                The count rides under the year as a sub-line, the shape the
-                month view already uses (Simon, 2026-09-12): the whole year is
-                on one screen, so scrolling purely to read a total was a wasted
-                scroll. */}
-            <View testID="year-header" style={styles.navTitleBlock}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={strings.year.pickYear}
-                onPress={() => setWheelOpen(true)}
-              >
-                <Text style={styles.navTitle}>{strings.year.title(year)}</Text>
-              </Pressable>
-              <Text style={styles.navSubtitle}>
-                {isCurrentYear
-                  ? strings.year.countLabel(totalEntries)
-                  : strings.year.totalLabel(totalEntries)}
-              </Text>
-            </View>
-            {onChangeHidden ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={strings.categories.title}
-                style={styles.navButton}
-                onPress={() => setSheetOpen(true)}
-              >
-                <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
-              </Pressable>
-            ) : null}
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      {/* The floats position against this View, not the SafeAreaView: an
+          absolute child ignores its parent's safe-area padding. */}
+      <View style={styles.fill}>
+        <View
+          style={styles.navBar}
+          onLayout={(event) => setNavHeight(event.nativeEvent.layout.height)}
+        >
+          {/* No back and no chevrons (ratified 2026-09-10). The year and its
+              count track the topmost visible month rather than naming a page,
+              because the ribbon has no pages (#51). */}
+          <View testID="year-header" style={styles.navTitleBlock}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={strings.year.pickYear}
+              onPress={() => setWheelOpen(true)}
+            >
+              <Text style={styles.navTitle}>{strings.year.title(headerYear)}</Text>
+            </Pressable>
+            <Text style={styles.navSubtitle}>
+              {headerYear === thisYear
+                ? strings.year.countLabel(total)
+                : strings.year.totalLabel(total)}
+            </Text>
           </View>
-          <ScrollView style={styles.scroll} contentContainerStyle={[styles.body, clearance]} {...scrollHandlers}>
-            <View style={styles.grid}>
-              {MONTHS.map((month) => (
-                <View key={month} style={styles.gridItem}>
+          {onChangeHidden ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={strings.categories.title}
+              style={styles.navButton}
+              onPress={() => setSheetOpen(true)}
+            >
+              <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
+            </Pressable>
+          ) : null}
+        </View>
+        <FlatList
+          ref={listRef}
+          testID="year-ribbon"
+          style={styles.scroll}
+          contentContainerStyle={[styles.body, clearance]}
+          data={rows}
+          keyExtractor={(row) => String(row)}
+          initialScrollIndex={openingRow(span, focus.year, focus.month)}
+          getItemLayout={(_, index) => ({
+            length: metrics.heights[index],
+            offset: metrics.offsets[index],
+            index,
+          })}
+          onViewableItemsChanged={onViewable}
+          viewabilityConfig={VIEWABILITY}
+          showsVerticalScrollIndicator={false}
+          {...scrollHandlers}
+          renderItem={({ item: row }) => (
+            <View>
+              {/* The ribbon runs through the boundary, so January says which
+                  year it is rather than arriving unannounced (#51 follow-up,
+                  from looking at it on a device). */}
+              {startsYear(row) ? (
+                <Text style={styles.yearCaption}>
+                  {strings.year.title(monthsInRow(span, row)[0].year)}
+                </Text>
+              ) : null}
+              <View style={styles.row}>
+              {monthsInRow(span, row).map(({ year, month }) => (
+                <View key={`${year}-${month}`} style={styles.rowItem}>
                   <MiniMonth
                     year={year}
                     month={month}
-                    colors={colorsByMonth[month] ?? {}}
+                    colors={cache[year]?.colors[month] ?? {}}
                     todayDay={
-                      isCurrentYear && month === today.getMonth() + 1 ? today.getDate() : undefined
+                      year === thisYear && month === today.getMonth() + 1
+                        ? today.getDate()
+                        : undefined
                     }
                     onPress={() => onOpenMonth(year, month)}
                   />
                 </View>
               ))}
-            </View>
-          </ScrollView>
-          <CalendarFloatingActions
-            visible={actionsVisible}
-            onToday={() => setYear(today.getFullYear())}
-          />
-          {sheetOpen && onChangeHidden ? (
-            <CategorySheet
-              accessToken={accessToken}
-              categories={categories}
-              hidden={hidden}
-              onChange={onChangeHidden}
-              onCategoriesChanged={() => onCategoriesChanged?.()}
-              onClose={() => setSheetOpen(false)}
-            />
-          ) : null}
-          {wheelOpen ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={strings.entryForm.cancel}
-                feedback="none"
-                style={styles.wheelScrim}
-                onPress={() => setWheelOpen(false)}
-              />
-              <View style={[styles.wheelCard, { top: navHeight }]}>
-                <FlatList
-                  testID="year-wheel"
-                  data={Array.from({ length: WHEEL_SPAN * 2 + 1 }, (_, i) => year - WHEEL_SPAN + i)}
-                  keyExtractor={(item) => String(item)}
-                  getItemLayout={(_, index) => ({
-                    length: WHEEL_ROW_HEIGHT,
-                    offset: WHEEL_ROW_HEIGHT * index,
-                    index,
-                  })}
-                  // Two rows above the viewed year: it sits centered in the
-                  // five-row window.
-                  initialScrollIndex={WHEEL_SPAN - 2}
-                  showsVerticalScrollIndicator={false}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      accessibilityRole="button"
-                      style={styles.wheelRow}
-                      onPress={() => {
-                        setYear(item);
-                        setWheelOpen(false);
-                      }}
-                    >
-                      <Text style={item === year ? styles.wheelYearCurrent : styles.wheelYear}>
-                        {strings.year.title(item)}
-                      </Text>
-                    </Pressable>
-                  )}
-                />
               </View>
-            </>
-          ) : null}
-        </View>
-      </SafeAreaView>
-    </GestureDetector>
+            </View>
+          )}
+        />
+        <CalendarFloatingActions
+          visible={actionsVisible}
+          onToday={() => scrollToMonth(thisYear, today.getMonth() + 1)}
+        />
+        {sheetOpen && onChangeHidden ? (
+          <CategorySheet
+            accessToken={accessToken}
+            categories={categories}
+            hidden={hidden}
+            onChange={onChangeHidden}
+            onCategoriesChanged={() => onCategoriesChanged?.()}
+            onClose={() => setSheetOpen(false)}
+          />
+        ) : null}
+        {wheelOpen ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={strings.entryForm.cancel}
+              feedback="none"
+              style={styles.wheelScrim}
+              onPress={() => setWheelOpen(false)}
+            />
+            <View style={[styles.wheelCard, { top: navHeight }]}>
+              <FlatList
+                testID="year-wheel"
+                data={Array.from(
+                  { length: SPAN_YEARS * 2 + 1 },
+                  (_, i) => headerYear - SPAN_YEARS + i,
+                )}
+                keyExtractor={(item) => String(item)}
+                getItemLayout={(_, index) => ({
+                  length: WHEEL_ROW_HEIGHT,
+                  offset: WHEEL_ROW_HEIGHT * index,
+                  index,
+                })}
+                // Two rows above the viewed year: it sits centered in the
+                // five-row window.
+                initialScrollIndex={SPAN_YEARS - 2}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={styles.wheelRow}
+                    onPress={() => {
+                      // The wheel stays how you travel decades, and matters
+                      // more now that paging is gone: it scrolls the ribbon
+                      // to that year's January rather than swapping a page.
+                      scrollToMonth(item, 1);
+                      setWheelOpen(false);
+                    }}
+                  >
+                    <Text style={item === headerYear ? styles.wheelYearCurrent : styles.wheelYear}>
+                      {strings.year.title(item)}
+                    </Text>
+                  </Pressable>
+                )}
+              />
+            </View>
+          </>
+        ) : null}
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -297,8 +407,6 @@ const styles = createStyles((t) => ({
     fontWeight: '600',
     color: t.colors.textPrimary,
   },
-  // The bar is a sibling below, so the scroller has to claim its space
-  // rather than size to its content and push the bar off the screen.
   scroll: {
     flex: 1,
   },
@@ -306,13 +414,19 @@ const styles = createStyles((t) => ({
     paddingHorizontal: t.spacing.screenGutter,
     paddingTop: t.spacing.space6,
   },
-  grid: {
+  // Two up, with room to breathe now that nothing has to fit one screen (#51).
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: t.spacing.space8,
+    marginBottom: t.spacing.space8,
   },
-  gridItem: {
+  rowItem: {
     width: '48%',
+  },
+  yearCaption: {
+    ...t.typography.meta,
+    fontWeight: '600',
+    color: t.colors.textTertiary,
+    marginBottom: t.spacing.space4,
   },
 }));

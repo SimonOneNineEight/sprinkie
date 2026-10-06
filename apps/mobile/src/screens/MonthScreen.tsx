@@ -30,9 +30,10 @@ type Props = {
   onOpenSettings?: () => void;
   /** Fired after the 類別 sheet changes a category, so /me refetches. */
   onCategoriesChanged?: () => void;
-  /** Opens the year view (#12) on the year being viewed — Apple's zoom-out
-   * rather than a back-stack (#40). */
-  onOpenYear?: (year: number) => void;
+  /** Opens the year view (#12) on the month being viewed — Apple's zoom-out
+   * rather than a back-stack (#40). The ribbon scrolls to that exact month,
+   * which is more precise than the year-level landing it replaces (#51). */
+  onOpenYear?: (year: number, month: number) => void;
   /** Land on this month instead of today's (year view tap-through, #12). */
   initialMonth?: { year: number; month: number };
   /** The persistent hidden-set (#30), owned by HomeScreen. */
@@ -184,7 +185,7 @@ export function MonthScreen({
               accessibilityLabel={strings.year.open}
               style={styles.navYear}
               hitSlop={{ top: 8, bottom: 12, left: 8, right: 12 }}
-              onPress={() => onOpenYear(visible.year)}
+              onPress={() => onOpenYear(visible.year, visible.month)}
             >
               <ChevronLeft size={13} color={theme.colors.textSecondary} strokeWidth={2} />
               <Text style={styles.navSubtitle}>{strings.month.yearLabel(visible.year)}</Text>
