@@ -112,6 +112,7 @@ export const en: StringCatalog = {
     removeConfirmTitle: 'Remove this photo?',
     remove: 'Remove',
     uploadFailed: 'Photo upload failed. You can add it again by editing this entry later',
+    attachFailed: "Couldn't add the photo",
   },
   entryForm: {
     cancel: 'Cancel',

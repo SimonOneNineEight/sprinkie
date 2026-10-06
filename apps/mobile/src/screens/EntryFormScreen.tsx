@@ -249,8 +249,12 @@ export function EntryFormScreen({
       });
     }
     if (result.canceled) return;
-    const processed = await Promise.all(result.assets.slice(0, remaining).map(processPhoto));
+    // Each photo stands alone (#87): the ones that process attach, and a
+    // failure says so once instead of vanishing into the caller's `void`.
+    const settled = await Promise.allSettled(result.assets.slice(0, remaining).map(processPhoto));
+    const processed = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []));
     setStagedPhotos((prev) => [...prev, ...processed]);
+    if (processed.length < settled.length) Alert.alert(strings.photos.attachFailed);
   };
 
   const removeGridPhoto = (key: string) => {

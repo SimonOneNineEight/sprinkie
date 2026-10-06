@@ -11,6 +11,7 @@ type FakeSize = { width: number; height: number };
 type FakeRef = FakeSize & {
   label: string;
   released: boolean;
+  extendedRange: boolean;
   saveAsync: (o: FakeSaveOptions) => Promise<FakeResult>;
   release: () => void;
 };
@@ -24,6 +25,12 @@ const mockReleases: string[] = [];
 // width/height does not always match (EXIF orientation 6/8 transposes them).
 // Kept separate from the declared size so a test can make them disagree.
 let mockSourceSize: FakeSize = { width: 0, height: 0 };
+// The real resize draws through UIGraphicsImageRenderer, which hands back a
+// 16-bit extended-range bitmap for a wide-color (Display P3) source, and every
+// manipulate() then fails to build its orientation context on it (#87).
+let mockWideColor = false;
+// What each saved file decodes to, so a decode of a saved render is honest.
+const mockFiles = new Map<string, FakeSize>();
 
 jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
@@ -32,14 +39,19 @@ jest.mock('expo-image-manipulator', () => ({
       if (typeof source !== 'string' && source.released) {
         throw new Error(`manipulate on released ${source.label}`);
       }
+      if (typeof source !== 'string' && source.extendedRange) {
+        throw new Error('ImageContextLostException: Image context has been lost');
+      }
       const label = typeof source === 'string' ? source : source.label;
       mockDecodes.push(label);
       let size: FakeSize =
         typeof source === 'string'
-          ? { ...mockSourceSize }
+          ? { ...(mockFiles.get(source) ?? mockSourceSize) }
           : { width: source.width, height: source.height };
+      let resized = false;
       const context = {
         resize({ width, height }: { width?: number; height?: number }) {
+          resized = true;
           const scale = width ? width / size.width : height! / size.height;
           size = { width: Math.round(size.width * scale), height: Math.round(size.height * scale) };
           return context;
@@ -50,11 +62,14 @@ jest.mock('expo-image-manipulator', () => ({
             width: size.width,
             height: size.height,
             released: false,
+            extendedRange: mockWideColor && resized,
             async saveAsync(options: FakeSaveOptions) {
               // The real SharedObject throws on any call after release().
               if (rendered.released) throw new Error(`saveAsync on released ${rendered.label}`);
               mockSaves.push({ ...options, width: rendered.width, height: rendered.height });
-              return { uri: `file:///cache/${mockSaves.length}.jpg`, width: rendered.width, height: rendered.height };
+              const uri = `file:///cache/${mockSaves.length}.jpg`;
+              mockFiles.set(uri, { width: rendered.width, height: rendered.height });
+              return { uri, width: rendered.width, height: rendered.height };
             },
             release() {
               rendered.released = true;
@@ -78,9 +93,10 @@ const ORIGINAL = 'file:///DCIM/IMG_0001.HEIC';
  */
 function pickerAsset(
   declared: FakeSize,
-  options: { exif?: Record<string, unknown>; decoded?: FakeSize } = {},
+  options: { exif?: Record<string, unknown>; decoded?: FakeSize; wideColor?: boolean } = {},
 ): ImagePickerAsset {
   mockSourceSize = options.decoded ?? declared;
+  mockWideColor = options.wideColor ?? false;
   return { uri: ORIGINAL, ...declared, exif: options.exif } as unknown as ImagePickerAsset;
 }
 
@@ -91,15 +107,17 @@ beforeEach(() => {
   mockSaves.length = 0;
   mockReleases.length = 0;
   mockSourceSize = { width: 0, height: 0 };
+  mockWideColor = false;
+  mockFiles.clear();
 });
 
 describe('processPhoto', () => {
-  it('decodes the original once, deriving the thumbnail from the full render', async () => {
+  it('decodes the original once, deriving the thumbnail from the saved full render', async () => {
     await processPhoto(pickerAsset({ width: 6000, height: 4000 }));
 
     // The file once, as-is (#70); the full render from that bitmap; the thumb
-    // from the full render.
-    expect(mockDecodes).toEqual([ORIGINAL, `render(${ORIGINAL})`, `render(render(${ORIGINAL}))`]);
+    // from the full render's saved JPEG (#87).
+    expect(mockDecodes).toEqual([ORIGINAL, `render(${ORIGINAL})`, 'file:///cache/1.jpg']);
   });
 
   it('caps the full render at 3500px and the thumbnail at 400px, either orientation', async () => {
@@ -129,7 +147,7 @@ describe('processPhoto', () => {
     expect(mockReleases).toEqual([
       `render(${ORIGINAL})`,
       `render(render(${ORIGINAL}))`,
-      `render(render(render(${ORIGINAL})))`,
+      'render(file:///cache/1.jpg)',
     ]);
     expect(mockSaves).toHaveLength(2);
   });
@@ -163,6 +181,19 @@ describe('processPhoto', () => {
       pickerAsset({ width: 3000, height: 4000 }, { decoded: { width: 4000, height: 3000 } }),
     );
     expect([mockSaves[0].width, mockSaves[0].height]).toEqual([3500, 2625]);
+  });
+
+  it('attaches a wide-color photo, never re-manipulating a resized render (#87)', async () => {
+    // IMG_3630.HEIC from an iPhone 17 Pro: a 48MP Display P3 portrait. Deriving
+    // the thumb from the full render's ref threw, and the attach did nothing.
+    await processPhoto(
+      pickerAsset({ width: 6048, height: 8064 }, { wideColor: true }),
+    );
+
+    expect(mockSaves.map((s) => [s.width, s.height])).toEqual([
+      [2625, 3500],
+      [300, 400],
+    ]);
   });
 
   it('returns both saved URIs and the capture time, and re-encodes as fresh JPEGs', async () => {

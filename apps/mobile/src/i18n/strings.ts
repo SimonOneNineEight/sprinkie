@@ -83,6 +83,7 @@ const zhTW = {
     removeConfirmTitle: '移除這張照片？',
     remove: '移除',
     uploadFailed: '照片上傳失敗，稍後可在編輯這筆紀錄時重新加入',
+    attachFailed: '無法加入照片',
   },
   entryForm: {
     cancel: '取消',

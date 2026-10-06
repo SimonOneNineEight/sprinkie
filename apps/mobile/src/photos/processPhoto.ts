@@ -43,26 +43,28 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // against the decoded bitmap, which put the cap on the wrong axis: a 4667px
   // long edge, or an upscale. A render's size is its orientation-corrected
   // bitmap's own.
-  const render = async (source: ImageRef, edge: number) => {
+  const render = async (source: ImageRef | string, size: { width: number; height: number }, edge: number) => {
     const context = ImageManipulator.manipulate(source);
-    const spec = resizeSpec(source.width, source.height, edge);
+    const spec = resizeSpec(size.width, size.height, edge);
     if (spec) context.resize(spec);
     return context.renderAsync();
   };
   const save = (image: ImageRef) => image.saveAsync({ format: SaveFormat.JPEG, compress: QUALITY });
 
   // The thumbnail starts from the full render, not from the asset (#53), so the
-  // original is decoded once per photo rather than twice. It is the rendered
-  // image that is passed on, not its saved file, which keeps the thumb a single
-  // encode of the same pixels rather than a q0.85 encode of a q0.85 encode.
+  // original is decoded once per photo rather than twice. It reads the full's
+  // saved file, not its ref (#87): the resize draws through
+  // UIGraphicsImageRenderer, which returns a 16-bit extended-range bitmap for a
+  // wide-color (Display P3) source, and manipulate() on that ref cannot build
+  // its orientation context, so a 48MP iPhone 17 Pro portrait failed to attach.
+  // A JPEG always decodes to 8 bits. The thumb is a q0.85 encode of a q0.85
+  // encode as a result, which is invisible at 400px.
   //
-  // Every ref is released explicitly. Deriving the thumb from the full render
-  // is what makes this worth doing: the full's bitmap (~37 MB for a 48MP
-  // source) stays reachable across the thumb's decode, where the old
-  // two-decode version dropped it when render() returned. SharedObject.release
-  // exists for exactly this ("the native object is known to exclusively retain
-  // some native memory (such as binary data or image bitmap)"). A call on a
-  // released ref throws, so each is released only after its last use.
+  // Every ref is released explicitly, and the full's as soon as it is saved.
+  // SharedObject.release exists for exactly this ("the native object is known
+  // to exclusively retain some native memory (such as binary data or image
+  // bitmap)"). A call on a released ref throws, so each is released only after
+  // its last use.
   //
   // Measuring whether this lowers the peak was inconclusive: on a simulator the
   // same build varied by 116 MB between runs, which is wider than the gap
@@ -71,11 +73,11 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // The original is decoded once, unresized, so its real size is known before
   // the cap is chosen; the full render resizes that bitmap rather than the file.
   const decoded = await ImageManipulator.manipulate(asset.uri).renderAsync();
-  const full = await render(decoded, LONG_EDGE);
+  const full = await render(decoded, decoded, LONG_EDGE);
   decoded.release();
   const fullSaved = await save(full);
-  const thumb = await render(full, THUMB_EDGE);
   full.release();
+  const thumb = await render(fullSaved.uri, fullSaved, THUMB_EDGE);
   const thumbSaved = await save(thumb);
   thumb.release();
 
