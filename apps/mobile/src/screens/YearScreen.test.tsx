@@ -172,8 +172,9 @@ it('opens on today’s month with the recent past above it, not flush to the top
 
   // Landing the month hard against the top left the whole past behind an
   // upward scroll, which reads backwards for a journal (seen on a device).
-  expect(ribbon().props.initialScrollIndex).toBe(openingRow(span, 2026, 8));
-  expect(ribbon().props.initialScrollIndex).toBeLessThan(rowOfMonth(span, 2026, 8));
+  // The list mounts on the month itself; onLayout then scrolls it to centre,
+  // because centring needs a viewport height that does not exist before then.
+  expect(ribbon().props.initialScrollIndex).toBe(rowOfMonth(span, 2026, 8));
 });
 
 it('captions the row January opens, so a year never arrives unannounced', () => {
@@ -238,7 +239,7 @@ it('今天 scrolls back to today’s month rather than setting a year', async ()
 it('opens on the month the zoom-out handed over, not that year’s January (#51)', () => {
   renderScreen({ initialFocus: { year: 2025, month: 6 } });
 
-  expect(ribbon().props.initialScrollIndex).toBe(openingRow(span, 2025, 6));
+  expect(ribbon().props.initialScrollIndex).toBe(rowOfMonth(span, 2025, 6));
 });
 
 it('the wheel scrolls the ribbon to the picked year', async () => {

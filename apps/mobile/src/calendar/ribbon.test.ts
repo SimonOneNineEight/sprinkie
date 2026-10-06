@@ -108,12 +108,30 @@ describe('startsYear', () => {
 });
 
 describe('openingRow', () => {
-  it('sits one row above the month, so the recent past is on screen', () => {
-    expect(openingRow(span, 2026, 10)).toBe(rowOfMonth(span, 2026, 10) - 1);
+  const { heights } = rowMetrics(span, { monthHeight, gap: 8, yearCaption: 30, topPadding: 16 });
+
+  it('leaves the month centred, with the months before it on screen', () => {
+    const target = rowOfMonth(span, 2026, 10);
+    const viewportHeight = 800;
+    const row = openingRow(span, 2026, 10, { height: viewportHeight, heights });
+
+    // Rows above the target fill roughly half the viewport: a journal is read
+    // backwards, so the past is the half worth showing.
+    const above = heights.slice(row, target).reduce((a, b) => a + b, 0);
+    expect(row).toBeLessThan(target);
+    expect(above).toBeLessThanOrEqual((viewportHeight - heights[target]) / 2);
+    expect(above + heights[row - 1]).toBeGreaterThan((viewportHeight - heights[target]) / 2);
+  });
+
+  it('centres further back on a taller screen', () => {
+    const short = openingRow(span, 2026, 10, { height: 500, heights });
+    const tall = openingRow(span, 2026, 10, { height: 1200, heights });
+    // A fixed one-row nudge could not do this: it ignored the viewport.
+    expect(tall).toBeLessThan(short);
   });
 
   it('never runs off the top of the list', () => {
-    expect(openingRow(span, span.baseYear, 1)).toBe(0);
+    expect(openingRow(span, span.baseYear, 1, { height: 2000, heights })).toBe(0);
   });
 });
 

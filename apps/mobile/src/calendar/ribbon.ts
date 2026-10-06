@@ -58,13 +58,26 @@ export function startsYear(row: number): boolean {
 }
 
 /**
- * The row to open on. `rowOfMonth` alone puts the month flush against the top
- * of the viewport, leaving the whole past behind an upward scroll, so the
- * opening sits one row earlier: the recent past is the direction a journal is
- * read in.
+ * The row that leaves `year`/`month` centred in a viewport `height` tall.
+ * Landing it flush at the top puts the whole past behind an upward scroll,
+ * which reads backwards for a journal: the months with entries in them are
+ * the earlier ones. Walks back by real row heights rather than a fixed
+ * nudge, so the result adapts to the screen instead of guessing.
  */
-export function openingRow(span: RibbonSpan, year: number, month: number): number {
-  return Math.max(0, rowOfMonth(span, year, month) - 1);
+export function openingRow(
+  span: RibbonSpan,
+  year: number,
+  month: number,
+  viewport: { height: number; heights: number[] },
+): number {
+  const target = rowOfMonth(span, year, month);
+  let above = (viewport.height - viewport.heights[target]) / 2;
+  let row = target;
+  while (row > 0 && above - viewport.heights[row - 1] >= 0) {
+    row -= 1;
+    above -= viewport.heights[row];
+  }
+  return row;
 }
 
 /**

@@ -4,7 +4,7 @@ import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
 import { cat } from './testing/fixtures';
 import { installMockApi, type MockApi } from './testing/mockApi';
-import { openingRow, ribbonSpan } from './calendar/ribbon';
+import { ribbonSpan, rowOfMonth } from './calendar/ribbon';
 import { AppRoot } from './AppRoot';
 
 type MockSession = { access_token: string; user: { id: string } };
@@ -130,7 +130,7 @@ it('zooms out to the month you came from, not the top of a year (#40 item 10, #5
   // computed, so this is the precise version of what #40 item 10 asked for.
   const span = ribbonSpan(now.getFullYear());
   expect(screen.getByTestId('year-ribbon').props.initialScrollIndex).toBe(
-    openingRow(span, now.getFullYear(), now.getMonth() + 1),
+    rowOfMonth(span, now.getFullYear(), now.getMonth() + 1),
   );
 });
 

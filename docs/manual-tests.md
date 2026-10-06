@@ -309,7 +309,7 @@ is about scrolling rather than paging.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| YR.1 | Open it | Today's month on screen with the preceding months already above it, not flush against the top **[API]** |
+| YR.1 | Open it | Today's month sits centred, with the preceding months above it — never flush against the top **[API]** |
 | YR.2 | A recorded day | A solid box in its first visible Entry's Category color **[API]** |
 | YR.3 | Today | Marked in its mini month |
 | YR.4 | Scroll down past December | January follows with no break and no page turn |
@@ -340,7 +340,9 @@ is about scrolling rather than paging.
 **YR.1 and YR.21 are the ones worth being fussy about.** Both are about landing
 precisely: the row heights are precomputed so a scroll target is exact rather
 than approximate, and an off-by-one lands you on the wrong month without ever
-looking broken.
+looking broken. YR.1 is worth checking on both a small and a large phone, since
+the centring is measured against the viewport rather than a fixed number of
+rows.
 
 **今天 stays hidden for the length of a momentum glide (#76).** Flick hard and
 the floating control is gone until the ribbon stops moving, which is longer

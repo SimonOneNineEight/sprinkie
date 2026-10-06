@@ -103,6 +103,9 @@ export function YearScreen({
     [span.rowCount],
   );
 
+  // Centring needs the viewport, which is only known after layout. Until then
+  // the list opens on the target row itself; one correcting scroll follows.
+  const [listHeight, setListHeight] = useState(0);
   const [headerYear, setHeaderYear] = useState(focus.year);
   const [visibleYears, setVisibleYears] = useState<number[]>([focus.year]);
   // The cache carries the hidden-set and categories it answers, the shape
@@ -247,12 +250,26 @@ export function YearScreen({
           contentContainerStyle={[styles.body, clearance]}
           data={rows}
           keyExtractor={(row) => String(row)}
-          initialScrollIndex={openingRow(span, focus.year, focus.month)}
+          initialScrollIndex={rowOfMonth(span, focus.year, focus.month)}
           getItemLayout={(_, index) => ({
             length: metrics.heights[index],
             offset: metrics.offsets[index],
             index,
           })}
+          onLayout={(event) => {
+            const { height } = event.nativeEvent.layout;
+            if (height === listHeight || height <= 0) return;
+            setListHeight(height);
+            // #51: "opens centred on today's month". Measured rather than
+            // nudged by a fixed row, so it adapts to the screen.
+            listRef.current?.scrollToIndex({
+              index: openingRow(span, focus.year, focus.month, {
+                height,
+                heights: metrics.heights,
+              }),
+              animated: false,
+            });
+          }}
           onViewableItemsChanged={onViewable}
           viewabilityConfig={VIEWABILITY}
           showsVerticalScrollIndicator={false}
