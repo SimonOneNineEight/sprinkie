@@ -3,10 +3,9 @@ import { FlatList } from 'react-native';
 
 import { miniMonthHeight } from '../calendar/MiniMonth';
 import { monthsInRow, ribbonSpan, rowMetrics, rowOfMonth } from '../calendar/ribbon';
-import { theme } from '../theme';
 import { cat } from '../testing/fixtures';
 import { installMockApi, type MockApi } from '../testing/mockApi';
-import { YearScreen } from './YearScreen';
+import { RIBBON_LAYOUT, YearScreen } from './YearScreen';
 
 const categories = [cat.work, { ...cat.sport, position: 2 }];
 const today = new Date(2026, 7, 5);
@@ -69,12 +68,9 @@ it('takes its row heights from MiniMonth itself, not a copy of its tokens', () =
   // call site meant a margin changed there silently shortened every offset
   // here, and a test that re-derived the same numbers could never see it.
   const row = rowOfMonth(span, 2026, 8);
-  const metrics = rowMetrics(span, {
-    monthHeight: miniMonthHeight,
-    gap: theme.spacing.space10,
-    yearCaption: theme.typography.meta.lineHeight + theme.spacing.space4,
-    topPadding: theme.spacing.space6,
-  });
+  // The component's own layout numbers, not a restatement of them: a test
+  // that copies the five values cannot catch them drifting apart.
+  const metrics = rowMetrics(span, { monthHeight: miniMonthHeight, ...RIBBON_LAYOUT, gap: RIBBON_LAYOUT.rowGap });
   expect(ribbon().props.getItemLayout(null, row)).toEqual({
     length: metrics.heights[row],
     offset: metrics.offsets[row],
@@ -83,7 +79,7 @@ it('takes its row heights from MiniMonth itself, not a copy of its tokens', () =
   // And the height genuinely comes from the component: a row is at least as
   // tall as the taller of its two months plus the gap between rows.
   const tallest = Math.max(miniMonthHeight(2026, 7), miniMonthHeight(2026, 8));
-  expect(metrics.heights[row]).toBe(tallest + theme.spacing.space10);
+  expect(metrics.heights[row]).toBe(tallest + RIBBON_LAYOUT.rowGap);
 });
 
 it('names the year of the TOPMOST visible month, not the bottom one', async () => {
