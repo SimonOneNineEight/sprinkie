@@ -50,6 +50,14 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
     return context.renderAsync();
   };
   const save = (image: ImageRef) => image.saveAsync({ format: SaveFormat.JPEG, compress: QUALITY });
+  // Runs the ref's last use, then releases it whether or not that use threw.
+  const releasing = async <T>(ref: ImageRef, lastUse: (ref: ImageRef) => Promise<T>) => {
+    try {
+      return await lastUse(ref);
+    } finally {
+      ref.release();
+    }
+  };
 
   // The thumbnail starts from the full render, not from the asset (#53), so the
   // original is decoded once per photo rather than twice. It reads the full's
@@ -64,22 +72,20 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // SharedObject.release exists for exactly this ("the native object is known
   // to exclusively retain some native memory (such as binary data or image
   // bitmap)"). A call on a released ref throws, so each is released only after
-  // its last use.
+  // its last use, and on a throw as well (#87): a failed attach can now be
+  // retried, and full-size bitmaps should not wait on the GC between tries.
   //
   // Measuring whether this lowers the peak was inconclusive: on a simulator the
   // same build varied by 116 MB between runs, which is wider than the gap
   // between any two versions tested, so treat it as hygiene rather than as a
-  // measured win. The peak is owned by EntryFormScreen's Promise.all (#69).
+  // measured win. The peak is owned by EntryFormScreen's Promise.allSettled (#69).
   // The original is decoded once, unresized, so its real size is known before
   // the cap is chosen; the full render resizes that bitmap rather than the file.
   const decoded = await ImageManipulator.manipulate(asset.uri).renderAsync();
-  const full = await render(decoded, decoded, LONG_EDGE);
-  decoded.release();
-  const fullSaved = await save(full);
-  full.release();
+  const full = await releasing(decoded, (ref) => render(ref, ref, LONG_EDGE));
+  const fullSaved = await releasing(full, save);
   const thumb = await render(fullSaved.uri, fullSaved, THUMB_EDGE);
-  const thumbSaved = await save(thumb);
-  thumb.release();
+  const thumbSaved = await releasing(thumb, save);
 
   return { fullUri: fullSaved.uri, thumbUri: thumbSaved.uri, takenAt };
 }

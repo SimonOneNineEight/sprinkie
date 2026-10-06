@@ -288,11 +288,15 @@ describe('photos (#44)', () => {
     }));
 
   describe('attaching from the library (#87)', () => {
-    const pickFromLibrary = async (uris: string[]) => {
-      jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
-        canceled: false,
-        assets: uris.map((uri) => ({ uri, width: 6048, height: 8064 })),
-      } as ImagePicker.ImagePickerResult);
+    // These spies would otherwise outlive their tests: a later add-tile press
+    // would silently pick the library, and Alert would stay stubbed.
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.mocked(processPhoto).mockReset();
+      jest.mocked(ImagePicker.launchImageLibraryAsync).mockReset();
+    });
+
+    const pressAddFromLibrary = async () => {
       jest
         .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
         .mockImplementation((_options, choose) => choose(1));
@@ -301,6 +305,13 @@ describe('photos (#44)', () => {
       await act(async () => {
         fireEvent.press(screen.getByTestId('grid-item-__add__'));
       });
+    };
+    const pickFromLibrary = async (uris: string[]) => {
+      jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
+        canceled: false,
+        assets: uris.map((uri) => ({ uri, width: 6048, height: 8064 })),
+      } as ImagePicker.ImagePickerResult);
+      await pressAddFromLibrary();
     };
 
     it('says so when a photo cannot be added, rather than doing nothing', async () => {
@@ -325,6 +336,16 @@ describe('photos (#44)', () => {
       await pickFromLibrary(['file:///good.heic', 'file:///bad.heic']);
 
       expect(screen.getByText('1/3')).toBeTruthy();
+      expect(alert).toHaveBeenCalledWith('無法加入照片');
+    });
+
+    it('says so when the picker itself fails', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      jest.mocked(ImagePicker.launchImageLibraryAsync).mockRejectedValue(new Error('picker failed'));
+      renderForm();
+
+      await pressAddFromLibrary();
+
       expect(alert).toHaveBeenCalledWith('無法加入照片');
     });
   });

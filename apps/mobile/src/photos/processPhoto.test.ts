@@ -31,6 +31,8 @@ let mockSourceSize: FakeSize = { width: 0, height: 0 };
 let mockWideColor = false;
 // What each saved file decodes to, so a decode of a saved render is honest.
 const mockFiles = new Map<string, FakeSize>();
+// Makes the nth save (1-based) throw, as a full disk or a failed encode would.
+let mockFailingSave = 0;
 
 jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg', PNG: 'png', WEBP: 'webp' },
@@ -66,6 +68,7 @@ jest.mock('expo-image-manipulator', () => ({
             async saveAsync(options: FakeSaveOptions) {
               // The real SharedObject throws on any call after release().
               if (rendered.released) throw new Error(`saveAsync on released ${rendered.label}`);
+              if (mockSaves.length + 1 === mockFailingSave) throw new Error('save failed');
               mockSaves.push({ ...options, width: rendered.width, height: rendered.height });
               const uri = `file:///cache/${mockSaves.length}.jpg`;
               mockFiles.set(uri, { width: rendered.width, height: rendered.height });
@@ -109,6 +112,7 @@ beforeEach(() => {
   mockSourceSize = { width: 0, height: 0 };
   mockWideColor = false;
   mockFiles.clear();
+  mockFailingSave = 0;
 });
 
 describe('processPhoto', () => {
@@ -141,15 +145,32 @@ describe('processPhoto', () => {
   it('releases every render, each after its last use', async () => {
     await processPhoto(pickerAsset({ width: 6000, height: 4000 }));
 
-    // Deriving the thumb from the full render keeps the full's bitmap reachable
-    // across that decode, so neither ref may be left to the GC (#53). The fake
-    // throws on use-after-release, so a release moved too early fails here too.
+    // A full-size bitmap is too large to leave to the GC (#53). The fake throws
+    // on use-after-release, so a release moved too early fails here too.
     expect(mockReleases).toEqual([
       `render(${ORIGINAL})`,
       `render(render(${ORIGINAL}))`,
       'render(file:///cache/1.jpg)',
     ]);
     expect(mockSaves).toHaveLength(2);
+  });
+
+  it('still releases what it rendered when a step throws (#87)', async () => {
+    // A failed attach now surfaces and can be retried, so a throw must not
+    // leave full-size bitmaps waiting on the GC.
+    mockFailingSave = 1;
+    await expect(processPhoto(pickerAsset({ width: 6000, height: 4000 }))).rejects.toThrow('save failed');
+    expect(mockReleases).toEqual([`render(${ORIGINAL})`, `render(render(${ORIGINAL}))`]);
+
+    mockReleases.length = 0;
+    mockSaves.length = 0;
+    mockFailingSave = 2;
+    await expect(processPhoto(pickerAsset({ width: 6000, height: 4000 }))).rejects.toThrow('save failed');
+    expect(mockReleases).toEqual([
+      `render(${ORIGINAL})`,
+      `render(render(${ORIGINAL}))`,
+      'render(file:///cache/1.jpg)',
+    ]);
   });
 
   it('specs the thumbnail from the decoded render, not the asset’s declared size', async () => {
