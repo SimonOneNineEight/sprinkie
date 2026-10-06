@@ -213,7 +213,7 @@ Keyboard cases are in **KB**.
 | # | Case | Expected |
 | --- | --- | --- |
 | DA.1 | Open a day with Entries | Cards with title, Category icon, Subcategory name, note preview, photo thumbnails **[API]** |
-| DA.2 | A day with none | 今天還沒有紀錄 |
+| DA.2 | A day with none: today, then any other date | Today reads 今天還沒有紀錄; every other date reads 這天沒有紀錄 |
 | DA.3 | Tap a card | The Entry form opens prefilled |
 | DA.4 | Long-press and drag a card | It moves; the order holds on return **[API]** |
 | DA.5 | Scroll a long list vertically | Scrolls; no accidental day change |

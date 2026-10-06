@@ -99,6 +99,7 @@ export const en: StringCatalog = {
     addEntry: 'Add entry',
     back: 'Back',
     empty: 'No entries yet today',
+    emptyOtherDay: 'No entries this day',
     loadFailed: 'Could not load entries',
     reorderFailed: 'Reorder failed. Please try again',
     unreadable: '(unreadable entry)',

@@ -226,7 +226,9 @@ export function DayScreen({
             {failed ? <Text style={styles.muted}>{strings.day.loadFailed}</Text> : null}
             {reorderFailed ? <Text style={styles.muted}>{strings.day.reorderFailed}</Text> : null}
             {entries !== null && visibleEntries.length === 0 && !failed ? (
-              <Text style={styles.muted}>{strings.day.empty}</Text>
+              <Text style={styles.muted}>
+                {date === localDateString(today) ? strings.day.empty : strings.day.emptyOtherDay}
+              </Text>
             ) : null}
             {/* Kept drafts (#14). No canvas artboard exists for these, so the
                 quietest surface consistent with the day view: a plain card with
