@@ -367,6 +367,11 @@ function PreviewCard({
             selectTextOnFocus
             autoCapitalize="characters"
             autoCorrect={false}
+            // Seven: six digits plus the optional leading #. A hex is never
+            // longer, and without the cap the field accepts characters that
+            // can only ever fail the match below, so typing past six looks
+            // like the field has stopped working.
+            maxLength={7}
             value={hexText}
             onChangeText={(text) => {
               setHexText(text);

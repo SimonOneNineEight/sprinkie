@@ -57,4 +57,13 @@ describe('tappable hex readout (#29)', () => {
       backgroundColor: '#73B062',
     });
   });
+
+  it('stops the field at a length a hex can still be', async () => {
+    await renderDrawer();
+
+    fireEvent.press(screen.getByText('#73B062'));
+    // Six digits plus the optional #. Past that every character can only fail
+    // the match, so the field would silently stop responding instead.
+    expect(screen.getByTestId('hex-input').props.maxLength).toBe(7);
+  });
 });
