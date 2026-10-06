@@ -97,7 +97,9 @@ describe('processPhoto', () => {
   it('decodes the original once, deriving the thumbnail from the full render', async () => {
     await processPhoto(pickerAsset({ width: 6000, height: 4000 }));
 
-    expect(mockDecodes).toEqual([ORIGINAL, `render(${ORIGINAL})`]);
+    // The file once, as-is (#70); the full render from that bitmap; the thumb
+    // from the full render.
+    expect(mockDecodes).toEqual([ORIGINAL, `render(${ORIGINAL})`, `render(render(${ORIGINAL}))`]);
   });
 
   it('caps the full render at 3500px and the thumbnail at 400px, either orientation', async () => {
@@ -118,13 +120,17 @@ describe('processPhoto', () => {
     ]);
   });
 
-  it('releases both renders, each after its last use', async () => {
+  it('releases every render, each after its last use', async () => {
     await processPhoto(pickerAsset({ width: 6000, height: 4000 }));
 
     // Deriving the thumb from the full render keeps the full's bitmap reachable
     // across that decode, so neither ref may be left to the GC (#53). The fake
     // throws on use-after-release, so a release moved too early fails here too.
-    expect(mockReleases).toEqual([`render(${ORIGINAL})`, `render(render(${ORIGINAL}))`]);
+    expect(mockReleases).toEqual([
+      `render(${ORIGINAL})`,
+      `render(render(${ORIGINAL}))`,
+      `render(render(render(${ORIGINAL})))`,
+    ]);
     expect(mockSaves).toHaveLength(2);
   });
 
@@ -139,6 +145,24 @@ describe('processPhoto', () => {
 
     const [, thumb] = mockSaves;
     expect([thumb.width, thumb.height]).toEqual([300, 400]);
+  });
+
+  it('caps the full render on the decoded size, not the asset’s declared size (#70)', async () => {
+    // Declared landscape, decodes portrait: speccing off the asset resizes the
+    // width to 3500 and leaves a 4667px long edge.
+    await processPhoto(
+      pickerAsset({ width: 8064, height: 6048 }, { decoded: { width: 6048, height: 8064 } }),
+    );
+    expect([mockSaves[0].width, mockSaves[0].height]).toEqual([2625, 3500]);
+  });
+
+  it('never upscales the full render when declared and decoded are transposed (#70)', async () => {
+    // Declared portrait, decodes 4000×3000: speccing off the asset sets the
+    // height to 3500, an upscale on both axes.
+    await processPhoto(
+      pickerAsset({ width: 3000, height: 4000 }, { decoded: { width: 4000, height: 3000 } }),
+    );
+    expect([mockSaves[0].width, mockSaves[0].height]).toEqual([3500, 2625]);
   });
 
   it('returns both saved URIs and the capture time, and re-encodes as fresh JPEGs', async () => {
