@@ -211,6 +211,22 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
     needs a fresh build. Shipping such a change as an update produces a binary
     whose JS expects native code it does not have.
 
+  **What a round trip looks like** (first one, #65, 2026-10-06). The update
+  "The year view becomes a ribbon" was published with the command above and
+  appeared in `eas update:list --branch production` as one group on runtime
+  `0.9.0`. On the TestFlight build, the app was opened, left in the foreground
+  for about two minutes, then force-quit and reopened, and the reopened app
+  showed the ribbon. That matches `expo-updates`' default: the launch that
+  finds an update downloads it in the background and keeps running the JS it
+  started with, and the next cold launch runs the new bundle. The two minutes
+  is an upper bound, not a measurement; nobody watched for the download to
+  finish.
+
+  **A tester cannot tell.** Nothing on screen says an update arrived or is
+  waiting, and backgrounding the app and returning to it is not a launch. So
+  after a publish, tell testers to open the app, wait a minute, force-quit, and
+  reopen, and before trusting a report, ask whether they did.
+
 ## Per-release
 
 Walk `manual-tests.md` on a device first: the whole document before a build,
