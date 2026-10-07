@@ -234,23 +234,33 @@ export function EntryFormScreen({
   const pickPhotos = async (source: 'camera' | 'library') => {
     const remaining = MAX_PHOTOS - photoCount;
     if (remaining < 1) return;
-    let result: ImagePicker.ImagePickerResult;
-    if (source === 'camera') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) return;
-      result = await ImagePicker.launchCameraAsync({ quality: 1, exif: true });
-    } else {
-      result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        quality: 1,
-        exif: true,
-        allowsMultipleSelection: true,
-        selectionLimit: remaining,
-      });
+    // A failure anywhere in the attach says so once instead of vanishing into
+    // the caller's `void` (#87). A denied camera permission stays silent
+    // (EF.26): the User just said no.
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) return;
+        result = await ImagePicker.launchCameraAsync({ quality: 1, exif: true });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: 'images',
+          quality: 1,
+          exif: true,
+          allowsMultipleSelection: true,
+          selectionLimit: remaining,
+        });
+      }
+      if (result.canceled) return;
+      // Each photo stands alone: the ones that process attach.
+      const settled = await Promise.allSettled(result.assets.slice(0, remaining).map(processPhoto));
+      const processed = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []));
+      setStagedPhotos((prev) => [...prev, ...processed]);
+      if (processed.length < settled.length) Alert.alert(strings.photos.attachFailed);
+    } catch {
+      Alert.alert(strings.photos.attachFailed);
     }
-    if (result.canceled) return;
-    const processed = await Promise.all(result.assets.slice(0, remaining).map(processPhoto));
-    setStagedPhotos((prev) => [...prev, ...processed]);
   };
 
   const removeGridPhoto = (key: string) => {

@@ -1,10 +1,20 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { ActionSheetIOS, Alert } from 'react-native';
 
 import { encodeContent } from '../entries/content';
 import { cat } from '../testing/fixtures';
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { installMockApi, type MockApi } from '../testing/mockApi';
+import { processPhoto } from '../photos/processPhoto';
 import { EntryFormScreen } from './EntryFormScreen';
+
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
+  requestCameraPermissionsAsync: jest.fn(),
+}));
+jest.mock('../photos/processPhoto', () => ({ processPhoto: jest.fn() }));
 
 const categories = [{ ...cat.sport, position: 1 }];
 
@@ -276,6 +286,69 @@ describe('photos (#44)', () => {
       url: `https://store/${i}.jpg`,
       thumbUrl: `https://store/${i}_t.jpg`,
     }));
+
+  describe('attaching from the library (#87)', () => {
+    // These spies would otherwise outlive their tests: a later add-tile press
+    // would silently pick the library, and Alert would stay stubbed.
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.mocked(processPhoto).mockReset();
+      jest.mocked(ImagePicker.launchImageLibraryAsync).mockReset();
+    });
+
+    const pressAddFromLibrary = async () => {
+      jest
+        .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+        .mockImplementation((_options, choose) => choose(1));
+      // A new Entry opens on its category step; the photo grid follows it.
+      fireEvent.press(screen.getByText('運動'));
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('grid-item-__add__'));
+      });
+    };
+    const pickFromLibrary = async (uris: string[]) => {
+      jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
+        canceled: false,
+        assets: uris.map((uri) => ({ uri, width: 6048, height: 8064 })),
+      } as ImagePicker.ImagePickerResult);
+      await pressAddFromLibrary();
+    };
+
+    it('says so when a photo cannot be added, rather than doing nothing', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      jest.mocked(processPhoto).mockRejectedValue(new Error('ImageContextLostException'));
+      renderForm();
+
+      await pickFromLibrary(['file:///IMG_3630.HEIC']);
+
+      expect(alert).toHaveBeenCalledWith('無法加入照片');
+      expect(screen.getByText('0/3')).toBeTruthy();
+    });
+
+    it('still attaches the photos that worked when one in the batch fails', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      jest.mocked(processPhoto).mockImplementation(async (asset) => {
+        if (asset.uri.includes('bad')) throw new Error('ImageContextLostException');
+        return { fullUri: `${asset.uri}.full`, thumbUri: `${asset.uri}.thumb` };
+      });
+      renderForm();
+
+      await pickFromLibrary(['file:///good.heic', 'file:///bad.heic']);
+
+      expect(screen.getByText('1/3')).toBeTruthy();
+      expect(alert).toHaveBeenCalledWith('無法加入照片');
+    });
+
+    it('says so when the picker itself fails', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      jest.mocked(ImagePicker.launchImageLibraryAsync).mockRejectedValue(new Error('picker failed'));
+      renderForm();
+
+      await pressAddFromLibrary();
+
+      expect(alert).toHaveBeenCalledWith('無法加入照片');
+    });
+  });
 
   it('counts towards three and stops offering the tile at three', () => {
     const { unmount } = renderForm({ draft: draftWith(2) });

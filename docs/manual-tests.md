@@ -281,6 +281,7 @@ Keyboard cases are in **KB**.
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** |
 | EF.42 | Attach three of the largest photos on the device at once | All three tiles appear together, and the wait is visibly shorter than the old build |
+| EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
@@ -297,8 +298,15 @@ here as a #53 regression. The two decodes per photo were always sequential, so
 three photos were the most ever decoded at once before the change and still
 are. Whether the peak moved at all is unmeasured: on a simulator the same build
 varied by 116 MB between runs, wider than the gap between versions, so the
-method could not answer it. The peak belongs to the Promise.all in
+method could not answer it. The peak belongs to the Promise.allSettled in
 EntryFormScreen, tracked as #69, and a device has never been measured.
+
+**EF.43 is #87.** A wide-color photo made the thumbnail step throw, and the
+attach did nothing. The 48MP setting is the reliable way to get such a photo
+on an iPhone 17 Pro; a 24MP shot attached even before the fix. If a photo
+cannot be added, the form now says 無法加入照片 and keeps any others from the
+same pick. Nothing on a healthy device triggers that by hand, so the unit
+tests cover it.
 
 Round 2: #44 (cap of 3, saving spinner). Keyboard cases are in **KB**.
 
