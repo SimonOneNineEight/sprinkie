@@ -290,8 +290,8 @@ revision carries the date-move.
 work for three 48MP photos (decode, full render and save, thumbnail) takes
 ~1.3s, and the app survives it (#69). Use photos taken a while ago: **freshly
 taken 48MP photos take ~10s**, almost all of it inside the iOS picker before
-the app receives them, likely iOS finishing each photo's deferred processing
-on demand. That wait is iOS's, not a failure of this case, and nothing in the
+the app receives them: iOS finishes each photo's deferred processing on
+demand (confirmed: a photo taken 30 minutes earlier attached in ~2s). That wait is iOS's, not a failure of this case, and nothing in the
 app can show it yet (#92 notes the gap).
 
 **EF.43 is #87.** A wide-color photo made the thumbnail step throw, and the
