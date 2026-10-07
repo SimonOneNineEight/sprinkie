@@ -478,7 +478,7 @@ export function EntryFormScreen({
                 style={styles.titleInput}
                 placeholder={strings.entryForm.titlePlaceholder}
                 placeholderTextColor={styles.placeholder.color}
-                maxLength={40}
+                maxLength={80}
                 autoFocus
                 value={title}
                 onChangeText={setTitle}
