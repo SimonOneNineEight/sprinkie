@@ -2,6 +2,7 @@ import { presignPhotos, registerPhotos } from '../api/client';
 import type { Photo } from '../api/client';
 
 import type { ProcessedPhoto } from './processPhoto';
+import { timed } from './stepTimings';
 
 /** PUT a local file's bytes to a presigned storage URL. */
 async function uploadFile(uri: string, uploadUrl: string): Promise<void> {
@@ -28,7 +29,7 @@ export async function uploadPhotos(
   staged: ProcessedPhoto[],
 ): Promise<Photo[]> {
   if (staged.length === 0) return [];
-  const { uploads } = await presignPhotos(accessToken, entryId, staged.length);
+  const { uploads } = await timed('presign', () => presignPhotos(accessToken, entryId, staged.length));
   // Every transfer is issued at once rather than one after another (#44,
   // ratified 2026-09-12): serially the step cost the sum of the uploads,
   // and on a slow uplink a three-photo save sat long enough to read as a
@@ -37,11 +38,11 @@ export async function uploadPhotos(
   // and photosFailed keeps its meaning.
   await Promise.all(
     staged.flatMap((photo, index) => [
-      uploadFile(photo.fullUri, uploads[index].uploadUrl),
-      uploadFile(photo.thumbUri, uploads[index].thumbUploadUrl),
+      timed(`upload ${index + 1} full`, () => uploadFile(photo.fullUri, uploads[index].uploadUrl)),
+      timed(`upload ${index + 1} thumb`, () => uploadFile(photo.thumbUri, uploads[index].thumbUploadUrl)),
     ]),
   );
-  const { photos } = await registerPhotos(
+  const { photos } = await timed('register', () => registerPhotos(
     accessToken,
     entryId,
     staged.map((photo, index) => ({
@@ -49,6 +50,6 @@ export async function uploadPhotos(
       thumbPath: uploads[index].thumbPath,
       ...(photo.takenAt ? { takenAt: photo.takenAt } : {}),
     })),
-  );
+  ));
   return photos;
 }

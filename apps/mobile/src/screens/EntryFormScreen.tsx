@@ -18,6 +18,7 @@ import { createCategory, deleteEntry, deletePhoto, reorderPhotos } from '../api/
 import { MAX_PHOTOS, PhotoGrid } from '../entries/PhotoGrid';
 import type { ProcessedPhoto } from '../photos/processPhoto';
 import { processPhoto } from '../photos/processPhoto';
+import { showTimings, startTimings } from '../photos/stepTimings';
 import { CategoryIcon } from '../calendar/CategoryIcon';
 import { dateHeading } from '../calendar/dateLabel';
 import { DatePickerSheet } from '../calendar/DatePickerSheet';
@@ -167,6 +168,7 @@ export function EntryFormScreen({
     // Read without the render path's !addingSub guard on purpose — pressing
     // 儲存 while the field is still open must not lose the typed name (#28).
     const pendingName = subcategory === null ? subName.trim() : '';
+    startTimings(); // TEMPORARY (#93)
     const result = await saveEntry({
       accessToken,
       date,
@@ -179,6 +181,7 @@ export function EntryFormScreen({
       draftId,
       existingEntryId: entry?.id ?? draft?.entryId ?? savedEntryId,
     });
+    if (stagedPhotos.length > 0) showTimings('Save timings (#93)', accessToken); // TEMPORARY (#93)
     // No finally needed: saveEntry never throws, by the contract documented
      // in entries/save.ts. If that totality ever goes, this needs one.
     inFlight.current = false;
@@ -253,8 +256,10 @@ export function EntryFormScreen({
         });
       }
       if (result.canceled) return;
+      startTimings(); // TEMPORARY (#93)
       // Each photo stands alone: the ones that process attach.
       const settled = await Promise.allSettled(result.assets.slice(0, remaining).map(processPhoto));
+      showTimings('Attach timings (#93)', accessToken); // TEMPORARY (#93)
       const processed = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []));
       setStagedPhotos((prev) => [...prev, ...processed]);
       if (processed.length < settled.length) Alert.alert(strings.photos.attachFailed);

@@ -1,6 +1,8 @@
 import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
+import { timed } from './stepTimings';
+
 // Client-side photo processing (#8): re-encode to a print-safe ~3500px long
 // edge at quality 0.85 and generate a calendar thumbnail. The manipulator
 // writes fresh JPEGs with no EXIF, so GPS is stripped by construction; the
@@ -81,11 +83,12 @@ export async function processPhoto(asset: ImagePickerAsset): Promise<ProcessedPh
   // measured win. The peak is owned by EntryFormScreen's Promise.allSettled (#69).
   // The original is decoded once, unresized, so its real size is known before
   // the cap is chosen; the full render resizes that bitmap rather than the file.
-  const decoded = await ImageManipulator.manipulate(asset.uri).renderAsync();
-  const full = await releasing(decoded, (ref) => render(ref, ref, LONG_EDGE));
-  const fullSaved = await releasing(full, save);
-  const thumb = await render(fullSaved.uri, fullSaved, THUMB_EDGE);
-  const thumbSaved = await releasing(thumb, save);
+  const tag = asset.uri.slice(-10); // TEMPORARY (#93): labels this photo's timings
+  const decoded = await timed(`${tag} decode`, () => ImageManipulator.manipulate(asset.uri).renderAsync());
+  const full = await timed(`${tag} full render`, () => releasing(decoded, (ref) => render(ref, ref, LONG_EDGE)));
+  const fullSaved = await timed(`${tag} full save`, () => releasing(full, save));
+  const thumb = await timed(`${tag} thumb render`, () => render(fullSaved.uri, fullSaved, THUMB_EDGE));
+  const thumbSaved = await timed(`${tag} thumb save`, () => releasing(thumb, save));
 
   return { fullUri: fullSaved.uri, thumbUri: thumbSaved.uri, takenAt };
 }
