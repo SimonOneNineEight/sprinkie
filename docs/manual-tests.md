@@ -258,7 +258,7 @@ Keyboard cases are in **KB**.
 | EF.17 | Save with a pending pill | The Subcategory is created with the Entry **[API]** |
 | EF.18 | Press return in the Subcategory field | Never creates |
 | EF.19 | Tap a pending pill | Deselects and clears it |
-| EF.20 | Title field | Stops at 40 characters |
+| EF.20 | Title field | Stops at 80 characters |
 | EF.21 | Empty title | 儲存 disabled |
 | EF.22 | Note field | Multiline, grows as you type |
 | EF.23 | Tap the photo tile | Camera / library / cancel offered |
