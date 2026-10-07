@@ -280,26 +280,20 @@ Keyboard cases are in **KB**.
 | EF.39 | Deny the photo-library permission | Nothing happens; no crash, no empty tile |
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** |
-| EF.42 | Attach three of the largest photos on the device at once | All three tiles appear together, and the wait is visibly shorter than the old build |
+| EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
 
-**EF.42 times the attach; it does not watch for a crash.** Each photo used to
-decode its original twice, and #53 halved that. Use the biggest frames the
-library holds, a burst export or a 48MP capture, since a 12MP photo is too
-quick to tell apart. Expect a wait with nothing on screen either way: there is
-no progress indicator, so a slow return is the case passing. What changed is
-how slow — on a simulator, three large frames went from ~1150ms to ~700ms.
-
-Do not expect this case to stop the app being killed, and do not treat a crash
-here as a #53 regression. The two decodes per photo were always sequential, so
-three photos were the most ever decoded at once before the change and still
-are. Whether the peak moved at all is unmeasured: on a simulator the same build
-varied by 116 MB between runs, wider than the gap between versions, so the
-method could not answer it. The peak belongs to the Promise.allSettled in
-EntryFormScreen, tracked as #69, and a device has never been measured.
+**EF.42 was measured on a device (#93).** On an iPhone 17 Pro, the app's own
+work for three 48MP photos (decode, full render and save, thumbnail) takes
+~1.3s, and the app survives it (#69). Use photos taken a while ago: **freshly
+taken 48MP photos take ~10s**, almost all of it inside the iOS picker before
+the app receives them: iOS finishes each photo's deferred processing on
+demand (confirmed: a photo taken 30 minutes earlier attached in ~2s). That
+wait is iOS's, not a failure of this case, and nothing in the app can show it
+yet (#92 notes the gap).
 
 **EF.43 is #87.** A wide-color photo made the thumbnail step throw, and the
 attach did nothing. The 48MP setting is the reliable way to get such a photo
