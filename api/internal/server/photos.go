@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/SimonOneNineEight/sprinkie/api/gen/apigen"
 	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
@@ -72,26 +73,26 @@ func (h handlers) PresignPhotos(ctx context.Context, request apigen.PresignPhoto
 		return apigen.PresignPhotos400JSONResponse{Message: overCapMessage}, nil
 	}
 
+	// Storage signs one path per request, so every URL is signed at once (#95).
 	prefix := photoPathPrefix(userID, entryID)
 	uploads := make([]apigen.PhotoUpload, count)
+	g, gctx := errgroup.WithContext(ctx)
 	for i := range uploads {
 		name := uuid.NewString()
-		objectPath := prefix + name + ".jpg"
-		thumbPath := prefix + name + "_thumb.jpg"
-		uploadURL, err := h.store.SignUpload(ctx, objectPath)
-		if err != nil {
-			return apigen.PresignPhotos500JSONResponse(h.failure(ctx, "presigning failed", err)), nil
-		}
-		thumbURL, err := h.store.SignUpload(ctx, thumbPath)
-		if err != nil {
-			return apigen.PresignPhotos500JSONResponse(h.failure(ctx, "presigning failed", err)), nil
-		}
-		uploads[i] = apigen.PhotoUpload{
-			ObjectPath:     objectPath,
-			ThumbPath:      thumbPath,
-			UploadUrl:      uploadURL,
-			ThumbUploadUrl: thumbURL,
-		}
+		u := &uploads[i]
+		u.ObjectPath = prefix + name + ".jpg"
+		u.ThumbPath = prefix + name + "_thumb.jpg"
+		g.Go(func() (err error) {
+			u.UploadUrl, err = h.store.SignUpload(gctx, u.ObjectPath)
+			return err
+		})
+		g.Go(func() (err error) {
+			u.ThumbUploadUrl, err = h.store.SignUpload(gctx, u.ThumbPath)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return apigen.PresignPhotos500JSONResponse(h.failure(ctx, "presigning failed", err)), nil
 	}
 	return apigen.PresignPhotos200JSONResponse{Uploads: uploads}, nil
 }

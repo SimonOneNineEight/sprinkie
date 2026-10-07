@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -176,6 +177,7 @@ func (f failingQuerier) DeletePhoto(context.Context, dbgen.DeletePhotoParams) (d
 // fakeStore fault-injects the storage client. failAfter lets a call succeed
 // N times and fail on the N+1th, for branches behind an earlier success.
 type fakeStore struct {
+	mu                  sync.Mutex
 	signUploadErr       error
 	signUploadOKCalls   int
 	signDownloadErr     error
@@ -186,6 +188,8 @@ type fakeStore struct {
 }
 
 func (f *fakeStore) SignUpload(_ context.Context, path string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.uploads++
 	if f.signUploadErr != nil && f.uploads > f.signUploadOKCalls {
 		return "", f.signUploadErr
@@ -382,7 +386,7 @@ func TestEntriesFailClosedOnDatabaseErrors(t *testing.T) {
 		"presign sign-upload fails": {failingQuerier{}, &fakeStore{signUploadErr: errors.New("boom")}, func(t *testing.T, ts *httptest.Server) {
 			checkStatus(t, presignPhotos(t, ts, token, "7f000000-0000-4000-8000-00000000000a", 1), 500)
 		}},
-		"presign thumb sign fails": {failingQuerier{}, &fakeStore{signUploadErr: errors.New("boom"), signUploadOKCalls: 1}, func(t *testing.T, ts *httptest.Server) {
+		"presign fails when one of its sign calls does": {failingQuerier{}, &fakeStore{signUploadErr: errors.New("boom"), signUploadOKCalls: 1}, func(t *testing.T, ts *httptest.Server) {
 			checkStatus(t, presignPhotos(t, ts, token, "7f000000-0000-4000-8000-00000000000a", 1), 500)
 		}},
 		"register owned-entry fails": {failingQuerier{ownedEntryErr: errors.New("boom")}, &fakeStore{}, func(t *testing.T, ts *httptest.Server) {

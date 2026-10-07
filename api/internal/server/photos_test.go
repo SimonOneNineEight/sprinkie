@@ -2,15 +2,21 @@ package server_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/SimonOneNineEight/sprinkie/api/gen/dbgen"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/auth"
+	"github.com/SimonOneNineEight/sprinkie/api/internal/server"
 )
 
 type photoUpload struct {
@@ -549,4 +555,44 @@ func TestPhotoCapFillsToThree(t *testing.T) {
 	if body.Message != "an entry holds at most 3 photos" {
 		t.Errorf("message = %q, want it to name the cap of three", body.Message)
 	}
+}
+
+// gatedStore holds every SignUpload until want of them are in flight at
+// once, so a handler that signs one URL after another never gets past the
+// first and fails on the timeout instead of hanging.
+type gatedStore struct {
+	want    int
+	mu      sync.Mutex
+	arrived int
+	all     chan struct{}
+}
+
+func (g *gatedStore) SignUpload(_ context.Context, path string) (string, error) {
+	g.mu.Lock()
+	g.arrived++
+	if g.arrived == g.want {
+		close(g.all)
+	}
+	g.mu.Unlock()
+	select {
+	case <-g.all:
+		return "http://storage.local/upload/" + path, nil
+	case <-time.After(2 * time.Second):
+		return "", errors.New("upload URLs were signed one at a time")
+	}
+}
+func (g *gatedStore) SignDownloads(context.Context, []string, time.Duration) (map[string]string, error) {
+	return nil, errors.New("not used by presign")
+}
+func (g *gatedStore) Remove(context.Context, []string) error {
+	return errors.New("not used by presign")
+}
+
+func TestPresignSignsUploadsAtOnce(t *testing.T) {
+	token := signUpTestUser(t)
+	// Three photos, each with a full and a thumb URL.
+	store := &gatedStore{want: 6, all: make(chan struct{})}
+	ts := httptest.NewServer(server.NewWithQuerier(discardLogger(), failingQuerier{}, auth.NewVerifier(testJWKSURL()), store))
+	defer ts.Close()
+	checkStatus(t, presignPhotos(t, ts, token, "7f000000-0000-4000-8000-00000000000a", 3), 200)
 }
