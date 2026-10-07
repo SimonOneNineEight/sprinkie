@@ -342,3 +342,20 @@ describe('photos (#44)', () => {
     expect(api.entryPosts()).toHaveLength(1);
   });
 });
+
+describe('title length (#90)', () => {
+  it('holds a title longer than the old 40-character cap', () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+
+    // An imported journal carries titles up to 72 characters, because a whole
+    // thought gets written as the title. At 40 the field truncates such a
+    // title the next time the entry is opened, losing text already saved.
+    const title = screen.getByPlaceholderText('標題');
+    expect(title.props.maxLength).toBe(80);
+
+    const long = '今天晚餐做了泡菜炒飯，原本都覺得很好吃，但最後吃一吃覺得荷包蛋好像臭掉了…可惡';
+    fireEvent.changeText(title, long);
+    expect(title.props.maxLength).toBeGreaterThanOrEqual(long.length);
+  });
+});
