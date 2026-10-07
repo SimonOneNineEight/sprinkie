@@ -562,8 +562,9 @@ Go and jest suites; they cannot be staged by hand.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| AX.1 | VoiceOver on the month grid | Days are reachable and announced **[#18]** |
+| AX.1 | VoiceOver on the month grid | Days are reachable and announced |
 | AX.2 | VoiceOver on the 類別 sheet | Rows announce their visibility state |
 | AX.3 | VoiceOver on the color drawer | The area and hue strip are adjustable |
 | AX.4 | Larger text sizes | Nothing clipped past legibility |
 | AX.5 | Every tap target | At least 44pt |
+| AX.6 | VoiceOver: swipe up, then down, on the month title | It is announced as adjustable with the full month (2026年10月); up steps to the next month and down to the previous, each announced. ‹年, 類別 and 設定 stay separate stops |

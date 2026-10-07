@@ -87,6 +87,7 @@ export const en: StringCatalog = {
   },
   month: {
     title: (month: number) => monthsFull[month - 1],
+    accessibleTitle: (year: number, month: number) => `${monthsFull[month - 1]} ${year}`,
     yearLabel: (year: number) => `${year}`,
     emptyDay: 'No entries this day',
     // weekday is a 0-Sunday index, per Date#getDay.
