@@ -147,16 +147,17 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
    API's own logs instead.
 5. **Wire secrets (#57).**
    - Hosted Supabase: apply `supabase/migrations/` via `supabase link` +
-     `supabase db push`. Then run `deploy/check-photos-bucket.sh`, which
-     reads the hosted `photos` bucket and fails unless it matches
-     `[storage.buckets.photos]` in `supabase/config.toml` (private, 10MiB,
-     image/jpeg). `db push` does not carry bucket settings, and with photo
+     `supabase db push`. On a fresh project, first create the `photos`
+     bucket under Storage → New bucket with the values in
+     `[storage.buckets.photos]` of `supabase/config.toml` (private, 10MiB,
+     image/jpeg).
+   - Then run `deploy/check-photos-bucket.sh`, on every release pass and not
+     only the first. It reads the hosted bucket and fails unless it matches
+     `config.toml`: `db push` does not carry bucket settings, and with photo
      bytes going straight to Storage (ADR-0002) the bucket is the only limit
-     on an upload's size, so run it on every release pass, not only the first.
-     It last passed on 2026-10-07 (#54): `public=false`,
-     `file_size_limit=10485760`, `allowed_mime_types=image/jpeg`. On a fresh
-     project, create the bucket under Storage → New bucket with those values
-     first.
+     on an upload's size. It needs `supabase login`, and it uses the link in
+     the main checkout, so a `supabase link` made inside a worktree is not
+     seen. It last passed on 2026-10-07 (#54).
    - API host: the four env vars above, from the hosted project's settings.
    - EAS: **done in #57.** The project is `@simon198tw/sprinkie` and its five
      `EXPO_PUBLIC_*` variables live in the `production` and `preview`
