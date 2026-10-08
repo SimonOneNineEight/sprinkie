@@ -28,7 +28,7 @@ Hence this document, and hence the rule about writing down the revision.
 
 ```sh
 # The revision this run gates: the one serving traffic, not merely the newest
-gcloud run services describe daily-wlog-api --region us-west1 --format='value(status.traffic)'
+gcloud run services describe daily-wlog-api --region us-west1 --format='value(status.traffic[].revisionName,status.traffic[].percent)'
 ```
 
 **On a TestFlight build**, load the latest update before anything else: open
@@ -40,7 +40,7 @@ yesterday's code. Note the update's group id for the record below.
 the hosted env, or the run silently tests other code or talks to localhost:
 
 ```sh
-# Which checkout is serving :8081? Kill any server not rooted where you are.
+# Which checkout serves :8081? Stop it unless it is this checkout's apps/mobile.
 lsof -a -p "$(lsof -nP -iTCP:8081 -sTCP:LISTEN | awk '/node/{print $2; exit}')" -d cwd
 cd apps/mobile && pnpm start:hosted
 ```
@@ -116,7 +116,7 @@ Throwaway User, phone language Traditional Chinese.
 | # | Steps | Expected |
 | --- | --- | --- |
 | J3.1 | Swipe back three months and forward again | Months page one per swipe; dots match each month **[API]** |
-| J3.2 | Tap ‹ <year> under the month title, pick a month from a past year | Year view opens, then that month **[API]** |
+| J3.2 | Tap ‹ 2026年 (the year under the month title), pick a month from a past year | Year view opens, then that month **[API]** |
 | J3.3 | Hide a Category from 類別, walk month → day → year | It is absent on all three **[API]** |
 | J3.4 | Show it again | It returns on all three **[API]** |
 
@@ -174,8 +174,8 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.11 | Empty email or password, submit | Nothing happens; no request fired |
 | SI.12 | Airplane mode, submit | Plain error, no crash |
 | SI.13 | Password field | Masked, and offers the right autofill (current vs new) per mode |
-| SI.14 | The home screen | The Sprinkie icon (a three-by-three grid of colored squares) labelled Sprinkie |
-| SI.15 | Every screen's ground | Warm off-white (#FAF7F2), never pure white |
+| SI.14 | The home screen | The Sprinkie icon (seven rounded colored squares on a three-by-three layout, the centre and bottom-right empty) labelled Sprinkie |
+| SI.15 | Every screen's background | Warm off-white (#FAF7F2), never pure white. Cards, sheets and buttons are white on it by design |
 
 **SI.2 and SI.3 passed on build 5 (0.9.0), 2026-10-05**, the first build signed
 against a real App ID. Both had failed on every previous build: the App ID
@@ -206,7 +206,7 @@ Keyboard cases are in **KB**.
 | MO.14 | Tap the panel header or any row | Opens the day view |
 | MO.15 | A day with no Entries | Panel reads 這天沒有紀錄 |
 | MO.16 | Tap the floating + | Entry form opens for the **selected** day, not today |
-| MO.17 | Tap ‹ <year> under the month title | The year ribbon opens on the month you were viewing, including after swiping across a year boundary (YR.21) |
+| MO.17 | Tap ‹ 2026年 (the year under the month title) | The year ribbon opens on the month you were viewing, including after swiping across a year boundary (YR.21) |
 | MO.18 | Tap the 設定 (gear) icon | Settings opens |
 | MO.19 | Tap the 類別 (tag) icon | The visibility sheet opens |
 | MO.20 | Airplane mode, swipe months | Dots are absent, not wrong; no error wall, no crash |
@@ -214,7 +214,7 @@ Keyboard cases are in **KB**.
 | MO.22 | Swipe months away, tap the floating 今天 | This month, with today selected **[API]** |
 | MO.23 | Tap 今天 while already on this month | Selection returns to today; nothing else moves |
 | MO.24 | Hide a Category while its dots are on screen | The dots go; the month never briefly shows the old set **[API]** |
-| MO.25 | The nav bar | Only 類別 and 設定; 今天 floats at the bottom |
+| MO.25 | The nav bar | Only the 類別 and 設定 icons; 今天 floats at the bottom |
 | MO.26 | A day with more Entries than the panel fits | The panel scrolls, and its last row scrolls clear of the floating controls |
 | MO.27 | Scroll the day panel | Both controls fade out while scrolling and return when it stops |
 | MO.28 | Tap between the two controls while they are showing | The tap reaches the panel beneath, not the gap |
@@ -296,9 +296,8 @@ Keyboard cases are in **KB**.
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** |
 | EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
-| EF.44 | Tap a photo on a saved Entry | Confirmation, then it goes **[API]** |
+| EF.44 | Tap a Photo on a saved Entry | Confirmation, then it goes **[API]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
-| EF.46 | Attach a portrait photo, save, open the day | Upright and in proportion on the card, not sideways or stretched **[API]** |
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
@@ -319,6 +318,11 @@ cannot be added, the form now says 無法加入照片 and keeps any others from 
 same pick. Nothing on a healthy device triggers that by hand, so the unit
 tests cover it.
 
+**Two photo fixes have no case here.** #70's portrait size cap is invisible on
+screen, so its unit tests and a real-module check cover it. #95 made the save's
+upload-link request about three times faster from revision 00006 on: EF.30's
+wait is shorter there, which changes how it feels, not whether it passes.
+
 Keyboard cases are in **KB**.
 
 ### YR — Year view
@@ -332,7 +336,7 @@ is about scrolling rather than paging.
 | YR.2 | A recorded day | A solid box in its first visible Entry's Category color **[API]** |
 | YR.3 | Today | Marked in its mini month |
 | YR.4 | Scroll down past December | January follows with no break and no page turn |
-| YR.5 | The January row | A year caption above it at heading weight, lighter than the month names, so the new year announces itself |
+| YR.5 | The January row | A year caption above it, larger than the month names and a lighter grey, so the new year announces itself |
 | YR.6 | Keep scrolling, several years | Months keep coming in both directions; nothing runs out **[API]** |
 | YR.7 | Watch the header while scrolling | The year and its count follow the topmost visible month, changing as you cross into another year **[API]** |
 | YR.8 | The count, current year vs a past year | This-year wording on the current year, total wording on any other **[API]** |
@@ -348,7 +352,7 @@ is about scrolling rather than paging.
 | YR.18 | Tap the 類別 (tag) icon | The visibility sheet opens |
 | YR.19 | Hide a Category, return | Its days lose their color across every year on screen **[API]** |
 | YR.20 | Airplane mode | Mini months render empty, no crash |
-| YR.21 | From a month in a past year, tap ‹ <year> | The ribbon opens on **that month**, not that year's January and not this year |
+| YR.21 | From a month in a past year, tap ‹ and its year | The ribbon opens on **that month**, not that year's January and not this year |
 | YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
 | YR.23 | Scroll, then stop | 今天 fades out while moving and returns when the ribbon settles |
 | YR.24 | The home indicator | Clears the floating control, and the control clears the content |
@@ -450,7 +454,7 @@ Keyboard cases are in **KB**.
 | CD.18 | Confirm it | The color leaves 已存的顏色 there and then, with the drawer still open **[API]** |
 | CD.19 | A Category wearing the forgotten color | Still wears it — on its editor, on the month view, in the day list **[API]** |
 | CD.20 | Reopen the drawer | The color is still gone; the rest of the row is in the same order **[API]** |
-| CD.21 | Type past `#` and six digits in the hex readout | The field stops accepting characters |
+| CD.21 | In the hex readout, type `#` and six digits, then one more | The field stops accepting characters |
 
 **CD.18–CD.20 need this round's API deployed.** `DELETE /color-recents/{hex}`
 arrives with #47; against an older revision the long-press and its
@@ -586,4 +590,4 @@ Go and jest suites; they cannot be staged by hand.
 | AX.3 | VoiceOver on the color drawer | The area and hue strip are adjustable |
 | AX.4 | Larger text sizes | Nothing clipped past legibility |
 | AX.5 | Every tap target | At least 44pt |
-| AX.6 | VoiceOver: swipe up, then down, on the month title | It is announced as adjustable with the full month (2026年10月); up steps to the next month and down to the previous, each announced. ‹ <year>, 類別 and 設定 stay separate stops |
+| AX.6 | VoiceOver: swipe up, then down, on the month title | It is announced as adjustable with the full month (2026年10月); up steps to the next month and down to the previous, each announced. ‹ 2026年, 類別 and 設定 stay separate stops |
