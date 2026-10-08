@@ -27,10 +27,21 @@ Hence this document, and hence the rule about writing down the revision.
 ## Before you start
 
 ```sh
-# The revision this run gates
-gcloud run revisions list --service daily-wlog-api --region us-west1 --limit 1
+# The revision this run gates: the one serving traffic, not merely the newest
+gcloud run services describe daily-wlog-api --region us-west1 --format='value(status.traffic)'
+```
 
-# A device build must source the hosted env or it silently talks to localhost
+**On a TestFlight build**, load the latest update before anything else: open
+the app, wait about a minute, force-quit, and open it again. Nothing on screen
+says an update arrived (`docs/release.md`, OTA updates), so skipping this walks
+yesterday's code. Note the update's group id for the record below.
+
+**On a dev client only**, Metro must run from the checkout under test and with
+the hosted env, or the run silently tests other code or talks to localhost:
+
+```sh
+# Which checkout is serving :8081? Kill any server not rooted where you are.
+lsof -a -p "$(lsof -nP -iTCP:8081 -sTCP:LISTEN | awk '/node/{print $2; exit}')" -d cwd
 cd apps/mobile && pnpm start:hosted
 ```
 
@@ -47,7 +58,9 @@ Post a comment on the release issue:
 ```
 Manual pass — <date>
 Build: <EAS build number, or commit sha for a dev client>
-Revision: <Cloud Run revision, e.g. daily-wlog-api-00004-fwr>
+Update: <EAS update group id, or "embedded" if none has been published>
+Bundler root: <dev client only: the checkout Metro served from>
+Revision: <Cloud Run revision serving traffic, e.g. daily-wlog-api-00006-lwq>
 Device: <model>, iOS <version>
 Scope: full | [API] only
 
@@ -67,9 +80,8 @@ is exactly these.
 fails today, and ticket #NN closes it. A first run is expected to list these,
 and they are not news.
 
-Cases describe the app **as it ships today**. Where round 2 changes a
-behavior, the ticket that changes it updates its case in the same branch;
-each section names the tickets heading for it.
+Cases describe the app **as it ships today**. A ticket that changes a
+behavior updates its case in the same branch.
 
 ---
 
@@ -104,7 +116,7 @@ Throwaway User, phone language Traditional Chinese.
 | # | Steps | Expected |
 | --- | --- | --- |
 | J3.1 | Swipe back three months and forward again | Months page one per swipe; dots match each month **[API]** |
-| J3.2 | Tap ‹年, pick a month from a past year | Year view opens, then that month **[API]** |
+| J3.2 | Tap ‹ <year> under the month title, pick a month from a past year | Year view opens, then that month **[API]** |
 | J3.3 | Hide a Category from 類別, walk month → day → year | It is absent on all three **[API]** |
 | J3.4 | Show it again | It returns on all three **[API]** |
 
@@ -149,7 +161,7 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| SI.1 | The screen at rest | Wordmark, one line of promise, provider buttons. Nothing else |
+| SI.1 | The screen at rest | The Sprinkie wordmark, the promise 每天五分鐘，留下你的生活, provider buttons. Nothing else |
 | SI.2 | Sign in with Apple | Completes and lands on the month view **[API]** |
 | SI.3 | Cancel the Apple sheet | Returns to sign-in with **no** error message — a cancelled sheet is a decision |
 | SI.4 | Sign in with Google | Completes and lands on the month view **[API]** |
@@ -162,6 +174,8 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.11 | Empty email or password, submit | Nothing happens; no request fired |
 | SI.12 | Airplane mode, submit | Plain error, no crash |
 | SI.13 | Password field | Masked, and offers the right autofill (current vs new) per mode |
+| SI.14 | The home screen | The Sprinkie icon (a three-by-three grid of colored squares) labelled Sprinkie |
+| SI.15 | Every screen's ground | Warm off-white (#FAF7F2), never pure white |
 
 **SI.2 and SI.3 passed on build 5 (0.9.0), 2026-10-05**, the first build signed
 against a real App ID. Both had failed on every previous build: the App ID
@@ -192,20 +206,20 @@ Keyboard cases are in **KB**.
 | MO.14 | Tap the panel header or any row | Opens the day view |
 | MO.15 | A day with no Entries | Panel reads 這天沒有紀錄 |
 | MO.16 | Tap the floating + | Entry form opens for the **selected** day, not today |
-| MO.17 | Tap ‹年 | The year view opens on the year you were viewing, including after swiping across a year boundary |
-| MO.18 | Tap 設定 | Settings opens |
-| MO.19 | Tap 類別 | The visibility sheet opens |
+| MO.17 | Tap ‹ <year> under the month title | The year ribbon opens on the month you were viewing, including after swiping across a year boundary (YR.21) |
+| MO.18 | Tap the 設定 (gear) icon | Settings opens |
+| MO.19 | Tap the 類別 (tag) icon | The visibility sheet opens |
 | MO.20 | Airplane mode, swipe months | Dots are absent, not wrong; no error wall, no crash |
 | MO.21 | A month holding no Entries at all | Grid renders with no dots anywhere; the panel reads 這天沒有紀錄 **[API]** |
 | MO.22 | Swipe months away, tap the floating 今天 | This month, with today selected **[API]** |
 | MO.23 | Tap 今天 while already on this month | Selection returns to today; nothing else moves |
 | MO.24 | Hide a Category while its dots are on screen | The dots go; the month never briefly shows the old set **[API]** |
 | MO.25 | The nav bar | Only 類別 and 設定; 今天 floats at the bottom |
-| MO.30 | The two controls side by side | Both 44pt; their tops and bottoms line up |
 | MO.26 | A day with more Entries than the panel fits | The panel scrolls, and its last row scrolls clear of the floating controls |
 | MO.27 | Scroll the day panel | Both controls fade out while scrolling and return when it stops |
 | MO.28 | Tap between the two controls while they are showing | The tap reaches the panel beneath, not the gap |
 | MO.29 | On a device with a home indicator | Both controls sit above the indicator, never over it |
+| MO.30 | The two controls side by side | Both 44pt; their tops and bottoms line up |
 | MO.31 | The controls against the month title and the day card | Their left and right edges line up with both |
 
 ### DA — Day view
@@ -266,7 +280,7 @@ Keyboard cases are in **KB**.
 | EF.25 | Take a photo | Appears in the grid |
 | EF.26 | Deny the camera permission | Nothing happens; no crash, no empty tile |
 | EF.27 | Add Photos up to the cap | The tile counts n/3 and disappears at the third |
-| EF.28 | Tap a photo tile | Confirmation, then it goes **[API]** for a saved Entry |
+| EF.28 | Tap a photo just attached in this form | It goes at once, with no confirmation (it was never saved) |
 | EF.29 | Long-press and drag photos | Order changes and persists after save **[API]** |
 | EF.30 | Save an Entry carrying Photos | 儲存 spins for the whole save and the form beneath it is inert; the app never looks hung **[API]** |
 | EF.31 | Tap 儲存 twice quickly | One Entry, not two **[API]** |
@@ -282,6 +296,9 @@ Keyboard cases are in **KB**.
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** |
 | EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
+| EF.44 | Tap a photo on a saved Entry | Confirmation, then it goes **[API]** |
+| EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
+| EF.46 | Attach a portrait photo, save, open the day | Upright and in proportion on the card, not sideways or stretched **[API]** |
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
@@ -302,7 +319,7 @@ cannot be added, the form now says 無法加入照片 and keeps any others from 
 same pick. Nothing on a healthy device triggers that by hand, so the unit
 tests cover it.
 
-Round 2: #44 (cap of 3, saving spinner). Keyboard cases are in **KB**.
+Keyboard cases are in **KB**.
 
 ### YR — Year view
 
@@ -315,7 +332,7 @@ is about scrolling rather than paging.
 | YR.2 | A recorded day | A solid box in its first visible Entry's Category color **[API]** |
 | YR.3 | Today | Marked in its mini month |
 | YR.4 | Scroll down past December | January follows with no break and no page turn |
-| YR.5 | The January row | Carries a small year caption, so the new year announces itself |
+| YR.5 | The January row | A year caption above it at heading weight, lighter than the month names, so the new year announces itself |
 | YR.6 | Keep scrolling, several years | Months keep coming in both directions; nothing runs out **[API]** |
 | YR.7 | Watch the header while scrolling | The year and its count follow the topmost visible month, changing as you cross into another year **[API]** |
 | YR.8 | The count, current year vs a past year | This-year wording on the current year, total wording on any other **[API]** |
@@ -328,14 +345,14 @@ is about scrolling rather than paging.
 | YR.15 | Scroll far away, then tap 今天 | Scrolls back to today's month and stays on the year view |
 | YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now |
 | YR.17 | There is no back button and no chevrons | Correct; scrolling, the title and a month tap are the navigation |
-| YR.18 | Tap 類別 | The visibility sheet opens |
+| YR.18 | Tap the 類別 (tag) icon | The visibility sheet opens |
 | YR.19 | Hide a Category, return | Its days lose their color across every year on screen **[API]** |
 | YR.20 | Airplane mode | Mini months render empty, no crash |
-| YR.21 | From a month in a past year, tap ‹年 | The ribbon opens on **that month**, not that year's January and not this year |
-
+| YR.21 | From a month in a past year, tap ‹ <year> | The ribbon opens on **that month**, not that year's January and not this year |
 | YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
 | YR.23 | Scroll, then stop | 今天 fades out while moving and returns when the ribbon settles |
 | YR.24 | The home indicator | Clears the floating control, and the control clears the content |
+| YR.25 | The ribbon's rows | Two months to a row; the gap between the pair is narrower than the gap between rows, so each row reads as a row |
 
 **YR.22–YR.24 come from #50** and were lost when this section was rewritten for the ribbon; the controls outlived the grid.
 
@@ -378,7 +395,7 @@ deliberately unchanged until testers say whether it matters. Not a YR failure.
 | CS.21 | Type a name, then 新增類別 | The editor opens with that name already in the field |
 | CS.22 | Tap a row while the keyboard is up | It toggles on the first tap, rather than only dropping the keyboard |
 
-Round 2: #48 (CS.15–CS.22). Keyboard cases are in **KB**.
+Keyboard cases are in **KB**.
 
 ### CE — Category editor
 
@@ -433,13 +450,14 @@ Keyboard cases are in **KB**.
 | CD.18 | Confirm it | The color leaves 已存的顏色 there and then, with the drawer still open **[API]** |
 | CD.19 | A Category wearing the forgotten color | Still wears it — on its editor, on the month view, in the day list **[API]** |
 | CD.20 | Reopen the drawer | The color is still gone; the rest of the row is in the same order **[API]** |
+| CD.21 | Type past `#` and six digits in the hex readout | The field stops accepting characters |
 
 **CD.18–CD.20 need this round's API deployed.** `DELETE /color-recents/{hex}`
 arrives with #47; against an older revision the long-press and its
 confirmation still work (CD.16, CD.17, both client-side) and confirming then
 reports 移除失敗. That is the deployment gap, not the feature.
 
-Round 2: #47 (CD.16–CD.20). Keyboard cases are in **KB**.
+Keyboard cases are in **KB**.
 
 ### ST — Settings and account
 
@@ -468,6 +486,13 @@ Round 2: #47 (CD.16–CD.20). Keyboard cases are in **KB**.
 | ST.21 | The contact address on either page | hello.sprinkie.journal@gmail.com, and tapping it opens a mail draft |
 | ST.22 | Both pages on a narrow phone | Text wraps, nothing scrolls sideways, the 關於 links at the foot work |
 
+**ST.1 after Sign in with Apple** may show an `@privaterelay.appleid.com`
+address: the User chose Hide My Email, and that relay is their account email.
+
+**ST.18 and ST.19 in English** open Chinese pages. The documents are
+Chinese-only until #37 adds English ones (`src/legal.ts`); the row labels
+already translate. Not a failure.
+
 ### VI — Visibility, across surfaces
 
 | # | Case | Expected |
@@ -495,10 +520,10 @@ deployed revision carries the hidden-set.
 One library, one provider at the root (#42, ADR-0006), so these behave the same
 way everywhere rather than per screen.
 
-**This section needs a native rebuild.** `react-native-keyboard-controller` is
-a native dependency, so a binary built before it landed will show every case
-failing for a reason that has nothing to do with the code. Confirm the build
-carries it before reading anything into a failure here. (Expo Go was never an
+**A dev client needs a native rebuild for this section.**
+`react-native-keyboard-controller` is a native dependency, so a dev client
+built before #42 landed shows every case failing for a reason that has nothing
+to do with the code. Every TestFlight build carries it. (Expo Go was never an
 option for this app; reanimated 4 ruled it out long before this.)
 
 No automated test can see any of this. The jest suite loads the library's mock,
@@ -561,4 +586,4 @@ Go and jest suites; they cannot be staged by hand.
 | AX.3 | VoiceOver on the color drawer | The area and hue strip are adjustable |
 | AX.4 | Larger text sizes | Nothing clipped past legibility |
 | AX.5 | Every tap target | At least 44pt |
-| AX.6 | VoiceOver: swipe up, then down, on the month title | It is announced as adjustable with the full month (2026年10月); up steps to the next month and down to the previous, each announced. ‹年, 類別 and 設定 stay separate stops |
+| AX.6 | VoiceOver: swipe up, then down, on the month title | It is announced as adjustable with the full month (2026年10月); up steps to the next month and down to the previous, each announced. ‹ <year>, 類別 and 設定 stay separate stops |
