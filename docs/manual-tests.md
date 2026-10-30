@@ -49,7 +49,9 @@ Journey 1 and the account-lifecycle cases need a **throwaway User**, since
 they end in deactivation. Everything else runs on a **standing test User**
 whose Journal carries several months of Entries across at least three
 Categories, one of them with Subcategories, and at least one day holding five
-or more Entries.
+or more Entries. Sign it up in the app by email, then give it that Journal
+with `SEED_EMAIL=… SEED_PASSWORD=… pnpm seed:test-user` from `apps/mobile`.
+The script refuses an account that already holds Entries.
 
 ## Recording a run
 

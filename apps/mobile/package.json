@@ -48,7 +48,8 @@
     "test": "jest",
     "lint": "eslint .",
     "generate:theme": "node scripts/generate-theme.mjs",
-    "start:hosted": "sh -c 'set -a; . ./.env.hosted; set +a; expo start --tunnel'"
+    "start:hosted": "sh -c 'set -a; . ./.env.hosted; set +a; expo start --tunnel'",
+    "seed:test-user": "sh -c 'set -a; . ./.env.hosted; set +a; node scripts/seed-test-user.mjs'"
   },
   "jest": {
     "preset": "jest-expo",
