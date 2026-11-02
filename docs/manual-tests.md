@@ -231,7 +231,7 @@ Keyboard cases are in **KB**.
 | DA.1 | Open a day with Entries | Cards with title, Category icon, Subcategory name, note preview, photo thumbnails **[API]** |
 | DA.2 | A day with none: today, then any other date | Today reads 今天還沒有紀錄; every other date reads 這天沒有紀錄 |
 | DA.3 | Tap a card | The Entry form opens prefilled |
-| DA.4 | Long-press and drag a card | It moves; the order holds on return **[API]** |
+| DA.4 | On a day with nothing hidden, long-press and drag a card | It moves; the order holds on return **[API]** |
 | DA.5 | Scroll a long list vertically | Scrolls; no accidental day change |
 | DA.6 | Swipe left / right | Previous and next date, gestures surviving the list underneath |
 | DA.7 | Back chevron | Returns to the month view |
@@ -241,7 +241,7 @@ Keyboard cases are in **KB**.
 | DA.11 | Tap a Draft row | The form opens prefilled from it |
 | DA.12 | A day where something is hidden | Hidden cards absent; long-press drag does nothing |
 | DA.13 | Airplane mode, open a day | 無法載入紀錄, no crash |
-| DA.14 | An Entry whose content will not decode | The card renders （無法讀取的紀錄） rather than failing |
+| DA.14 | An Entry whose content will not decode | The card renders （無法讀取的紀錄） rather than failing. Nothing in the app can make one, so the unit tests cover it: skip by hand |
 | DA.15 | Airplane mode, long-press and drag a card | 排序失敗，請再試一次, and the order returns to what the server holds **[API]** |
 | DA.16 | Tap the floating 今天 | The view moves to today's date **[API]** |
 | DA.17 | Scroll a long card list to its end | The last card scrolls clear of the floating controls |
