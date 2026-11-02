@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { Me } from './api/client';
 import { ApiError, provisionMe, reactivateMe } from './api/client';
@@ -26,13 +26,19 @@ export function AppRoot() {
   // A deactivated account (#15): /me answers 403 and only the deliberate
   // restore (or 登出) leaves this state.
   const [deactivated, setDeactivated] = useState(false);
+  // A launch made offline (#100) would otherwise have no Categories until
+  // the next relaunch: a failed /me retries, backing off to every 30s.
+  const [retryTick, setRetryTick] = useState(0);
+  const failedInARow = useRef(0);
 
   useEffect(() => {
     if (!accessToken || !userId) return;
     let active = true;
+    let retry: ReturnType<typeof setTimeout> | undefined;
     provisionMe(accessToken, language)
       .then((me) => {
         if (!active) return;
+        failedInARow.current = 0;
         setWorld({ userId, me });
         setDeactivated(false);
       })
@@ -41,12 +47,18 @@ export function AppRoot() {
           if (active) setDeactivated(true);
           return;
         }
-        Sentry.captureException(error);
+        // One report per outage, not one per retry.
+        if (failedInARow.current === 0) Sentry.captureException(error);
+        if (!active) return;
+        const delay = Math.min(2000 * 2 ** failedInARow.current, 30000);
+        failedInARow.current += 1;
+        retry = setTimeout(() => setRetryTick((n) => n + 1), delay);
       });
     return () => {
       active = false;
+      clearTimeout(retry);
     };
-  }, [accessToken, userId, worldVersion, language]);
+  }, [accessToken, userId, worldVersion, language, retryTick]);
 
   // Staleness is keyed by user, not token: a routine token refresh keeps the
   // provisioned world, while signing in as a different user discards it.

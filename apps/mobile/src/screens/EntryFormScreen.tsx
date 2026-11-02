@@ -81,6 +81,18 @@ export function EntryFormScreen({
   const [subcategory, setSubcategory] = useState<Category | null>(
     initialSubcategoryId ? (categories.find((c) => c.id === initialSubcategoryId) ?? null) : null,
   );
+  // Opened before the world loaded (#100: a launch made offline), the
+  // Categories arrive later; take the draft's or entry's Category from them
+  // then, unless the person has already chosen one.
+  const [awaitingInitial, setAwaitingInitial] = useState(initialCategoryId !== undefined && category === null);
+  if (awaitingInitial) {
+    const found = category ? undefined : categories.find((c) => c.id === initialCategoryId);
+    if (category || found) setAwaitingInitial(false);
+    if (found) {
+      setCategory(found);
+      setSubcategory(categories.find((c) => c.id === initialSubcategoryId) ?? null);
+    }
+  }
   const [query, setQuery] = useState('');
   // Non-null opens the 分類表單 sheet prefilled with this name (ratified
   // 2026-09-10: the creation rows reuse the complete editor; the in-form
