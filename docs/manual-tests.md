@@ -200,7 +200,7 @@ Keyboard cases are in **KB**.
 | MO.8 | Days outside the month | Greyed and not tappable |
 | MO.9 | Swipe left / right | One month per swipe, both directions, repeatedly **[API]** |
 | MO.10 | Swipe several months fast | Each settle loads that month's dots; the month you left never paints on the one you arrived at, even for an instant **[API]** |
-| MO.11 | Move to a month that is not this month | No day is selected until you tap one |
+| MO.11 | Move to a month that is not this month | Its 1st is selected; back on this month, today is |
 | MO.12 | The day panel | The selected day's Entry titles with Category icons **[API]** |
 | MO.13 | A panel row for an Entry with Photos | Carries the photo glyph **[API]** |
 | MO.14 | Tap the panel header or any row | Opens the day view |
