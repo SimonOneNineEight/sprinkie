@@ -14,7 +14,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category, Entry, Photo } from '../api/client';
-import { createCategory, deleteEntry, deletePhoto, reorderPhotos } from '../api/client';
+import { deleteEntry, deletePhoto, reorderPhotos } from '../api/client';
 import { MAX_PHOTOS, PhotoGrid } from '../entries/PhotoGrid';
 import type { ProcessedPhoto } from '../photos/processPhoto';
 import { processPhoto } from '../photos/processPhoto';
@@ -319,25 +319,18 @@ export function EntryFormScreen({
     ]);
   };
 
-  const confirmCreateSubcategory = async () => {
+  // Leaving the Subcategory field, by blur or 完成, is the only way out
+  // (#102: 建立 is gone). A name matching an existing child selects it;
+  // any other stays pending and is created with the Entry at 儲存 (#28).
+  const leaveSubField = () => {
     const name = subName.trim();
-    if (category === null || name === '') return;
-    setFailed(false);
-    try {
-      // Subcategories store the parent's color but always render through the
-      // parent, so a later parent recolor carries every child with it.
-      const made = await createCategory(accessToken, {
-        name,
-        color: category.color,
-        parentId: category.id,
-      });
-      setCreated((prev) => [...prev, made]);
-      setSubcategory(made);
-      setAddingSub(false);
+    const existing = children.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+    setAddingSub(false);
+    if (existing) {
+      setSubcategory(existing);
       setSubName('');
-      onCategoriesChanged?.();
-    } catch {
-      setFailed(true);
+    } else {
+      setSubName(name);
     }
   };
 
@@ -435,39 +428,25 @@ export function EntryFormScreen({
                   );
                 })}
                 {addingSub ? (
-                  <View style={styles.subCreate}>
-                    <TextInput
-                      style={styles.subInput}
-                      placeholder={strings.entryForm.subcategoryPlaceholder}
-                      placeholderTextColor={styles.placeholder.color}
-                      autoFocus
-                      value={subName}
-                      onChangeText={setSubName}
-                      // Leaving the field keeps the typed name as a pending
-                      // pick; blur and the return key never create (#28).
-                      onBlur={() => {
-                        setAddingSub(false);
-                        setSubName((name) => name.trim());
-                      }}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={subName.trim() === ''}
-                      onPress={() => void confirmCreateSubcategory()}
-                    >
-                      <Text style={subName.trim() === '' ? styles.subConfirmDisabled : styles.subConfirm}>
-                        {strings.entryForm.confirmSubcategory}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <TextInput
+                    style={styles.subInput}
+                    placeholder={strings.entryForm.subcategoryPlaceholder}
+                    placeholderTextColor={styles.placeholder.color}
+                    autoFocus
+                    returnKeyType="done"
+                    value={subName}
+                    onChangeText={setSubName}
+                    onSubmitEditing={leaveSubField}
+                    onBlur={leaveSubField}
+                  />
                 ) : pendingSubName !== '' ? (
-                  // The typed-but-unconfirmed subcategory, rendered exactly
-                  // like a confirmed pick and created with the entry at 儲存;
-                  // tapping deselects it like any selected pill.
+                  // The typed subcategory, rendered like a pick and created
+                  // with the entry at 儲存. Tapping reopens it for editing
+                  // (#102); emptied, it is gone.
                   <Pressable
                     accessibilityRole="button"
                     style={[styles.subPill, styles.subPillSelected]}
-                    onPress={() => setSubName('')}
+                    onPress={() => setAddingSub(true)}
                   >
                     <View style={[styles.subDot, { backgroundColor: category.color }]} />
                     <Text style={styles.subLabel}>{pendingSubName}</Text>
@@ -799,11 +778,6 @@ const styles = createStyles((t) => ({
     ...t.typography.meta,
     color: t.colors.textPrimary,
   },
-  subCreate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: t.spacing.space4,
-  },
   // Padding-based sizing, no forced height and no inherited lineHeight:
   // iOS TextInput clips CJK glyphs inside a forced line box and top-anchors
   // the placeholder inside a fixed height; letting it wrap its natural line
@@ -819,14 +793,6 @@ const styles = createStyles((t) => ({
     paddingHorizontal: t.spacing.space5,
     paddingVertical: t.spacing.space3,
     minWidth: t.spacing.fabSize * 2,
-  },
-  subConfirm: {
-    ...t.typography.meta,
-    color: t.colors.textPrimary,
-  },
-  subConfirmDisabled: {
-    ...t.typography.meta,
-    color: t.colors.controlDisabledFg,
   },
   titleInput: {
     ...singleLineField(t, t.typography.entryTitle),

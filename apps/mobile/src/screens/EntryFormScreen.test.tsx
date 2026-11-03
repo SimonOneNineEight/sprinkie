@@ -147,6 +147,54 @@ describe('category step (#28)', () => {
     expect(postedEntry()?.subcategoryId).toBe('c-new-1');
   });
 
+  it('has no 建立: the return key, labeled 完成, turns the name into the selected pending pill (#102)', () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.press(screen.getByLabelText('新增子類別'));
+    const field = screen.getByPlaceholderText('子類別');
+    expect(field.props.returnKeyType).toBe('done');
+    expect(screen.queryByText('建立')).toBeNull();
+
+    fireEvent.changeText(field, '夜跑');
+    fireEvent(field, 'submitEditing');
+
+    expect(screen.queryByPlaceholderText('子類別')).toBeNull();
+    expect(screen.getByText('夜跑')).toBeTruthy();
+    // Nothing is created before 儲存.
+    expect(categoryPosts()).toEqual([]);
+  });
+
+  it('reopens the field with the name when the pending pill is tapped; emptied, it is gone (#102)', () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.press(screen.getByLabelText('新增子類別'));
+    fireEvent.changeText(screen.getByPlaceholderText('子類別'), '夜跑');
+    fireEvent(screen.getByPlaceholderText('子類別'), 'blur');
+
+    fireEvent.press(screen.getByText('夜跑'));
+    expect(screen.getByPlaceholderText('子類別').props.value).toBe('夜跑');
+
+    fireEvent.changeText(screen.getByPlaceholderText('子類別'), '');
+    fireEvent(screen.getByPlaceholderText('子類別'), 'blur');
+    expect(screen.queryByText('夜跑')).toBeNull();
+    expect(screen.getByLabelText('新增子類別')).toBeTruthy();
+  });
+
+  it('selects the existing Subcategory when the typed name matches one (#102)', async () => {
+    renderForm({ categories: [...categories, cat.gym] });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.press(screen.getByLabelText('新增子類別'));
+    fireEvent.changeText(screen.getByPlaceholderText('子類別'), ' 健身房 ');
+    fireEvent(screen.getByPlaceholderText('子類別'), 'blur');
+
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨練');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    expect(categoryPosts()).toEqual([]);
+    expect(postedEntry()?.subcategoryId).toBe('c-gym');
+  });
+
   it('creates nothing when the subcategory field is whitespace or cleared', async () => {
     renderForm();
     fireEvent.press(screen.getByText('運動'));
