@@ -26,8 +26,9 @@ export function AppRoot() {
   // A deactivated account (#15): /me answers 403 and only the deliberate
   // restore (or 登出) leaves this state.
   const [deactivated, setDeactivated] = useState(false);
-  // A launch made offline (#100) would otherwise have no Categories until
-  // the next relaunch: a failed /me retries, backing off to every 30s.
+  // A failed /me would otherwise leave the whole launch without Categories
+  // (#100: grey month dots, empty draft forms): it retries, backing off to
+  // every 30s.
   const [retryTick, setRetryTick] = useState(0);
   const failedInARow = useRef(0);
 
