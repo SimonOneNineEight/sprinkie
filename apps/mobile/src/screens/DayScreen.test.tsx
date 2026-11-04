@@ -269,15 +269,17 @@ it('links an optional subcategory into the saved entry', async () => {
   expect(body.subcategoryId).toBe('c-gym');
 });
 
-it('creates a subcategory inline under the picked category', async () => {
+it('creates a typed subcategory under the picked category at 儲存', async () => {
   render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
   fireEvent.press(await screen.findByLabelText('新增紀錄'));
 
   fireEvent.press(screen.getByText('運動'));
   fireEvent.press(screen.getByLabelText('新增子類別'));
   fireEvent.changeText(screen.getByPlaceholderText('子類別'), '晨跑');
+  fireEvent(screen.getByPlaceholderText('子類別'), 'submitEditing');
+  fireEvent.changeText(screen.getByPlaceholderText('標題'), '河濱');
   await act(async () => {
-    fireEvent.press(screen.getByText('建立'));
+    fireEvent.press(screen.getByText('儲存'));
   });
 
   const post = (globalThis.fetch as jest.Mock).mock.calls.find(

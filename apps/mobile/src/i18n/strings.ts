@@ -100,7 +100,6 @@ const zhTW = {
     createRow: (name: string) => `建立「${name}」`,
     addSubcategory: '新增子類別',
     subcategoryPlaceholder: '子類別',
-    confirmSubcategory: '建立',
     titlePlaceholder: '標題',
     notePlaceholder: '備註（選填）',
     // The whole save runs under a spinner on 儲存 (#44): a silent save with
