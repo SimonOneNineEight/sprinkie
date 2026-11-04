@@ -82,6 +82,9 @@ is exactly these.
 fails today, and ticket #NN closes it. A first run is expected to list these,
 and they are not news.
 
+A missing case id was a duplicate of a case elsewhere and was removed. Ids
+are never reused, since issues cite them.
+
 Cases describe the app **as it ships today**. A ticket that changes a
 behavior updates its case in the same branch.
 
@@ -166,7 +169,6 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.1 | The screen at rest | The Sprinkie wordmark, the promise 每天五分鐘，留下你的生活, provider buttons. Nothing else |
 | SI.2 | Sign in with Apple | Completes and lands on the month view **[API]** |
 | SI.3 | Cancel the Apple sheet | Returns to sign-in with **no** error message — a cancelled sheet is a decision |
-| SI.4 | Sign in with Google | Completes and lands on the month view **[API]** |
 | SI.5 | Cancel the Google sheet | Returns to sign-in; an error here is acceptable, a crash is not |
 | SI.6 | 使用電子郵件登入 | The email page opens on its own |
 | SI.7 | Email page, back chevron | Returns to the provider screen |
@@ -212,7 +214,7 @@ Keyboard cases are in **KB**.
 | MO.18 | Tap the 設定 (gear) icon | Settings opens |
 | MO.19 | Tap the 類別 (tag) icon | The visibility sheet opens |
 | MO.20 | Airplane mode, swipe months | Dots are absent, not wrong; no error wall, no crash |
-| MO.21 | A month holding no Entries at all | Grid renders with no dots anywhere; the panel reads 這天沒有紀錄 **[API]** |
+| MO.21 | A month holding no Entries at all | Grid renders with no dots anywhere **[API]** |
 | MO.22 | Swipe months away, tap the floating 今天 | This month, with today selected **[API]** |
 | MO.23 | Tap 今天 while already on this month | Selection returns to today; nothing else moves |
 | MO.24 | Hide a Category while its dots are on screen | The dots go; the month never briefly shows the old set **[API]** |
@@ -261,7 +263,7 @@ Keyboard cases are in **KB**.
 | EF.4 | Pick a day | Sheet closes, the date row updates |
 | EF.5 | Tap the scrim | Closes without changing the date |
 | EF.6 | Before choosing a Category | Only the search field and Category list show; no title or note |
-| EF.7 | Type in the search field | The list filters live; every typed character is legible |
+| EF.7 | Type in the search field | The list filters live |
 | EF.8 | Type a name nothing matches | A 建立「…」 row appears above the pinned 新增類別 row |
 | EF.9 | Tap either creation row | The full Category editor opens, prefilled with what you typed |
 | EF.10 | Save from that editor | The editor closes and the new Category is selected into the form **[API]** |
@@ -288,7 +290,6 @@ Keyboard cases are in **KB**.
 | EF.31 | Tap 儲存 twice quickly | One Entry, not two **[API]** |
 | EF.32 | Editing: change the Category | Saves; the dot color changes on the grid **[API]** |
 | EF.33 | **Editing: change the date, save** | The Entry leaves its day and appears on the target day, last in order **[API]** |
-| EF.34 | After EF.33, return to the original day | It is gone from there **[API]** |
 | EF.35 | 刪除紀錄, confirm | The Entry and its dot are gone **[API]** |
 | EF.36 | 取消 with unsaved edits | Returns without saving |
 | EF.37 | Airplane mode, 儲存 | 儲存失敗，請再試一次; the form keeps everything |
@@ -306,8 +307,8 @@ Keyboard cases are in **KB**.
 case ids stable. Before #102's follow-up the typed name vanished and the old
 pick was saved.
 
-**EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
-revision carries the date-move.
+**EF.33 is round-2 report #1.** It passes only when the deployed revision
+carries the date-move.
 
 **EF.42 was measured on a device (#93).** On an iPhone 17 Pro, the app's own
 work for three 48MP photos (decode, full render and save, thumbnail) takes
@@ -357,7 +358,6 @@ is about scrolling rather than paging.
 | YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now |
 | YR.17 | There is no back button and no chevrons | Correct; scrolling, the title and a month tap are the navigation |
 | YR.18 | Tap the 類別 (tag) icon | The visibility sheet opens |
-| YR.19 | Hide a Category, return | Its days lose their color across every year on screen **[API]** |
 | YR.20 | Airplane mode | Mini months render empty, no crash |
 | YR.21 | From a month in a past year, tap ‹ and its year | The ribbon opens on **that month**, not that year's January and not this year |
 | YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
@@ -404,7 +404,6 @@ deliberately unchanged until testers say whether it matters. Not a YR failure.
 | CS.19 | While filtered, tap a parent row | The whole family toggles, including members the search is hiding |
 | CS.20 | While filtered, 全部隱藏 | Acts on every Category, not just the matches |
 | CS.21 | Type a name, then 新增類別 | The editor opens with that name already in the field |
-| CS.22 | Tap a row while the keyboard is up | It toggles on the first tap, rather than only dropping the keyboard |
 
 Keyboard cases are in **KB**.
 
@@ -430,7 +429,6 @@ Keyboard cases are in **KB**.
 | CE.16 | An unused Category | 刪除類別 offered; deleting removes it **[API]** |
 | CE.17 | A Category with Entries | No delete; the in-use explanation instead **[API]** |
 | CE.18 | A Category with children | No delete; the children explanation instead **[API]** |
-| CE.19 | Tap empty sheet ground while typing | The keyboard drops |
 | CE.20 | Airplane mode, save | 儲存失敗，請再試一次; nothing lost |
 | CE.21 | Change the color after choosing an icon | The chosen cell takes the new color; the icon stays chosen |
 | CE.22 | With a parent chosen, the dimmed icon grid | The inherited glyph is still identifiable, filled in the parent's color |
@@ -482,12 +480,8 @@ Keyboard cases are in **KB**.
 | ST.6 | Pick 系統預設 | Follows the phone again |
 | ST.7 | After switching | Entry titles and Category names are untouched |
 | ST.8 | Relaunch after switching | The choice survived |
-| ST.9 | 登出 | Sign-in screen |
 | ST.10 | 刪除帳號 | Confirmation naming the 30-day grace |
 | ST.11 | Cancel it | Nothing happens |
-| ST.12 | Confirm it | Deactivated screen **[API]** |
-| ST.13 | Relaunch while deactivated | Still the deactivated screen — a session restore alone never reopens it |
-| ST.14 | 復原帳號 | The account and its Entries return **[API]** |
 | ST.15 | 登出 from the deactivated screen | Sign-in screen; signing back in returns to the gate **[API]** |
 | ST.16 | Deactivate on one device, use the app on another | The second device meets the gate **[API]** |
 | ST.17 | Deactivate on a second device while this one sits open, then act here | The next request meets the gate rather than failing oddly **[API]** |
@@ -562,14 +556,13 @@ not scroll, so a short screen is where rising runs out of room.
 
 ### DR — Drafts
 
+Walk J5 first: it covers the failed save, the 尚未儲存 row, the relaunch and
+the retry. These are the variations on it.
+
 | # | Case | Expected |
 | --- | --- | --- |
-| DR.1 | Airplane mode, save a new Entry | Fails; the form keeps its words |
-| DR.2 | Leave the form | A 尚未儲存 row on that day |
-| DR.3 | Relaunch | The row survived |
 | DR.4 | With staged Photos | They come back with the Draft |
 | DR.5 | With a pending Subcategory name | It returns as a pending pill |
-| DR.6 | Reconnect and retry | Saves; the row goes **[API]** |
 | DR.7 | Edit a Draft before retrying | The newer values are what land **[API]** |
 | DR.8 | A save where the Entry lands but Photos fail | 照片上傳失敗; retrying updates that Entry rather than making a second **[API]** |
 | DR.9 | A Draft on a day you are not viewing | Appears only on its own day |
