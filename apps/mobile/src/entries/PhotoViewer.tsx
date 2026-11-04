@@ -2,7 +2,7 @@ import { X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Animated, FlatList, Image, Modal, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
@@ -59,59 +59,63 @@ export function PhotoViewer({ photos, startIndex, onClose }: Props) {
 
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
-      {/* A Modal is its own root: gestures inside need their own handler root. */}
-      <GestureHandlerRootView style={styles.root}>
-        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]} />
-        <GestureDetector gesture={dismiss}>
-          <Animated.View style={[styles.root, { transform: [{ translateY: dragY }] }]}>
-            <FlatList
-              testID="photo-viewer-pager"
-              data={photos}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              initialScrollIndex={startIndex}
-              getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
-              onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
-              keyExtractor={(photo) => photo.key}
-              renderItem={({ item }) => (
-                <View style={{ width, height }}>
-                  {item.thumbUri ? (
+      {/* A Modal is its own native window, so the app's roots don't reach in:
+          gestures need their own handler root and the top bar its own safe
+          area, or the ✕ and count land under the status bar. */}
+      <SafeAreaProvider>
+        <GestureHandlerRootView style={styles.root}>
+          <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]} />
+          <GestureDetector gesture={dismiss}>
+            <Animated.View style={[styles.root, { transform: [{ translateY: dragY }] }]}>
+              <FlatList
+                testID="photo-viewer-pager"
+                data={photos}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={startIndex}
+                getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+                onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
+                keyExtractor={(photo) => photo.key}
+                renderItem={({ item }) => (
+                  <View style={{ width, height }}>
+                    {item.thumbUri ? (
+                      <Image
+                        testID="photo-viewer-thumb"
+                        source={{ uri: item.thumbUri }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="contain"
+                      />
+                    ) : null}
                     <Image
-                      testID="photo-viewer-thumb"
-                      source={{ uri: item.thumbUri }}
+                      testID="photo-viewer-original"
+                      source={{ uri: item.uri }}
                       style={StyleSheet.absoluteFill}
                       resizeMode="contain"
                     />
-                  ) : null}
-                  <Image
-                    testID="photo-viewer-original"
-                    source={{ uri: item.uri }}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="contain"
-                  />
-                </View>
-              )}
-            />
-          </Animated.View>
-        </GestureDetector>
-        <SafeAreaView edges={['top']} style={styles.bar} pointerEvents="box-none">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={strings.photos.close}
-            style={styles.close}
-            onPress={onClose}
-          >
-            <X size={24} color={theme.colors.textOnDark} strokeWidth={2} />
-          </Pressable>
-          {photos.length > 1 ? (
-            // Spans the bar to centre on the screen, so it must not take the ✕'s taps.
-            <View style={styles.counterHolder} pointerEvents="none">
-              <Text style={styles.counter}>{`${index + 1} / ${photos.length}`}</Text>
-            </View>
-          ) : null}
-        </SafeAreaView>
-      </GestureHandlerRootView>
+                  </View>
+                )}
+              />
+            </Animated.View>
+          </GestureDetector>
+          <SafeAreaView edges={['top']} style={styles.bar} pointerEvents="box-none">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={strings.photos.close}
+              style={styles.close}
+              onPress={onClose}
+            >
+              <X size={24} color={theme.colors.textOnDark} strokeWidth={2} />
+            </Pressable>
+            {photos.length > 1 ? (
+              // Spans the bar to centre on the screen, so it must not take the ✕'s taps.
+              <View style={styles.counterHolder} pointerEvents="none">
+                <Text style={styles.counter}>{`${index + 1} / ${photos.length}`}</Text>
+              </View>
+            ) : null}
+          </SafeAreaView>
+        </GestureHandlerRootView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

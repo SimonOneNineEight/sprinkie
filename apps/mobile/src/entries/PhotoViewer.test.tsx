@@ -8,6 +8,12 @@ import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-han
 
 import { PhotoViewer } from './PhotoViewer';
 
+// Its own SafeAreaProvider too, which waits on native metrics jest never
+// sends; the library's mock hands them over at once.
+jest.mock('react-native-safe-area-context', () =>
+  jest.requireActual('react-native-safe-area-context/jest/mock').default,
+);
+
 const { width } = Dimensions.get('window');
 
 const saved = (n: number) => ({
