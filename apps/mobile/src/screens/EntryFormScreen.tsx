@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Category, Entry, Photo } from '../api/client';
 import { deleteEntry, deletePhoto, reorderPhotos } from '../api/client';
 import { MAX_PHOTOS, PhotoGrid } from '../entries/PhotoGrid';
+import { PhotoViewer } from '../entries/PhotoViewer';
 import type { ProcessedPhoto } from '../photos/processPhoto';
 import { processPhoto } from '../photos/processPhoto';
 import { CategoryIcon } from '../calendar/CategoryIcon';
@@ -106,6 +107,8 @@ export function EntryFormScreen({
   // unreadable ones on restore so a retry saves what survives instead of
   // failing forever, and say so.
   const [photosMissing, setPhotosMissing] = useState(false);
+  // The grid key of the photo open in the viewer (#118), if any.
+  const [viewingKey, setViewingKey] = useState<string | null>(null);
   // Where a failed save is kept (#14). A restored draft keeps its id so the
   // retry overwrites in place and success clears the right slot.
   const [draftId] = useState(() => draft?.id ?? newDraftId());
@@ -211,6 +214,13 @@ export function EntryFormScreen({
   };
 
   const photoCount = existingPhotos.length + stagedPhotos.length;
+  // One list in the grid's order, saved then staged, feeds both the grid and
+  // the viewer, so a key always opens the photo on its tile (#118).
+  const formPhotos = [
+    ...existingPhotos.map((p) => ({ key: `photo:${p.id}`, thumbUri: p.thumbUrl, uri: p.url })),
+    ...stagedPhotos.map((p, i) => ({ key: `staged:${i}`, thumbUri: p.thumbUri, uri: p.fullUri })),
+  ];
+  const viewingIndex = formPhotos.findIndex((p) => p.key === viewingKey);
 
   const addPhotos = () => {
     if (Platform.OS !== 'ios') {
@@ -485,11 +495,13 @@ export function EntryFormScreen({
                 onChangeText={setNote}
               />
               <PhotoGrid
-                photos={[
-                  ...existingPhotos.map((p) => ({ key: `photo:${p.id}`, uri: p.thumbUrl })),
-                  ...stagedPhotos.map((p, i) => ({ key: `staged:${i}`, uri: p.thumbUri })),
-                ]}
-                editable={{ onAdd: addPhotos, onRemove: removeGridPhoto, onReorder: reorderGridPhotos }}
+                photos={formPhotos.map((p) => ({ key: p.key, uri: p.thumbUri }))}
+                editable={{
+                  onAdd: addPhotos,
+                  onOpen: setViewingKey,
+                  onRemove: removeGridPhoto,
+                  onReorder: reorderGridPhotos,
+                }}
               />
               {photosMissing ? (
                 <Text style={styles.notice}>{strings.entryForm.draftPhotosMissing}</Text>
@@ -603,6 +615,13 @@ export function EntryFormScreen({
             setQuery('');
             setCreatingName(null);
           }}
+        />
+      ) : null}
+      {viewingIndex >= 0 ? (
+        <PhotoViewer
+          photos={formPhotos}
+          startIndex={viewingIndex}
+          onClose={() => setViewingKey(null)}
         />
       ) : null}
     </SafeAreaView>

@@ -296,7 +296,7 @@ Keyboard cases are in **KB**.
 | EF.25 | Take a photo | Appears in the grid |
 | EF.26 | Deny the camera permission | Nothing happens; no crash, no empty tile |
 | EF.27 | Add Photos up to the cap | The tile counts n/3 and disappears at the third **[auto]** |
-| EF.28 | Tap a photo just attached in this form | It goes at once, with no confirmation (it was never saved) |
+| EF.28 | Tap the ✕ on a photo just attached in this form | It goes at once, with no confirmation (it was never saved) **[auto]** |
 | EF.29 | Long-press and drag photos | Order changes and persists after save **[API]** |
 | EF.30 | Save an Entry carrying Photos | 儲存 spins for the whole save and the form beneath it is inert; the app never looks hung **[API]** **[auto]** |
 | EF.31 | Tap 儲存 twice quickly | One Entry, not two **[API]** **[auto]** |
@@ -311,13 +311,22 @@ Keyboard cases are in **KB**.
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** **[auto]** |
 | EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
-| EF.44 | Tap a Photo on a saved Entry | Confirmation, then it goes **[API]** |
+| EF.44 | Tap the ✕ on a Photo of a saved Entry | Confirmation, then it goes **[API]** **[auto]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
 | EF.46 | With a Subcategory pill selected, tap +, type a new name, leave the field, save | The typed pill replaces the selected one; the new Subcategory is created and refines the Entry **[API]** |
+| EF.47 | Tap a photo, saved or just attached | The viewer opens on that photo; nothing is removed. Where the tile stops and the ✕ begins is EF.49 **[auto]** |
+| EF.48 | Long-press-drag a photo to another place, then tap it | It moves, and the viewer opens on the photo tapped, not on the one that sat there before |
+| EF.49 | Tap just below, or just left of, a ✕ (about a ✕'s width off it) | Removes, as the ✕ does: it answers across the tile's 44pt corner. A tap further into the tile opens the viewer |
 
 **EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
 case ids stable. Before #102's follow-up the typed name vanished and the old
 pick was saved.
+
+**EF.47–EF.49 are #118.** A tap on a tile used to remove the photo. The ✕
+sits inside the grid's own drag handling, so only a device shows that the ✕,
+the tap, and EF.29's drag each still reach their own: the suites stand in
+for the drag. A long-press that starts on the ✕ itself does not drag; start
+it on the photo.
 
 **EF.33 is round-2 report #1.** It passes only when the deployed revision
 carries the date-move.
@@ -585,8 +594,7 @@ Go and jest suites; they cannot be staged by hand.
 ### PV — Photo viewer
 
 One full-screen viewer, opened by tapping a photo in the Entry form (#118) or
-the Entry view (#119). Until one of those lands it has no way in, so skip this
-section.
+the Entry view (#119). Until #119 lands, open it from the form.
 
 | # | Case | Expected |
 | --- | --- | --- |
@@ -680,11 +688,14 @@ the tag.
 | EF.20 | `screens/EntryFormScreen.test.tsx` |
 | EF.21 | `screens/DayScreen.test.tsx` |
 | EF.27 | `screens/EntryFormScreen.test.tsx` |
+| EF.28 | `screens/EntryFormScreen.test.tsx` |
 | EF.30 | `screens/EntryFormScreen.test.tsx` |
 | EF.31 | `screens/EntryFormScreen.test.tsx`, `entries_test.go` |
 | EF.33 | `entries_edit_test.go`, `screens/EntryFormScreen.test.tsx` |
 | EF.38 | `screens/DayScreen.drafts.test.tsx` |
 | EF.41 | `screens/EntryFormScreen.test.tsx`, `screens/DayScreen.test.tsx` |
+| EF.44 | `screens/EntryFormScreen.test.tsx` |
+| EF.47 | `screens/EntryFormScreen.test.tsx` |
 | YR.2 | `screens/YearScreen.test.tsx`, `years_test.go` |
 | YR.4 | `screens/YearScreen.test.tsx`, `calendar/ribbon.test.ts` |
 | YR.6 | `calendar/ribbon.test.ts` |
