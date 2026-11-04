@@ -262,7 +262,7 @@ Keyboard cases are in **KB**.
 | DA.20 | On a device with a home indicator | Both controls sit above the indicator, never over it |
 | DA.21 | The gap below the controls | The same on the day, month and year views |
 | DA.22 | Tap the 類別 icon in the header | The same sheet the month and year views open: the two-level tree, ✎ per row, 全部隱藏 and 新增類別 **[auto]** |
-| DA.23 | An Entry whose title runs past three lines and note past five | The title stops at three lines and the note at five, each ending in …; the card grows taller but not wider, the note keeps its indent, and the card never scrolls inside itself |
+| DA.23 | An Entry whose title runs past three lines and note past five | The title stops at three lines and the note at five, each ending in …; the card grows taller but not wider, the note keeps its left edge, and the card never scrolls inside itself |
 | DA.24 | A card whose title wraps to three lines, then long-press and drag it | The icon and grip sit centered on the title block, the category line beneath it; the drag works as on a one-line card |
 
 ### EF — Entry form
