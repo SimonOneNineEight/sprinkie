@@ -41,6 +41,28 @@ it('renders the day entries with decoded titles, in order', async () => {
   expect(screen.getByText('運動 · 健身房')).toBeTruthy();
 });
 
+it("shows up to three lines of a card's title, then an ellipsis (#116)", async () => {
+  listedEntries = api.world.entries['2026-08-19'] = [
+    { id: 'e1', date: '2026-08-19', position: 1, categoryId: 'c-sport', authorId: 'u1', content: encodeContent({ title: '早上沿著河濱跑了十公里，回程順路買了早餐', note: '' }) },
+  ];
+  render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
+
+  const title = await screen.findByText('早上沿著河濱跑了十公里，回程順路買了早餐');
+  expect(title.props.numberOfLines).toBe(3);
+  expect(title.props.ellipsizeMode ?? 'tail').toBe('tail');
+});
+
+it("shows up to five lines of a card's note, then an ellipsis (#116)", async () => {
+  listedEntries = api.world.entries['2026-08-19'] = [
+    { id: 'e1', date: '2026-08-19', position: 1, categoryId: 'c-sport', authorId: 'u1', content: encodeContent({ title: '晨跑', note: '天氣很好，河濱的風很涼，跑完在橋下拉筋，看到很多人在遛狗。' }) },
+  ];
+  render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
+
+  const note = await screen.findByText('天氣很好，河濱的風很涼，跑完在橋下拉筋，看到很多人在遛狗。');
+  expect(note.props.numberOfLines).toBe(5);
+  expect(note.props.ellipsizeMode ?? 'tail').toBe('tail');
+});
+
 it('says 今天還沒有紀錄 when today has no entries', async () => {
   render(
     <DayScreen

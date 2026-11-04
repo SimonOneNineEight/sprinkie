@@ -50,10 +50,12 @@ export function EntryCard({
     >
       {/* One center-aligned row (#31): icon, title, and grip share a visual
           line no matter how the platform seats glyphs in the line box; the
-          category line hangs beneath, indented to the title's left edge. */}
+          category line hangs beneath, indented to the title's left edge. The
+          title runs to three lines and the note to five (#116); the card
+          grows rather than scrolls, since its list scrolls and drags. */}
       <View style={styles.titleRow}>
         <CategoryIcon icon={categoryIcon} color={categoryColor} />
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={styles.title} numberOfLines={3}>
           {title}
         </Text>
         <GripHorizontal size={18} color={theme.colors.textQuaternary} strokeWidth={2} />
@@ -62,7 +64,7 @@ export function EntryCard({
         {categoryLine}
       </Text>
       {note ? (
-        <Text style={styles.note} numberOfLines={3}>
+        <Text style={styles.note} numberOfLines={5}>
           {note}
         </Text>
       ) : null}
