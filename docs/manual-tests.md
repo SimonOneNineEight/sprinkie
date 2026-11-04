@@ -580,6 +580,25 @@ the retry. These are the variations on it.
 Lost-response replays (a create whose reply never arrived) are covered by the
 Go and jest suites; they cannot be staged by hand.
 
+### PV — Photo viewer
+
+One full-screen viewer, opened by tapping a photo in the Entry form (#118) or
+the Entry view (#119). Until one of those lands it has no way in, so skip this
+section.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| PV.1 | Tap the second of three photos | Opens on that photo; reads 2 / 3 **[auto]** |
+| PV.2 | Swipe left and right | One photo per swipe; it stops at the first and the last, and the count follows |
+| PV.3 | An Entry with one photo | No count **[auto]** |
+| PV.4 | A saved photo on a slow connection | The thumbnail shows at once and the original replaces it |
+| PV.5 | A photo staged in the form, not yet saved | Shows from its copy on the phone **[auto]** |
+| PV.6 | Drag down slowly | The photo follows the finger and the black thins out |
+| PV.7 | Let go after a short drag | The photo springs back; the viewer stays **[auto]** |
+| PV.8 | Let go after a long drag | The viewer closes **[auto]** |
+| PV.9 | Tap ✕ | Closes **[auto]** |
+| PV.10 | A tall and a wide photo | Each fits whole, nothing cropped |
+
 ### LG — App Language
 
 | # | Case | Expected |
@@ -722,6 +741,12 @@ the tag.
 | DR.5 | `screens/EntryFormScreen.test.tsx` |
 | DR.7 | `screens/DayScreen.drafts.test.tsx`, `entries/save.test.ts` |
 | DR.8 | `screens/DayScreen.drafts.test.tsx`, `entries/save.test.ts` |
+| PV.1 | `entries/PhotoViewer.test.tsx` |
+| PV.3 | `entries/PhotoViewer.test.tsx` |
+| PV.5 | `entries/PhotoViewer.test.tsx` |
+| PV.7 | `entries/PhotoViewer.test.tsx` |
+| PV.8 | `entries/PhotoViewer.test.tsx` |
+| PV.9 | `entries/PhotoViewer.test.tsx` |
 | LG.1 | `i18n/appLanguage.test.ts` |
 | LG.2 | `i18n/appLanguage.test.ts`, `i18n/englishScreens.test.tsx` |
 | LG.3 | `AppRoot.test.tsx`, `me_test.go` |

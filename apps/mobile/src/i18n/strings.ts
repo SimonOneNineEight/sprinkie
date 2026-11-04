@@ -86,6 +86,8 @@ const zhTW = {
     remove: '移除',
     uploadFailed: '照片上傳失敗，稍後可在編輯這筆紀錄時重新加入',
     attachFailed: '無法加入照片',
+    // The full-screen viewer's ✕ (#114).
+    close: '關閉',
   },
   entryForm: {
     cancel: '取消',
