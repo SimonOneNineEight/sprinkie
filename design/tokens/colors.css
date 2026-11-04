@@ -33,6 +33,9 @@
   --surface-today: var(--ink);
   --scrim: rgba(40, 34, 30, 0.28);
   --material-bar: rgba(250, 247, 242, 0.82);
+  /* Behind a photo shown full screen, and nowhere else: photos are judged
+     against black, as in the Photos app (#114). Not chrome, so not warm. */
+  --surface-photo: #000000;
 
   /* Text */
   --text-primary: var(--ink);

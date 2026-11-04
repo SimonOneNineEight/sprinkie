@@ -114,6 +114,8 @@ export const en: StringCatalog = {
     remove: 'Remove',
     uploadFailed: 'Photo upload failed. You can add it again by editing this entry later',
     attachFailed: "Some photos couldn't be added",
+    close: 'Close',
+    counter: (n: number, total: number) => `${n} / ${total}`,
   },
   entryForm: {
     cancel: 'Cancel',

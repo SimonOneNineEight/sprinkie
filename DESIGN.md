@@ -18,7 +18,7 @@ A mobile-first personal life journal. Aesthetic family: **Apple Calendar's airin
 
 ## Color
 
-- Primary colors of the app: warm paper `#FAF7F2`, warm greys, and ink `#514A45` (amended 2026-10-05, superseding white/grey/black). Chrome (backgrounds, bars, buttons, grid lines) is neutral only — **no brand accent color exists**. The "+" button and today's marker carry weight through shape, fill, and depth, never through hue.
+- Primary colors of the app: warm paper `#FAF7F2`, warm greys, and ink `#514A45` (amended 2026-10-05, superseding white/grey/black). Chrome (backgrounds, bars, buttons, grid lines) is neutral only — **no brand accent color exists**. The "+" button and today's marker carry weight through shape, fill, and depth, never through hue. One exception, ratified 2026-11-04 (#114): the full-screen photo viewer sits on pure black (`surface-photo`), because a photo is judged against black, not paper. Black appears nowhere else.
 - **The ink is also the action color.** Primary controls, the selection fill, today's ring and the focus ring are all `#514A45`; the brand's soft button `#D8D1C5` is the secondary half of a button pair, never the leading action — at 1.42 against the paper it cannot carry one. A hue accent was considered and declined: candidates derived from the icon's brand colors are recorded in `docs/icon-brief.md`, and the decision was that one quiet ink doing both jobs suits the product better than a second color competing with the category dots.
 - The neutral ramp is the ink's own hue held across the lightness steps, so surfaces and lines sit with the text rather than against it. Values live in `design/tokens/colors.css`; nothing in implementation may hardcode a hex.
 - Category colors are the only saturated colors on screen. **Preset palette of 10 muted, dusty mid-tones** that harmonize with the neutral chrome — no neon, no pastel — with lightness deliberately varied across the ten so all remain mutually distinguishable at dot size (6–8px) on white. Exact values are chosen in the design session on the real month-view mock, plus a custom color picker for users.
@@ -95,7 +95,7 @@ Settings and other long-tail screens (dialogs, errors, empty states, account del
 8. No emoji as category icons; the icon set is a drawn, consistent-weight family (SF Symbols style).
 9. No onboarding carousel: sign in, land on today's month; the seeded categories and the "+" teach everything.
 10. No gamification visuals and no cheerleading microcopy: no streak flames, badges, confetti, or "Great job!" — the month filling with color is the reward system.
-11. No horizontal carousels for photos in the day view; photos lay out as grids or stacks.
+11. No horizontal carousels for photos in the day view; photos lay out as grids or stacks. The full-screen photo viewer (#114) pages sideways and is not the day view: it opens over it.
 
 ## Feel
 

@@ -36,6 +36,7 @@ export const theme = {
     surfaceToday: c('#514A45'),
     scrim: c('rgba(40, 34, 30, 0.28)'),
     materialBar: c('rgba(250, 247, 242, 0.82)'),
+    surfacePhoto: c('#000000'),
     textPrimary: c('#514A45'),
     textSecondary: c('#756E69'),
     textTertiary: c('#938B86'),
