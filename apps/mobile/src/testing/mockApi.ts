@@ -152,6 +152,7 @@ export function installMockApi(
     if (u.endsWith('/photos') && method === 'POST') {
       return ok({ photos: world.registeredPhotos }, 201);
     }
+    if (u.includes('/photos/') && method === 'DELETE') return ok({}, 204);
     if (u.includes('/categories') && method === 'POST') {
       if (failures.categoryPost) {
         return { ok: false, status: 500, json: async () => ({ message: 'nope' }) };

@@ -1,6 +1,10 @@
+// A tapped photo opens the viewer (#118), which holds its own gesture root
+// and SafeAreaProvider inside its Modal: the gesture library's setup and the
+// safe-area mock let both render in jest, as in PhotoViewer.test.tsx.
+import 'react-native-gesture-handler/jestSetup';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActionSheetIOS, Alert } from 'react-native';
+import { ActionSheetIOS, Alert, StyleSheet } from 'react-native';
 
 import { encodeContent } from '../entries/content';
 import { cat } from '../testing/fixtures';
@@ -15,6 +19,9 @@ jest.mock('expo-image-picker', () => ({
   requestCameraPermissionsAsync: jest.fn(),
 }));
 jest.mock('../photos/processPhoto', () => ({ processPhoto: jest.fn() }));
+jest.mock('react-native-safe-area-context', () =>
+  jest.requireActual('react-native-safe-area-context/jest/mock').default,
+);
 
 const categories = [{ ...cat.sport, position: 1 }];
 
@@ -478,6 +485,114 @@ describe('photos (#44)', () => {
     });
 
     expect(api.entryPosts()).toHaveLength(1);
+  });
+
+  // The PM tapped to see which photo they'd picked and lost it: a tap now
+  // shows the photo, and only its ✕ removes it (#118).
+  describe('tapping and removing (#118)', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    const savedEntry = (count: number) => ({
+      id: 'e1',
+      date: '2026-08-17',
+      position: 1,
+      categoryId: 'c-sport',
+      authorId: 'u1',
+      content: encodeContent({ title: '拍照', note: '' }),
+      photos: savedPhotos(count),
+    });
+    // The original the viewer opened on: the pager starts at the tapped index.
+    const openedOn = () => {
+      const pager = screen.getByTestId('photo-viewer-pager');
+      return pager.props.data[pager.props.initialScrollIndex].uri;
+    };
+
+    it('opens the viewer on a tapped saved photo and removes nothing', () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      renderForm({ entry: savedEntry(3) });
+
+      fireEvent.press(screen.getByTestId('grid-item-photo:p1'));
+
+      expect(screen.getByLabelText('關閉')).toBeTruthy();
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+      // The original, not the grid's thumbnail.
+      expect(openedOn()).toBe('https://store/1.jpg');
+      expect(alert).not.toHaveBeenCalled();
+      expect(api.find('DELETE', '/photos/')).toBeUndefined();
+      expect(screen.getByTestId('grid-item-photo:p1')).toBeTruthy();
+    });
+
+    it('opens the viewer on a tapped staged photo, counted after the saved ones', () => {
+      renderForm({ entry: savedEntry(1), draft: { ...draftWith(2), entryId: 'e1' } });
+
+      fireEvent.press(screen.getByTestId('grid-item-staged:1'));
+
+      expect(screen.getByText('3 / 3')).toBeTruthy();
+      expect(openedOn()).toBe('file:///1.jpg');
+      expect(screen.getByTestId('grid-item-staged:1')).toBeTruthy();
+    });
+
+    it('opens the photo on the tapped tile after a drag reorder', async () => {
+      renderForm({ draft: draftWith(3) });
+
+      const grid = (globalThis as { __mockGridState?: { onDragRelease?: (data: { key: string }[]) => void } })
+        .__mockGridState!;
+      await act(async () => {
+        grid.onDragRelease!([{ key: 'staged:2' }, { key: 'staged:0' }, { key: 'staged:1' }]);
+      });
+      // file:///0.jpg now sits second.
+      fireEvent.press(screen.getByTestId('grid-item-staged:1'));
+
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+      expect(openedOn()).toBe('file:///0.jpg');
+    });
+
+    it('removes a saved photo from its ✕ after the confirmation', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      renderForm({ entry: savedEntry(2) });
+
+      fireEvent.press(within(screen.getByTestId('grid-item-photo:p1')).getByLabelText('移除'));
+
+      expect(screen.queryByLabelText('關閉')).toBeNull();
+      expect(alert).toHaveBeenCalledWith('移除這張照片？', undefined, expect.any(Array));
+      expect(api.find('DELETE', '/photos/')).toBeUndefined();
+      const buttons = alert.mock.calls[0][2]!;
+      await act(async () => {
+        buttons.find((b) => b.text === '移除')!.onPress!();
+      });
+      expect(api.find('DELETE', '/photos/p1')).toBeTruthy();
+      expect(screen.queryByTestId('grid-item-photo:p1')).toBeNull();
+      expect(screen.getByTestId('grid-item-photo:p0')).toBeTruthy();
+    });
+
+    it('removes a staged photo from its ✕ at once, with no confirmation', () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      renderForm({ draft: draftWith(2) });
+
+      fireEvent.press(within(screen.getByTestId('grid-item-staged:0')).getByLabelText('移除'));
+
+      expect(alert).not.toHaveBeenCalled();
+      expect(screen.queryByLabelText('關閉')).toBeNull();
+      expect(screen.getByText('1/3')).toBeTruthy();
+      // The one left is the second photo.
+      fireEvent.press(screen.getByTestId('grid-item-staged:0'));
+      expect(openedOn()).toBe('file:///1.jpg');
+    });
+
+    it("gives each ✕ a hit target of at least 44pt", () => {
+      renderForm({ entry: savedEntry(1), draft: { ...draftWith(1), entryId: 'e1' } });
+
+      const removes = screen.getAllByLabelText('移除');
+      expect(removes).toHaveLength(2);
+      for (const remove of removes) {
+        const { width, height } = StyleSheet.flatten(remove.props.style);
+        const slop = remove.props.hitSlop;
+        expect(width + slop.left + slop.right).toBeGreaterThanOrEqual(44);
+        expect(height + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
+      }
+    });
   });
 });
 
