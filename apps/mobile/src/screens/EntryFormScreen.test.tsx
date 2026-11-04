@@ -4,7 +4,7 @@
 import 'react-native-gesture-handler/jestSetup';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActionSheetIOS, Alert, StyleSheet } from 'react-native';
+import { ActionSheetIOS, Alert, StyleSheet, TextInput, type TextStyle } from 'react-native';
 
 import { encodeContent } from '../entries/content';
 import { cat } from '../testing/fixtures';
@@ -327,12 +327,89 @@ describe('single-line fields (#42)', () => {
 
     expectSingleLineField('類別');
   });
+});
 
-  it('sizes the title field for CJK, at the hit target', () => {
+// The title was single-line under #42; a long one scrolled out of sight
+// while it was typed (PM round 3). It wraps now, and still never holds a
+// newline: Return moves on to the note, and a pasted line break becomes a
+// space (#115).
+describe('title and note fields (#115)', () => {
+  it('wraps the title, still capped at 80 characters', () => {
     renderForm();
     fireEvent.press(screen.getByText('運動'));
 
-    expectSingleLineField('標題');
+    const title = screen.getByPlaceholderText('標題');
+    expect(title.props.multiline).toBe(true);
+    expect(title.props.maxLength).toBe(80);
+  });
+
+  // jest types nothing natively, so the newline Return would insert is
+  // ruled out by the submit behaviour rather than by watching for one; the
+  // focus is read off the input the form called focus() on. EF.50 and EF.53
+  // walk the real key.
+  it('moves Return in the title on to the note, with no newline saved', async () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+    const focus = jest.mocked(TextInput.prototype.focus);
+    focus.mockClear();
+
+    const title = screen.getByPlaceholderText('標題');
+    expect(title.props.returnKeyType).toBe('next');
+    expect(title.props.submitBehavior).toBe('submit');
+    fireEvent.changeText(title, '晨跑');
+    fireEvent(title, 'submitEditing');
+
+    expect(focus.mock.contexts.at(-1)?.props.placeholder).toBe('備註（選填）');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    expect(postedEntry()?.content).toBe(encodeContent({ title: '晨跑', note: '' }));
+  });
+
+  it('saves a pasted title with spaces where its line breaks were', async () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑\n河濱\r\n十公里');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    expect(postedEntry()?.content).toBe(
+      encodeContent({ title: '晨跑 河濱 十公里', note: '' }),
+    );
+  });
+
+  // The two heights below read the field's style rather than the screen,
+  // the same departure from #45's testing rule expectSingleLineField makes:
+  // jest lays out no text, so nothing here can see a line wrap or a field
+  // scroll. A height in lines is the line box times the count, plus the
+  // field's own padding. The device checks are EF.22, EF.52 and KB.10.
+  const linesTall = (style: TextStyle, lines: number) =>
+    lines * Number(style.lineHeight) + Number(style.paddingTop) + Number(style.paddingBottom);
+
+  it('opens the note five lines tall, and it scrolls rather than grows past that', () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+
+    const note = screen.getByPlaceholderText('備註（選填）');
+    const style = StyleSheet.flatten(note.props.style);
+    expect(style.minHeight).toBe(linesTall(style, 5));
+    expect(style.maxHeight).toBe(linesTall(style, 5));
+    expect(note.props.scrollEnabled).not.toBe(false);
+  });
+
+  it('starts the title at one line, at the hit target, and grows it to three before it scrolls', () => {
+    renderForm();
+    fireEvent.press(screen.getByText('運動'));
+
+    const title = screen.getByPlaceholderText('標題');
+    const style = StyleSheet.flatten(title.props.style);
+    expect(style.height).toBeUndefined();
+    expect(style.minHeight).toBe(linesTall(style, 1));
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    expect(style.maxHeight).toBe(linesTall(style, 3));
+    expect(title.props.scrollEnabled).not.toBe(false);
   });
 });
 

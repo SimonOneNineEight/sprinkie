@@ -99,6 +99,7 @@ export function EntryFormScreen({
   // not caught up yet, so the in-flight flag is also held where the handler
   // can read it now (#44): 儲存 pressed twice is one Entry, not two.
   const inFlight = useRef(false);
+  const noteRef = useRef<TextInput>(null);
   const [failed, setFailed] = useState(false);
   const [photosFailed, setPhotosFailed] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<Photo[]>(entry?.photos ?? []);
@@ -481,12 +482,20 @@ export function EntryFormScreen({
                 style={styles.titleInput}
                 placeholder={strings.entryForm.titlePlaceholder}
                 placeholderTextColor={styles.placeholder.color}
+                multiline
                 maxLength={80}
                 autoFocus
+                // Return moves on to the note rather than typing a newline
+                // the title never holds (#115).
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => noteRef.current?.focus()}
                 value={title}
-                onChangeText={setTitle}
+                // A paste can still carry line breaks; they become spaces.
+                onChangeText={(text) => setTitle(text.replace(/\r\n|[\r\n\u2028\u2029]/g, ' '))}
               />
               <TextInput
+                ref={noteRef}
                 style={styles.noteInput}
                 placeholder={strings.entryForm.notePlaceholder}
                 placeholderTextColor={styles.placeholder.color}
@@ -817,13 +826,25 @@ const styles = createStyles((t) => ({
     paddingVertical: t.spacing.space3,
     minWidth: t.spacing.fabSize * 2,
   },
+  // Built like the note below, not by singleLineField (#115): it wraps, so
+  // it is a multiline input, which iOS lays out as a text view, not the
+  // single-line text field whose baseline a lineHeight shifts (#42). One
+  // line is the 44pt hit target, padded evenly so the text and placeholder
+  // sit centered; it grows to three lines, then scrolls inside itself.
   titleInput: {
-    ...singleLineField(t, t.typography.entryTitle),
+    ...t.typography.entryTitle,
     color: t.colors.textPrimary,
     backgroundColor: t.colors.surface,
     borderRadius: t.radius.r3,
     paddingHorizontal: t.spacing.cardPadding,
+    paddingTop: (t.spacing.rowHeight - t.typography.entryTitle.lineHeight) / 2,
+    paddingBottom: (t.spacing.rowHeight - t.typography.entryTitle.lineHeight) / 2,
+    minHeight: t.spacing.rowHeight,
+    maxHeight: t.typography.entryTitle.lineHeight * 3 + (t.spacing.rowHeight - t.typography.entryTitle.lineHeight),
+    textAlignVertical: 'top',
   },
+  // Five lines tall from the start, and it scrolls inside itself past that
+  // rather than growing the form (#115).
   noteInput: {
     ...t.typography.note,
     color: t.colors.textPrimary,
@@ -831,7 +852,9 @@ const styles = createStyles((t) => ({
     borderRadius: t.radius.r3,
     paddingHorizontal: t.spacing.cardPadding,
     paddingTop: t.spacing.space5,
-    minHeight: t.spacing.rowHeight * 3,
+    paddingBottom: t.spacing.space5,
+    minHeight: t.typography.note.lineHeight * 5 + t.spacing.space5 * 2,
+    maxHeight: t.typography.note.lineHeight * 5 + t.spacing.space5 * 2,
     textAlignVertical: 'top',
   },
   placeholder: {
