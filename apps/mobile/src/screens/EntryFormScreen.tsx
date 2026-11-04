@@ -330,6 +330,8 @@ export function EntryFormScreen({
       setSubcategoryId(existing.id);
       setSubName('');
     } else {
+      // One Subcategory per Entry: a new name replaces any pick.
+      if (name !== '') setSubcategoryId(null);
       setSubName(name);
     }
   };

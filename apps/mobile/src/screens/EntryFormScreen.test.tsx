@@ -195,6 +195,23 @@ describe('category step (#28)', () => {
     expect(postedEntry()?.subcategoryId).toBe('c-gym');
   });
 
+  it('a new name typed while a Subcategory is picked replaces the pick (#102)', async () => {
+    renderForm({ categories: [...categories, cat.gym] });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.press(screen.getByText('健身房'));
+    fireEvent.press(screen.getByLabelText('新增子類別'));
+    fireEvent.changeText(screen.getByPlaceholderText('子類別'), '夜跑');
+    fireEvent(screen.getByPlaceholderText('子類別'), 'blur');
+    expect(screen.getByText('夜跑')).toBeTruthy();
+
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    expect(categoryPosts()).toHaveLength(1);
+    expect(postedEntry()?.subcategoryId).not.toBe('c-gym');
+  });
+
   it('creates nothing when the subcategory field is whitespace or cleared', async () => {
     renderForm();
     fireEvent.press(screen.getByText('運動'));
