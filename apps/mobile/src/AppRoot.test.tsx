@@ -421,6 +421,8 @@ describe('returning to the month view (#113)', () => {
     await act(async () => {
       fireEvent.press(screen.getByText('儲存'));
     });
+    // Both posts go to the same day, so make sure the second one happened.
+    expect(api.entryPosts()).toHaveLength(2);
     const [, init] = api.entryPosts().at(-1)!;
     expect(JSON.parse(String(init?.body)).date).toBe(localDateString(other));
   });
