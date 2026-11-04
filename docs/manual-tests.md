@@ -298,6 +298,11 @@ Keyboard cases are in **KB**.
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
 | EF.44 | Tap a Photo on a saved Entry | Confirmation, then it goes **[API]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
+| EF.46 | With a Subcategory pill selected, tap +, type a new name, leave the field, save | The typed pill replaces the selected one; the new Subcategory is created and refines the Entry **[API]** |
+
+**EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
+case ids stable. Before #102's follow-up the typed name vanished and the old
+pick was saved.
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.
