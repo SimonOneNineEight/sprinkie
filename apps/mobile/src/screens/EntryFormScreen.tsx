@@ -56,6 +56,14 @@ type Props = {
 // the server — it lives inside the opaque content blob the server never
 // parses (ADR-0004). With an entry prop the form edits instead of creating.
 // Photos arrive with #8.
+// The title never holds a newline (#115): a line break pasted in, or
+// carried by an older title (the PM's journal was imported from Numbers,
+// whose cells can hold one), becomes a space. A restored Draft decodes
+// through the same initial title, so it is cleaned too.
+function oneLine(text: string) {
+  return text.replace(/\r\n|[\r\n\u2028\u2029]/g, ' ');
+}
+
 export function EntryFormScreen({
   accessToken,
   date: openedFor,
@@ -92,7 +100,7 @@ export function EntryFormScreen({
   const [subName, setSubName] = useState(draft?.pendingSubcategoryName ?? '');
   // Categories created in this form session, until the parent refetches /me.
   const [created, setCreated] = useState<Category[]>([]);
-  const [title, setTitle] = useState(initialContent?.title ?? '');
+  const [title, setTitle] = useState(oneLine(initialContent?.title ?? ''));
   const [note, setNote] = useState(initialContent?.note ?? '');
   const [saving, setSaving] = useState(false);
   // Two taps can land inside one render pass, where the disabled prop has
@@ -491,8 +499,7 @@ export function EntryFormScreen({
                 submitBehavior="submit"
                 onSubmitEditing={() => noteRef.current?.focus()}
                 value={title}
-                // A paste can still carry line breaks; they become spaces.
-                onChangeText={(text) => setTitle(text.replace(/\r\n|[\r\n\u2028\u2029]/g, ' '))}
+                onChangeText={(text) => setTitle(oneLine(text))}
               />
               <TextInput
                 ref={noteRef}
@@ -636,6 +643,12 @@ export function EntryFormScreen({
     </SafeAreaView>
   );
 }
+
+// Each grow field's padding above and below its lines (#115), so its
+// heights read as so many lines plus this twice. The title's centers one
+// line inside the 44pt hit target.
+const titlePadding = (theme.spacing.rowHeight - theme.typography.entryTitle.lineHeight) / 2;
+const notePadding = theme.spacing.space5;
 
 const styles = createStyles((t) => ({
   screen: {
@@ -837,10 +850,10 @@ const styles = createStyles((t) => ({
     backgroundColor: t.colors.surface,
     borderRadius: t.radius.r3,
     paddingHorizontal: t.spacing.cardPadding,
-    paddingTop: (t.spacing.rowHeight - t.typography.entryTitle.lineHeight) / 2,
-    paddingBottom: (t.spacing.rowHeight - t.typography.entryTitle.lineHeight) / 2,
+    paddingTop: titlePadding,
+    paddingBottom: titlePadding,
     minHeight: t.spacing.rowHeight,
-    maxHeight: t.typography.entryTitle.lineHeight * 3 + (t.spacing.rowHeight - t.typography.entryTitle.lineHeight),
+    maxHeight: t.typography.entryTitle.lineHeight * 3 + titlePadding * 2,
     textAlignVertical: 'top',
   },
   // Five lines tall from the start, and it scrolls inside itself past that
@@ -851,10 +864,10 @@ const styles = createStyles((t) => ({
     backgroundColor: t.colors.surface,
     borderRadius: t.radius.r3,
     paddingHorizontal: t.spacing.cardPadding,
-    paddingTop: t.spacing.space5,
-    paddingBottom: t.spacing.space5,
-    minHeight: t.typography.note.lineHeight * 5 + t.spacing.space5 * 2,
-    maxHeight: t.typography.note.lineHeight * 5 + t.spacing.space5 * 2,
+    paddingTop: notePadding,
+    paddingBottom: notePadding,
+    minHeight: t.typography.note.lineHeight * 5 + notePadding * 2,
+    maxHeight: t.typography.note.lineHeight * 5 + notePadding * 2,
     textAlignVertical: 'top',
   },
   placeholder: {

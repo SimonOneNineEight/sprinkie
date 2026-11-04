@@ -371,11 +371,35 @@ describe('title and note fields (#115)', () => {
     fireEvent.press(screen.getByText('運動'));
 
     fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑\n河濱\r\n十公里');
+    expect(screen.getByPlaceholderText('標題').props.value).toBe('晨跑 河濱 十公里');
     await act(async () => {
       fireEvent.press(screen.getByText('儲存'));
     });
 
     expect(postedEntry()?.content).toBe(
+      encodeContent({ title: '晨跑 河濱 十公里', note: '' }),
+    );
+  });
+
+  // The PM's imported journal came from Numbers, whose cells can hold line
+  // breaks, so an older title may carry one the form never typed.
+  it('opens an older title with spaces where its line breaks were, and saves it so', async () => {
+    renderForm({
+      entry: {
+        id: 'e1',
+        date: '2026-08-17',
+        position: 1,
+        categoryId: 'c-sport',
+        authorId: 'u1',
+        content: encodeContent({ title: '晨跑\n河濱\r\n十公里', note: '' }),
+      },
+    });
+
+    expect(screen.getByPlaceholderText('標題').props.value).toBe('晨跑 河濱 十公里');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    expect(patchedEntry()?.content).toBe(
       encodeContent({ title: '晨跑 河濱 十公里', note: '' }),
     );
   });
