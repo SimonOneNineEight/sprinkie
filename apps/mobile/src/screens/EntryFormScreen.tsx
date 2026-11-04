@@ -75,12 +75,10 @@ export function EntryFormScreen({
       : null;
   const initialCategoryId = draft ? draft.categoryId : entry?.categoryId;
   const initialSubcategoryId = draft ? draft.subcategoryId : entry?.subcategoryId;
-  const [category, setCategory] = useState<Category | null>(
-    initialCategoryId ? (categories.find((c) => c.id === initialCategoryId) ?? null) : null,
-  );
-  const [subcategory, setSubcategory] = useState<Category | null>(
-    initialSubcategoryId ? (categories.find((c) => c.id === initialSubcategoryId) ?? null) : null,
-  );
+  // The choice is held by id and looked up below on every render (#100): a
+  // form opened before the Categories arrived fills in once they do.
+  const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId ?? null);
+  const [subcategoryId, setSubcategoryId] = useState<string | null>(initialSubcategoryId ?? null);
   const [query, setQuery] = useState('');
   // Non-null opens the 分類表單 sheet prefilled with this name (ratified
   // 2026-09-10: the creation rows reuse the complete editor; the in-form
@@ -138,6 +136,8 @@ export function EntryFormScreen({
 
   const known = new Set(categories.map((c) => c.id));
   const all = [...categories, ...created.filter((c) => !known.has(c.id))];
+  const category = all.find((c) => c.id === categoryId) ?? null;
+  const subcategory = all.find((c) => c.id === subcategoryId) ?? null;
   const topLevel = all.filter((c) => !c.parentId);
   const trimmedQuery = query.trim();
   const filtered = topLevel.filter((c) =>
@@ -185,7 +185,7 @@ export function EntryFormScreen({
     if ('createdSubcategory' in result && result.createdSubcategory !== undefined) {
       const made = result.createdSubcategory;
       setCreated((prev) => [...prev, made]);
-      setSubcategory(made);
+      setSubcategoryId(made.id);
       setSubName('');
       setAddingSub(false);
       onCategoriesChanged?.();
@@ -332,7 +332,7 @@ export function EntryFormScreen({
         parentId: category.id,
       });
       setCreated((prev) => [...prev, made]);
-      setSubcategory(made);
+      setSubcategoryId(made.id);
       setAddingSub(false);
       setSubName('');
       onCategoriesChanged?.();
@@ -401,8 +401,8 @@ export function EntryFormScreen({
                 accessibilityRole="button"
                 style={styles.selectedRow}
                 onPress={() => {
-                  setCategory(null);
-                  setSubcategory(null);
+                  setCategoryId(null);
+                  setSubcategoryId(null);
                   setAddingSub(false);
                 }}
               >
@@ -425,7 +425,7 @@ export function EntryFormScreen({
                       accessibilityRole="button"
                       style={[styles.subPill, selected && styles.subPillSelected]}
                       onPress={() => {
-                        setSubcategory(selected ? null : sub);
+                        setSubcategoryId(selected ? null : sub.id);
                         setSubName('');
                       }}
                     >
@@ -542,8 +542,8 @@ export function EntryFormScreen({
                     accessibilityRole="button"
                     style={[styles.pickerRow, styles.pickerRowDivided]}
                     onPress={() => {
-                      setCategory(c);
-                      setSubcategory(null);
+                      setCategoryId(c.id);
+                      setSubcategoryId(null);
                       setFailed(false);
                     }}
                   >
@@ -610,11 +610,11 @@ export function EntryFormScreen({
               ? topLevel.find((c) => c.id === made.parentId)
               : undefined;
             if (madeParent) {
-              setCategory(madeParent);
-              setSubcategory(made);
+              setCategoryId(madeParent.id);
+              setSubcategoryId(made.id);
             } else {
-              setCategory(made);
-              setSubcategory(null);
+              setCategoryId(made.id);
+              setSubcategoryId(null);
             }
             setSubName('');
             setQuery('');
