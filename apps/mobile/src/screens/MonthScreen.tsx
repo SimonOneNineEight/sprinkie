@@ -34,8 +34,9 @@ type Props = {
    * rather than a back-stack (#40). The ribbon scrolls to that exact month,
    * which is more precise than the year-level landing it replaces (#51). */
   onOpenYear?: (year: number, month: number) => void;
-  /** Land on this month instead of today's (year view tap-through, #12). */
-  initialMonth?: { year: number; month: number };
+  /** Land on this month instead of today's (year view tap-through, #12),
+   * on `day` when given: the date a day view or form was left on (#113). */
+  initialMonth?: { year: number; month: number; day?: number };
   /** The persistent hidden-set (#30), owned by HomeScreen. */
   hidden?: HiddenSet;
   onChangeHidden?: (hidden: HiddenSet) => void;
@@ -77,7 +78,7 @@ export function MonthScreen({
   const [view, setView] = useState({
     year: initialMonth?.year ?? todayParts.year,
     month: initialMonth?.month ?? todayParts.month,
-    day: landsOnToday ? todayParts.day : 1,
+    day: initialMonth?.day ?? (landsOnToday ? todayParts.day : 1),
   });
   const visible = { year: view.year, month: view.month };
   const selectedDay = view.day;

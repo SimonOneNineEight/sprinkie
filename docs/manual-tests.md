@@ -232,6 +232,9 @@ Keyboard cases are in **KB**.
 | MO.29 | On a device with a home indicator | Both controls sit above the indicator, never over it |
 | MO.30 | The two controls side by side | Both 44pt; their tops and bottoms line up **[auto]** |
 | MO.31 | The controls against the month title and the day card | Their left and right edges line up with both |
+| MO.32 | Select a day other than today, tap +, save, then tap + again | The month view still has that day selected, and the second form opens for it (#113) **[auto]** |
+| MO.33 | From +, change the date row before saving | The month view lands on the date the Entry was saved onto (#113) **[auto]** |
+| MO.34 | From +, cancel | Back on the day the form was opened for (#113) **[auto]** |
 
 ### DA — Day view
 
@@ -243,7 +246,7 @@ Keyboard cases are in **KB**.
 | DA.4 | On a day with nothing hidden, long-press and drag a card | It moves; the order holds on return **[API]** **[auto]** |
 | DA.5 | Scroll a long list vertically | Scrolls; no accidental day change |
 | DA.6 | Swipe left / right | Previous and next date, gestures surviving the list underneath |
-| DA.7 | Back chevron | Returns to the month view **[auto]** |
+| DA.7 | Swipe to another day, then the back chevron | Returns to the month view on the day you were showing, in its month, selected — not today (#113) **[auto]** |
 | DA.8 | Tap the floating + | Entry form for this day **[auto]** |
 | DA.9 | A day holding a retained Draft | A 尚未儲存 row above the cards **[auto]** |
 | DA.10 | Several Drafts on one day | All of them listed |

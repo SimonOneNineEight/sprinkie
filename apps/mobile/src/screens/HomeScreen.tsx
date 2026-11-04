@@ -20,7 +20,7 @@ type Props = {
 };
 
 type Route =
-  | { name: 'month'; focus?: { year: number; month: number } }
+  | { name: 'month'; focus?: { year: number; month: number; day?: number } }
   | { name: 'day'; date: string }
   | { name: 'form'; date: string }
   | { name: 'settings' }
@@ -60,7 +60,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         date={route.date}
         hidden={hidden}
         onChangeHidden={changeHidden}
-        onBack={() => setRoute({ name: 'month' })}
+        onBack={() => setRoute({ name: 'month', focus: focusOn(route.date) })}
         onChangeDate={(date) => setRoute({ name: 'day', date })}
         onEntrySaved={bumpMonth}
         onCategoriesChanged={onCategoriesChanged}
@@ -96,9 +96,9 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         date={route.date}
         categories={categories}
         onCategoriesChanged={onCategoriesChanged}
-        onDone={(saved) => {
+        onDone={(saved, savedOn) => {
           if (saved) bumpMonth();
-          setRoute({ name: 'month' });
+          setRoute({ name: 'month', focus: focusOn(savedOn ?? route.date) });
         }}
       />
     );
@@ -122,6 +122,12 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
       </View>
     </SafeAreaView>
   );
+}
+
+/** The month route's landing for a YYYY-MM-DD date: its month, that day selected. */
+function focusOn(date: string) {
+  const [year, month, day] = date.split('-').map(Number);
+  return { year, month, day };
 }
 
 const styles = createStyles((t) => ({
