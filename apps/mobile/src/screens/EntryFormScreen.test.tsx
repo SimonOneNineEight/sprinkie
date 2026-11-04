@@ -581,7 +581,11 @@ describe('photos (#44)', () => {
       expect(openedOn()).toBe('file:///1.jpg');
     });
 
-    it("gives each ✕ a hit target of at least 44pt", () => {
+    // Reads the ✕'s size and slop rather than touching around it, the same
+    // departure from #45's testing rule expectSingleLineField makes: jest
+    // has no hit-testing, so this only stops the numbers shrinking. Whether
+    // a real tap lands is EF.49, on a device.
+    it('gives each ✕ a hit target of at least 44pt', () => {
       renderForm({ entry: savedEntry(1), draft: { ...draftWith(1), entryId: 'e1' } });
 
       const removes = screen.getAllByLabelText('移除');

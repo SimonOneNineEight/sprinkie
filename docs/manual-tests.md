@@ -312,7 +312,7 @@ Keyboard cases are in **KB**.
 | EF.44 | Tap the ✕ on a Photo of a saved Entry | Confirmation, then it goes **[API]** **[auto]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
 | EF.46 | With a Subcategory pill selected, tap +, type a new name, leave the field, save | The typed pill replaces the selected one; the new Subcategory is created and refines the Entry **[API]** |
-| EF.47 | Tap a photo, saved or just attached, anywhere but its ✕ | The viewer opens on that photo; nothing is removed **[auto]** |
+| EF.47 | Tap a photo, saved or just attached | The viewer opens on that photo; nothing is removed. Where the tile stops and the ✕ begins is EF.49 **[auto]** |
 | EF.48 | Long-press-drag a photo to another place, then tap it | It moves, and the viewer opens on the photo tapped, not on the one that sat there before |
 | EF.49 | Tap just below, or just left of, a ✕ (about a ✕'s width off it) | Removes, as the ✕ does: it answers across the tile's 44pt corner. A tap further into the tile opens the viewer |
 
