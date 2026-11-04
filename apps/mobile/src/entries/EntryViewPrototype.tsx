@@ -36,11 +36,17 @@ type PageProps = {
   width: number;
 };
 
+// Round 2 (#119): B is chosen; the pill now cycles the note's size.
 const VARIANTS = [
-  { key: 'A', name: '卡片放大' },
-  { key: 'B', name: '文章頁' },
-  { key: 'C', name: '色帶＋大圖' },
+  { key: 'a', name: '17/28 reading' },
+  { key: 'b', name: '17/24 entryTitle' },
+  { key: 'c', name: '15/22 note' },
 ] as const;
+const NOTE_SIZES = [
+  { fontSize: 17, lineHeight: 28 },
+  { fontSize: 17, lineHeight: 24 },
+  { fontSize: 15, lineHeight: 22 },
+];
 
 // Module-level so the chosen layout survives closing and reopening.
 let lastVariant = 0;
@@ -75,7 +81,7 @@ export function EntryViewPrototype({ entries, startIndex, categories, onBack, on
   const entry = entries[index];
   if (!entry) return null;
   const heading = dateHeading(strings, entry.date);
-  const Page = [PageA, PageB, PageC][variant];
+  const Page = PageB;
 
   const pager = (
     <FlatList
@@ -90,7 +96,7 @@ export function EntryViewPrototype({ entries, startIndex, categories, onBack, on
       keyExtractor={(e) => e.id}
       onViewableItemsChanged={onViewable}
       viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-      renderItem={({ item }) => <Page entry={item} categories={categories} width={width} />}
+      renderItem={({ item }) => <Page entry={item} categories={categories} width={width} noteSize={NOTE_SIZES[variant]} />}
     />
   );
 
@@ -102,7 +108,7 @@ export function EntryViewPrototype({ entries, startIndex, categories, onBack, on
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      {variant === 0 ? (
+      {false ? (
         // A: the day view's card, zoomed in. Header = day view's header with
         // 編輯 where 類別 sits; position = dots under the card.
         <>
@@ -120,7 +126,7 @@ export function EntryViewPrototype({ entries, startIndex, categories, onBack, on
             ))}
           </View>
         </>
-      ) : variant === 1 ? (
+      ) : true ? (
         // B: an article. Compact nav bar with the count in the middle; the
         // date and category live in the page, the title is the headline.
         <>
@@ -191,7 +197,7 @@ function PageA({ entry, categories, width }: PageProps) {
   );
 }
 
-function PageB({ entry, categories, width }: PageProps) {
+function PageB({ entry, categories, width, noteSize }: PageProps & { noteSize?: { fontSize: number; lineHeight: number } }) {
   const strings = useStrings();
   const d = describe(entry, categories);
   const content = width - theme.spacing.screenGutter * 2;
@@ -217,7 +223,7 @@ function PageB({ entry, categories, width }: PageProps) {
       </View>
       <Text style={styles.headline}>{d.title}</Text>
       <Text style={styles.meta}>{dateHeading(strings, entry.date)}</Text>
-      {d.note ? <Text style={styles.noteArticle}>{d.note}</Text> : null}
+      {d.note ? <Text style={[styles.noteArticle, noteSize]}>{d.note}</Text> : null}
     </ScrollView>
   );
 }
