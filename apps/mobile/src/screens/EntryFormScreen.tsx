@@ -39,7 +39,9 @@ type Props = {
   entry?: Entry;
   /** A retained failed save (#14): the form opens prefilled from it and 儲存 retries. */
   draft?: EntryDraft;
-  onDone: (saved: boolean) => void;
+  /** `date` is the date the Entry was saved onto, which the date row may
+   * have moved from the opened-for date (#113); absent on cancel. */
+  onDone: (saved: boolean, date?: string) => void;
   /** Fired after an inline category/subcategory creation lands server-side. */
   onCategoriesChanged?: () => void;
 };
@@ -192,7 +194,7 @@ export function EntryFormScreen({
     }
     switch (result.kind) {
       case 'saved':
-        onDone(true);
+        onDone(true, date);
         return;
       case 'photosFailed':
         // The Entry's words reached the server; retrying updates it.

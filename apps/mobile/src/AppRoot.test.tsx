@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { State } from 'react-native-gesture-handler';
+import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
@@ -319,4 +321,147 @@ it('fills a draft opened before a slow /me answered, once it does (#100)', async
   });
   expect(await screen.findByDisplayValue('晨跑')).toBeTruthy();
   globalThis.fetch = online;
+});
+
+// The month view returns to the date you left (#113). HomeScreen rebuilt the
+// month route bare, so every way back from a day or a form landed on today.
+describe('returning to the month view (#113)', () => {
+  /** The day panel's label for a date, as the month view prints it. */
+  const panelLabel = (d: Date) =>
+    `${d.getMonth() + 1}月${d.getDate()}日 星期${'日一二三四五六'[d.getDay()]}`;
+  const currentPage = () => within(screen.getByTestId('month-page-current'));
+
+  const signIn = async () => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    api = installMockApi({
+      me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] },
+    });
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+  };
+
+  it('backs out of a day in an earlier month onto that day, not today', async () => {
+    await signIn();
+    const now = new Date();
+    const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    await act(async () => {
+      fireEvent(screen.getByTestId('month-pager'), 'momentumScrollEnd', {
+        nativeEvent: { contentOffset: { x: 0 } },
+      });
+    });
+    expect(await screen.findByText(panelLabel(firstOfLastMonth))).toBeTruthy();
+    // Select is a no-op on the already-selected 1st; the second tap opens it.
+    await act(async () => {
+      fireEvent.press(currentPage().getByTestId('day-holder-1'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+
+    expect(await screen.findByText(panelLabel(firstOfLastMonth))).toBeTruthy();
+    expect(screen.getByText(`${firstOfLastMonth.getMonth() + 1}月`)).toBeTruthy();
+  });
+
+  it('backs out onto the day a swipe moved to, not the day that was opened', async () => {
+    await signIn();
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    // Today is already selected, so its cell opens.
+    await act(async () => {
+      fireEvent.press(currentPage().getByTestId(`day-holder-${now.getDate()}`));
+    });
+    await screen.findByLabelText('返回');
+    await act(async () => {
+      fireGestureHandler(getByGestureTestId('day-fling-next'), [
+        { state: State.BEGAN },
+        { state: State.ACTIVE },
+        { state: State.END },
+      ]);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+
+    expect(await screen.findByText(panelLabel(tomorrow))).toBeTruthy();
+  });
+
+  /** A day of this month other than today, selected on the month view. */
+  const selectOtherDay = async () => {
+    const now = new Date();
+    const other = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 1 ? 2 : 1);
+    await act(async () => {
+      fireEvent.press(currentPage().getByTestId(`day-holder-${other.getDate()}`));
+    });
+    expect(await screen.findByText(panelLabel(other))).toBeTruthy();
+    return other;
+  };
+
+  it('keeps the day a save was made on, so a second + writes there too', async () => {
+    await signIn();
+    const other = await selectOtherDay();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    expect(await screen.findByText(panelLabel(other))).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    // Both posts go to the same day, so make sure the second one happened.
+    expect(api.entryPosts()).toHaveLength(2);
+    const [, init] = api.entryPosts().at(-1)!;
+    expect(JSON.parse(String(init?.body)).date).toBe(localDateString(other));
+  });
+
+  it('cancelling the form returns to the day it was opened for', async () => {
+    await signIn();
+    const other = await selectOtherDay();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+
+    expect(await screen.findByText(panelLabel(other))).toBeTruthy();
+  });
+
+  it('lands on the date the Entry was saved onto when the form moved it', async () => {
+    await signIn();
+    await selectOtherDay();
+    const now = new Date();
+    // Neither today nor the opened day (the 1st or 2nd), so landing on it
+    // can only mean the form's move was followed.
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 15 ? 16 : 15);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('日期'));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText(String(target.getDate())));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    expect(await screen.findByText(panelLabel(target))).toBeTruthy();
+  });
 });
