@@ -416,7 +416,13 @@ describe('returning to the month view (#113)', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('新增紀錄'));
     });
-    expect(screen.getAllByText(panelLabel(other)).length).toBeGreaterThan(0);
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    const [, init] = api.entryPosts().at(-1)!;
+    expect(JSON.parse(String(init?.body)).date).toBe(localDateString(other));
   });
 
   it('cancelling the form returns to the day it was opened for', async () => {
@@ -437,14 +443,16 @@ describe('returning to the month view (#113)', () => {
     await signIn();
     await selectOtherDay();
     const now = new Date();
-    const fifteenth = new Date(now.getFullYear(), now.getMonth(), 15);
+    // Neither today nor the opened day (the 1st or 2nd), so landing on it
+    // can only mean the form's move was followed.
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate() === 15 ? 16 : 15);
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText('新增紀錄'));
     });
     fireEvent.press(screen.getByText('日期'));
     await act(async () => {
-      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText('15'));
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText(String(target.getDate())));
     });
     fireEvent.press(screen.getByText('運動'));
     fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
@@ -452,7 +460,6 @@ describe('returning to the month view (#113)', () => {
       fireEvent.press(screen.getByText('儲存'));
     });
 
-    expect(await screen.findByText(panelLabel(fifteenth))).toBeTruthy();
+    expect(await screen.findByText(panelLabel(target))).toBeTruthy();
   });
 });
-
