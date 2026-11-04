@@ -1,4 +1,5 @@
 import type { Category } from '../api/client';
+import { ApiError } from '../api/client';
 import type { ProcessedPhoto } from '../photos/processPhoto';
 import { saveEntry, type SaveDeps, type SaveIntent } from './save';
 
@@ -56,6 +57,7 @@ function fakeDeps(overrides: Partial<SaveDeps> = {}): SaveDeps {
           position: 9,
         }) as Category,
     ),
+    listCategories: jest.fn(async () => []),
     saveDraft: jest.fn(async () => {}),
     clearDraft: jest.fn(async () => {}),
     uploadPhotos: jest.fn(async () => []),
@@ -148,6 +150,35 @@ describe('pending Subcategory (#28)', () => {
     expect(deps.saveDraft).toHaveBeenCalledWith(
       expect.objectContaining({ pendingSubcategoryName: '夜跑' }),
     );
+  });
+
+  it('uses the existing Subcategory when the name turns out to be taken (#102)', async () => {
+    // A Draft retried later, or the same name made elsewhere meanwhile: the
+    // create answers 409, and the save refines with the one that exists.
+    const existing = {
+      id: 'sub-existing',
+      name: '夜跑',
+      color: '#73B062',
+      parentId: 'c-sport',
+      icon: 'tag',
+      position: 2,
+    } as Category;
+    const deps = fakeDeps({
+      createCategory: jest.fn(async () => Promise.reject(new ApiError('/categories', 409))),
+      listCategories: jest.fn(async () => [
+        { id: 'c-sport', name: '運動', color: '#73B062', icon: 'dumbbell', position: 1 } as Category,
+        { ...existing, id: 'sub-other-parent', parentId: 'c-food' },
+        existing,
+      ]),
+    });
+    const result = await saveEntry(intent({ pendingSubcategoryName: ' 夜跑 ' }), deps);
+
+    expect(deps.createEntry).toHaveBeenCalledWith(
+      'tok',
+      expect.objectContaining({ subcategoryId: 'sub-existing' }),
+    );
+    expect(result.kind).toBe('saved');
+    expect('createdSubcategory' in result && result.createdSubcategory?.id).toBe('sub-existing');
   });
 
   it('a made Subcategory still reports when the Entry write then fails', async () => {

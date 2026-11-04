@@ -14,7 +14,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category, Entry, Photo } from '../api/client';
-import { createCategory, deleteEntry, deletePhoto, reorderPhotos } from '../api/client';
+import { deleteEntry, deletePhoto, reorderPhotos } from '../api/client';
 import { MAX_PHOTOS, PhotoGrid } from '../entries/PhotoGrid';
 import type { ProcessedPhoto } from '../photos/processPhoto';
 import { processPhoto } from '../photos/processPhoto';
@@ -75,12 +75,10 @@ export function EntryFormScreen({
       : null;
   const initialCategoryId = draft ? draft.categoryId : entry?.categoryId;
   const initialSubcategoryId = draft ? draft.subcategoryId : entry?.subcategoryId;
-  const [category, setCategory] = useState<Category | null>(
-    initialCategoryId ? (categories.find((c) => c.id === initialCategoryId) ?? null) : null,
-  );
-  const [subcategory, setSubcategory] = useState<Category | null>(
-    initialSubcategoryId ? (categories.find((c) => c.id === initialSubcategoryId) ?? null) : null,
-  );
+  // The choice is held by id and looked up below on every render (#100): a
+  // form opened before the Categories arrived fills in once they do.
+  const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId ?? null);
+  const [subcategoryId, setSubcategoryId] = useState<string | null>(initialSubcategoryId ?? null);
   const [query, setQuery] = useState('');
   // Non-null opens the 分類表單 sheet prefilled with this name (ratified
   // 2026-09-10: the creation rows reuse the complete editor; the in-form
@@ -138,6 +136,8 @@ export function EntryFormScreen({
 
   const known = new Set(categories.map((c) => c.id));
   const all = [...categories, ...created.filter((c) => !known.has(c.id))];
+  const category = all.find((c) => c.id === categoryId) ?? null;
+  const subcategory = all.find((c) => c.id === subcategoryId) ?? null;
   const topLevel = all.filter((c) => !c.parentId);
   const trimmedQuery = query.trim();
   const filtered = topLevel.filter((c) =>
@@ -185,7 +185,7 @@ export function EntryFormScreen({
     if ('createdSubcategory' in result && result.createdSubcategory !== undefined) {
       const made = result.createdSubcategory;
       setCreated((prev) => [...prev, made]);
-      setSubcategory(made);
+      setSubcategoryId(made.id);
       setSubName('');
       setAddingSub(false);
       onCategoriesChanged?.();
@@ -319,25 +319,20 @@ export function EntryFormScreen({
     ]);
   };
 
-  const confirmCreateSubcategory = async () => {
+  // Leaving the Subcategory field, by blur or 完成, is the only way out
+  // (#102: 建立 is gone). A name matching an existing child selects it;
+  // any other stays pending and is created with the Entry at 儲存 (#28).
+  const leaveSubField = () => {
     const name = subName.trim();
-    if (category === null || name === '') return;
-    setFailed(false);
-    try {
-      // Subcategories store the parent's color but always render through the
-      // parent, so a later parent recolor carries every child with it.
-      const made = await createCategory(accessToken, {
-        name,
-        color: category.color,
-        parentId: category.id,
-      });
-      setCreated((prev) => [...prev, made]);
-      setSubcategory(made);
-      setAddingSub(false);
+    const existing = children.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+    setAddingSub(false);
+    if (existing) {
+      setSubcategoryId(existing.id);
       setSubName('');
-      onCategoriesChanged?.();
-    } catch {
-      setFailed(true);
+    } else {
+      // One Subcategory per Entry: a new name replaces any pick.
+      if (name !== '') setSubcategoryId(null);
+      setSubName(name);
     }
   };
 
@@ -401,8 +396,8 @@ export function EntryFormScreen({
                 accessibilityRole="button"
                 style={styles.selectedRow}
                 onPress={() => {
-                  setCategory(null);
-                  setSubcategory(null);
+                  setCategoryId(null);
+                  setSubcategoryId(null);
                   setAddingSub(false);
                 }}
               >
@@ -425,7 +420,7 @@ export function EntryFormScreen({
                       accessibilityRole="button"
                       style={[styles.subPill, selected && styles.subPillSelected]}
                       onPress={() => {
-                        setSubcategory(selected ? null : sub);
+                        setSubcategoryId(selected ? null : sub.id);
                         setSubName('');
                       }}
                     >
@@ -435,39 +430,25 @@ export function EntryFormScreen({
                   );
                 })}
                 {addingSub ? (
-                  <View style={styles.subCreate}>
-                    <TextInput
-                      style={styles.subInput}
-                      placeholder={strings.entryForm.subcategoryPlaceholder}
-                      placeholderTextColor={styles.placeholder.color}
-                      autoFocus
-                      value={subName}
-                      onChangeText={setSubName}
-                      // Leaving the field keeps the typed name as a pending
-                      // pick; blur and the return key never create (#28).
-                      onBlur={() => {
-                        setAddingSub(false);
-                        setSubName((name) => name.trim());
-                      }}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={subName.trim() === ''}
-                      onPress={() => void confirmCreateSubcategory()}
-                    >
-                      <Text style={subName.trim() === '' ? styles.subConfirmDisabled : styles.subConfirm}>
-                        {strings.entryForm.confirmSubcategory}
-                      </Text>
-                    </Pressable>
-                  </View>
+                  <TextInput
+                    style={styles.subInput}
+                    placeholder={strings.entryForm.subcategoryPlaceholder}
+                    placeholderTextColor={styles.placeholder.color}
+                    autoFocus
+                    returnKeyType="done"
+                    value={subName}
+                    onChangeText={setSubName}
+                    onSubmitEditing={leaveSubField}
+                    onBlur={leaveSubField}
+                  />
                 ) : pendingSubName !== '' ? (
-                  // The typed-but-unconfirmed subcategory, rendered exactly
-                  // like a confirmed pick and created with the entry at 儲存;
-                  // tapping deselects it like any selected pill.
+                  // The typed subcategory, rendered like a pick and created
+                  // with the entry at 儲存. Tapping reopens it for editing
+                  // (#102); emptied, it is gone.
                   <Pressable
                     accessibilityRole="button"
                     style={[styles.subPill, styles.subPillSelected]}
-                    onPress={() => setSubName('')}
+                    onPress={() => setAddingSub(true)}
                   >
                     <View style={[styles.subDot, { backgroundColor: category.color }]} />
                     <Text style={styles.subLabel}>{pendingSubName}</Text>
@@ -542,8 +523,8 @@ export function EntryFormScreen({
                     accessibilityRole="button"
                     style={[styles.pickerRow, styles.pickerRowDivided]}
                     onPress={() => {
-                      setCategory(c);
-                      setSubcategory(null);
+                      setCategoryId(c.id);
+                      setSubcategoryId(null);
                       setFailed(false);
                     }}
                   >
@@ -610,11 +591,11 @@ export function EntryFormScreen({
               ? topLevel.find((c) => c.id === made.parentId)
               : undefined;
             if (madeParent) {
-              setCategory(madeParent);
-              setSubcategory(made);
+              setCategoryId(madeParent.id);
+              setSubcategoryId(made.id);
             } else {
-              setCategory(made);
-              setSubcategory(null);
+              setCategoryId(made.id);
+              setSubcategoryId(null);
             }
             setSubName('');
             setQuery('');
@@ -799,11 +780,6 @@ const styles = createStyles((t) => ({
     ...t.typography.meta,
     color: t.colors.textPrimary,
   },
-  subCreate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: t.spacing.space4,
-  },
   // Padding-based sizing, no forced height and no inherited lineHeight:
   // iOS TextInput clips CJK glyphs inside a forced line box and top-anchors
   // the placeholder inside a fixed height; letting it wrap its natural line
@@ -819,14 +795,6 @@ const styles = createStyles((t) => ({
     paddingHorizontal: t.spacing.space5,
     paddingVertical: t.spacing.space3,
     minWidth: t.spacing.fabSize * 2,
-  },
-  subConfirm: {
-    ...t.typography.meta,
-    color: t.colors.textPrimary,
-  },
-  subConfirmDisabled: {
-    ...t.typography.meta,
-    color: t.colors.controlDisabledFg,
   },
   titleInput: {
     ...singleLineField(t, t.typography.entryTitle),

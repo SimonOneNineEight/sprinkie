@@ -202,7 +202,7 @@ Keyboard cases are in **KB**.
 | MO.8 | Days outside the month | Greyed and not tappable |
 | MO.9 | Swipe left / right | One month per swipe, both directions, repeatedly **[API]** |
 | MO.10 | Swipe several months fast | Each settle loads that month's dots; the month you left never paints on the one you arrived at, even for an instant **[API]** |
-| MO.11 | Move to a month that is not this month | No day is selected until you tap one |
+| MO.11 | Move to a month that is not this month | Its 1st is selected; back on this month, today is |
 | MO.12 | The day panel | The selected day's Entry titles with Category icons **[API]** |
 | MO.13 | A panel row for an Entry with Photos | Carries the photo glyph **[API]** |
 | MO.14 | Tap the panel header or any row | Opens the day view |
@@ -269,11 +269,11 @@ Keyboard cases are in **KB**.
 | EF.12 | Tap the collapsed Category row | Deselects, returning to the list |
 | EF.13 | Subcategory pills | One per child, dots in the parent's color |
 | EF.14 | Tap a pill, tap it again | Selects, then deselects |
-| EF.15 | Tap + in the pill row, type, tap 建立 | Created immediately and selected **[API]** |
-| EF.16 | Type a name and leave the field instead | Renders as a selected pending pill; nothing created yet |
-| EF.17 | Save with a pending pill | The Subcategory is created with the Entry **[API]** |
-| EF.18 | Press return in the Subcategory field | Never creates |
-| EF.19 | Tap a pending pill | Deselects and clears it |
+| EF.15 | Tap + in the pill row | A field opens, with no 建立 beside it; the keyboard's return key reads 完成 |
+| EF.16 | Type a name, then tap 完成 or anywhere else | Renders as a selected pill; nothing created yet |
+| EF.17 | Save with that pill | The Subcategory is created with the Entry **[API]** |
+| EF.18 | Type the name of a Subcategory this Category already has, leave the field, save | That one is selected; no duplicate is created **[API]** |
+| EF.19 | Tap the typed pill | The field reopens with the name; emptied and left, the pill is gone |
 | EF.20 | Title field | Stops at 80 characters |
 | EF.21 | Empty title | 儲存 disabled |
 | EF.22 | Note field | Multiline, grows as you type |
@@ -300,6 +300,11 @@ Keyboard cases are in **KB**.
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
 | EF.44 | Tap a Photo on a saved Entry | Confirmation, then it goes **[API]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
+| EF.46 | With a Subcategory pill selected, tap +, type a new name, leave the field, save | The typed pill replaces the selected one; the new Subcategory is created and refines the Entry **[API]** |
+
+**EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
+case ids stable. Before #102's follow-up the typed name vanished and the old
+pick was saved.
 
 **EF.33 and EF.34 are round-2 report #1.** They pass only when the deployed
 revision carries the date-move.

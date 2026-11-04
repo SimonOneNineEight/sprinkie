@@ -1,5 +1,5 @@
 import type { Category } from '../api/client';
-import { createCategory, createEntry, updateEntry } from '../api/client';
+import { ApiError, createCategory, createEntry, provisionMe, updateEntry } from '../api/client';
 import type { ProcessedPhoto } from '../photos/processPhoto';
 import { uploadPhotos } from '../photos/uploadPhotos';
 
@@ -49,6 +49,7 @@ export type SaveDeps = {
   createEntry: typeof createEntry;
   updateEntry: typeof updateEntry;
   createCategory: typeof createCategory;
+  listCategories: (accessToken: string) => Promise<Category[]>;
   saveDraft: typeof saveDraft;
   clearDraft: typeof clearDraft;
   uploadPhotos: typeof uploadPhotos;
@@ -58,6 +59,9 @@ const productionDeps: SaveDeps = {
   createEntry,
   updateEntry,
   createCategory,
+  // No GET /categories exists; /me is idempotent and returns them all. The
+  // language is only a seeding hint, and this account is long provisioned.
+  listCategories: async (accessToken) => (await provisionMe(accessToken, 'zh-TW')).categories,
   saveDraft,
   clearDraft,
   uploadPhotos,
@@ -90,11 +94,23 @@ export async function saveEntry(
 
   if (pendingLeft !== '') {
     try {
-      createdSubcategory = await deps.createCategory(accessToken, {
-        name: pendingLeft,
-        color: intent.categoryColor,
-        parentId: categoryId,
-      });
+      createdSubcategory = await deps
+        .createCategory(accessToken, {
+          name: pendingLeft,
+          color: intent.categoryColor,
+          parentId: categoryId,
+        })
+        .catch(async (error: unknown) => {
+          // The name is taken (#102): a Draft retried later, or the same
+          // Subcategory made elsewhere meanwhile. Refine with that one.
+          if (!(error instanceof ApiError && error.status === 409)) throw error;
+          const name = pendingLeft.trim().toLowerCase();
+          const existing = (await deps.listCategories(accessToken)).find(
+            (c) => c.parentId === categoryId && c.name.trim().toLowerCase() === name,
+          );
+          if (!existing) throw error;
+          return existing;
+        });
       subcategoryId = createdSubcategory.id;
       pendingLeft = '';
     } catch {

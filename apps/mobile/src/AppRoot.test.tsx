@@ -1,7 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
+import { saveDraft } from './entries/drafts';
 import { cat } from './testing/fixtures';
 import { installMockApi, type MockApi } from './testing/mockApi';
 import { ribbonSpan, rowOfMonth } from './calendar/ribbon';
@@ -202,4 +204,119 @@ it('hides a Category from the day view, and the other surfaces agree (#41)', asy
   expect(yearCalls.at(-1)).toContain(
     `/years/${today.getFullYear()}?hiddenCategories=c-sport&hiddenSubcategories=c-gym`,
   );
+});
+
+it('loads the world once the network returns after an offline launch, so a kept draft reopens prefilled (#100)', async () => {
+  // J5.3: relaunched in airplane mode, with a draft kept from the failed save.
+  await AsyncStorage.clear();
+  api.restore();
+  api = installMockApi({ me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] } });
+  await saveDraft({
+    id: 'd-offline',
+    date: localDateString(new Date()),
+    categoryId: cat.sport.id,
+    content: encodeContent({ title: '晨跑', note: '' }),
+    photos: [],
+    savedAt: new Date().toISOString(),
+  });
+  const online = globalThis.fetch;
+  let offline = true;
+  globalThis.fetch = jest.fn((url: unknown, init?: unknown) =>
+    offline ? Promise.reject(new TypeError('Network request failed')) : (online as jest.Mock)(url, init),
+  ) as unknown as typeof fetch;
+  mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+  render(<AppRoot />);
+  await screen.findByLabelText('新增紀錄');
+
+  // J5.4: airplane mode off, and the row tapped straight away, before the
+  // world has been fetched again.
+  offline = false;
+  const now = new Date();
+  await act(async () => {
+    fireEvent.press(
+      await screen.findByText(`${now.getMonth() + 1}月${now.getDate()}日 星期${'日一二三四五六'[now.getDay()]}`),
+    );
+  });
+  await act(async () => {
+    fireEvent.press(await screen.findByText('晨跑'));
+  });
+
+  // The retry lands while the form is open, and the form takes the draft's
+  // Category from it rather than staying on an empty list.
+  expect(await screen.findByDisplayValue('晨跑', {}, { timeout: 5000 })).toBeTruthy();
+  await act(async () => {
+    fireEvent.press(screen.getByText('儲存'));
+  });
+  expect(api.entryPosts()).toHaveLength(1);
+  globalThis.fetch = online;
+});
+
+it('colors the month dots once /me answers, after a launch whose first /me failed (#100)', async () => {
+  // A phone that just woke drops its first request; everything after is online.
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  api.restore();
+  api = installMockApi({
+    me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] },
+    monthDays: { [month]: [{ date: `${month}-01`, categoryIds: [cat.sport.id] }] },
+  });
+  const online = globalThis.fetch;
+  let dropped = false;
+  globalThis.fetch = jest.fn((url: unknown, init?: unknown) => {
+    if (String(url).endsWith('/me') && !dropped) {
+      dropped = true;
+      return Promise.reject(new TypeError('Network request failed'));
+    }
+    return (online as jest.Mock)(url, init);
+  }) as unknown as typeof fetch;
+  mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+  render(<AppRoot />);
+
+  // Until the Categories arrive the dot has no color to wear; after the
+  // retry it wears 運動's, rather than staying grey until a relaunch.
+  const dot = () =>
+    within(within(screen.getByTestId('month-page-current')).getByTestId('day-dots-1')).getByTestId('day-dot');
+  await waitFor(() => expect(dot()).toHaveStyle({ backgroundColor: cat.sport.color }), { timeout: 5000 });
+  globalThis.fetch = online;
+});
+
+it('fills a draft opened before a slow /me answered, once it does (#100)', async () => {
+  await AsyncStorage.clear();
+  api.restore();
+  api = installMockApi({ me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] } });
+  await saveDraft({
+    id: 'd-slow',
+    date: localDateString(new Date()),
+    categoryId: cat.sport.id,
+    content: encodeContent({ title: '晨跑', note: '' }),
+    photos: [],
+    savedAt: new Date().toISOString(),
+  });
+  // /me succeeds, but only after the draft's form is already open.
+  const online = globalThis.fetch;
+  let releaseMe = () => {};
+  const meHeld = new Promise<void>((resolve) => (releaseMe = resolve));
+  globalThis.fetch = jest.fn((url: unknown, init?: unknown) =>
+    String(url).endsWith('/me')
+      ? meHeld.then(() => (online as jest.Mock)(url, init))
+      : (online as jest.Mock)(url, init),
+  ) as unknown as typeof fetch;
+  mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+  render(<AppRoot />);
+  await screen.findByLabelText('新增紀錄');
+  const now = new Date();
+  await act(async () => {
+    fireEvent.press(
+      await screen.findByText(`${now.getMonth() + 1}月${now.getDate()}日 星期${'日一二三四五六'[now.getDay()]}`),
+    );
+  });
+  await act(async () => {
+    fireEvent.press(await screen.findByText('晨跑'));
+  });
+
+  await act(async () => {
+    releaseMe();
+  });
+  expect(await screen.findByDisplayValue('晨跑')).toBeTruthy();
+  globalThis.fetch = online;
 });

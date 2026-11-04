@@ -127,7 +127,6 @@ export const en: StringCatalog = {
     createRow: (name: string) => `Create “${name}”`,
     addSubcategory: 'Add subcategory',
     subcategoryPlaceholder: 'Subcategory',
-    confirmSubcategory: 'Create',
     titlePlaceholder: 'Title',
     notePlaceholder: 'Note (optional)',
     saving: 'Saving',
