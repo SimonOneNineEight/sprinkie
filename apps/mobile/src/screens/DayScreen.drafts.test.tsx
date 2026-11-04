@@ -146,6 +146,10 @@ it('keeps a failed edit pinned to its Entry and retries as an update', async () 
   await act(async () => {
     fireEvent.press(card);
   });
+  // A card opens the Entry view (#119); its 編輯 opens the form.
+  await act(async () => {
+    fireEvent.press(screen.getByText('編輯'));
+  });
   fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
   api.failures.entryWrites = true;
   await act(async () => {
@@ -158,8 +162,12 @@ it('keeps a failed edit pinned to its Entry and retries as an update', async () 
   expect(kept[0].entryId).toBe('e1');
 
   // Leaving the form loses nothing: the day now shows the kept draft.
+  // 取消 returns to the Entry view (#119), and back from it to the day.
   await act(async () => {
     fireEvent.press(screen.getByText('取消'));
+  });
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText('返回'));
   });
   const row = await screen.findByText('夜跑');
   expect(screen.getByText('尚未儲存')).toBeTruthy();

@@ -242,7 +242,7 @@ Keyboard cases are in **KB**.
 | --- | --- | --- |
 | DA.1 | Open a day with Entries | Cards with title (up to three lines), Category icon, Subcategory name, note preview (up to five lines), photo thumbnails **[API]** |
 | DA.2 | A day with none: today, then any other date | Today reads 今天還沒有紀錄; every other date reads 這天沒有紀錄 **[auto]** |
-| DA.3 | Tap a card | The Entry form opens prefilled **[auto]** |
+| DA.3 | Tap a card | The Entry view opens on it (EV), not the form **[auto]** |
 | DA.4 | On a day with nothing hidden, long-press and drag a card | It moves; the order holds on return **[API]** **[auto]** |
 | DA.5 | Scroll a long list vertically | Scrolls; no accidental day change |
 | DA.6 | Swipe left / right | Previous and next date, gestures surviving the list underneath |
@@ -264,6 +264,31 @@ Keyboard cases are in **KB**.
 | DA.22 | Tap the 類別 icon in the header | The same sheet the month and year views open: the two-level tree, ✎ per row, 全部隱藏 and 新增類別 **[auto]** |
 | DA.23 | An Entry whose title runs past three lines and note past five | The title stops at three lines and the note at five, each ending in …; the card grows taller but not wider, the note keeps its left edge, and the card never scrolls inside itself |
 | DA.24 | A card whose title wraps to three lines, then long-press and drag it | The icon and grip sit centered on the title block, the category line beneath it; the drag works as on a one-line card |
+
+### EV — Entry view
+
+A tap on a day card opens the Entry to read (#119); 編輯 opens the form. Use
+a day of at least three Entries, one of them with a Chinese note of several
+lines and three photos.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| EV.1 | Open the Entry with the long note and three photos | Top to bottom: the Category chip (its icon on the Category's tint, 類別 · 子類別 in its ink), the title large, the date just under it in grey, the whole note, then the three photos as equal squares filling one row. Nothing is cut off with …, there is no large first photo, and the photo row does not scroll sideways |
+| EV.2 | Open any Entry | It shows its Category and Subcategory, title, date, the whole note and its photos **[auto]** |
+| EV.3 | The top bar | ‹ on the left, n / total centred, 編輯 on the right; each answers a tap across a 44pt target |
+| EV.4 | On a day where one Category is hidden, swipe left and right | One Entry per swipe in the day view's order, the hidden one skipped; the count follows, and the swipe stops at the first and the last Entry, never crossing into another day **[auto]** |
+| EV.5 | Scroll a long note | Scrolls; the Entry does not change |
+| EV.6 | 編輯, change the title, 儲存 | Back on the Entry view, showing the new title **[API]** **[auto]** |
+| EV.7 | 編輯, change the date, 儲存, then ‹ | The Entry view shows it on the new date; ‹ goes to the new date's day view, where it now sits **[API]** **[auto]** |
+| EV.8 | 編輯, change the title, 取消 | Back on the Entry view, unchanged **[auto]** |
+| EV.9 | 編輯, 刪除紀錄, confirm | The day view, without the Entry **[API]** **[auto]** |
+| EV.10 | Tap the second of three photos, then ✕ | The viewer opens on that photo and reads 2 / 3; ✕ returns to the Entry view **[auto]** |
+| EV.11 | In the viewer, swipe between photos | The photos page; the Entry behind does not change |
+| EV.12 | ‹, then ‹ again | The day view, then the month view on that day |
+
+**EV.4 never crosses days** on purpose: a swipe past the day's last Entry
+would make the Entry view a fourth surface applying Hidden, which is ADR
+0005's revisit trigger.
 
 ### EF — Entry form
 
@@ -594,7 +619,7 @@ Go and jest suites; they cannot be staged by hand.
 ### PV — Photo viewer
 
 One full-screen viewer, opened by tapping a photo in the Entry form (#118) or
-the Entry view (#119). Until #119 lands, open it from the form.
+the Entry view (#119).
 
 | # | Case | Expected |
 | --- | --- | --- |
@@ -668,15 +693,22 @@ the tag.
 | MO.33 | `AppRoot.test.tsx` |
 | MO.34 | `AppRoot.test.tsx` |
 | DA.2 | `screens/DayScreen.test.tsx` |
-| DA.3 | `screens/DayScreen.test.tsx` |
+| DA.3 | `AppRoot.test.tsx` |
 | DA.4 | `screens/DayScreen.test.tsx`, `entries_edit_test.go` |
 | DA.7 | `AppRoot.test.tsx` |
 | DA.8 | `screens/DayScreen.drafts.test.tsx` |
 | DA.9 | `screens/DayScreen.drafts.test.tsx` |
-| DA.11 | `screens/DayScreen.drafts.test.tsx` |
+| DA.11 | `screens/DayScreen.drafts.test.tsx`, `AppRoot.test.tsx` |
 | DA.15 | `screens/DayScreen.test.tsx` |
 | DA.16 | `screens/DayScreen.test.tsx` |
 | DA.22 | `screens/DayScreen.test.tsx`, `calendar/CategorySheet.test.tsx` |
+| EV.2 | `AppRoot.test.tsx` |
+| EV.4 | `AppRoot.test.tsx` |
+| EV.6 | `AppRoot.test.tsx` |
+| EV.7 | `AppRoot.test.tsx` |
+| EV.8 | `AppRoot.test.tsx` |
+| EV.9 | `AppRoot.test.tsx` |
+| EV.10 | `AppRoot.test.tsx` |
 | EF.1 | `screens/EntryFormScreen.test.tsx` |
 | EF.7 | `screens/DayScreen.test.tsx` |
 | EF.10 | `screens/DayScreen.test.tsx`, `screens/EntryFormScreen.test.tsx` |

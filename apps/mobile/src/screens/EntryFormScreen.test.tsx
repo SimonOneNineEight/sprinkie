@@ -76,7 +76,7 @@ describe('date row (#24)', () => {
     expect(screen.getAllByText('8月17日 星期一').length).toBeGreaterThan(0);
     await fillAndSave();
     expect(postedEntry()?.date).toBe('2026-08-17');
-    expect(onDone).toHaveBeenCalledWith(true, '2026-08-17');
+    expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
   });
 
   it('saves onto the date picked in the compact picker', async () => {
@@ -473,7 +473,7 @@ describe('photos (#44)', () => {
     await act(async () => {
       release();
     });
-    expect(onDone).toHaveBeenCalledWith(true, '2026-08-17');
+    expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
   });
 
   it('saves once when 儲存 is pressed twice inside one render pass', async () => {

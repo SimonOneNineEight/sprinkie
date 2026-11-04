@@ -1,8 +1,15 @@
+// The Entry view's photo tap opens the viewer (#119), which holds its own
+// gesture root and SafeAreaProvider inside its Modal: the gesture library's
+// setup and the safe-area mock let both render in jest, as in
+// PhotoViewer.test.tsx.
+import 'react-native-gesture-handler/jestSetup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
+import { saveHidden } from './calendar/hidden';
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
 import { saveDraft } from './entries/drafts';
@@ -34,6 +41,10 @@ jest.mock('./auth/supabase', () => ({
     },
   },
 }));
+
+jest.mock('react-native-safe-area-context', () =>
+  jest.requireActual('react-native-safe-area-context/jest/mock').default,
+);
 
 jest.mock('@sentry/react-native', () => ({
   captureException: jest.fn(),
@@ -463,5 +474,260 @@ describe('returning to the month view (#113)', () => {
     });
 
     expect(await screen.findByText(panelLabel(target))).toBeTruthy();
+  });
+});
+
+// The Entry view (#119): a card opens the Entry to read, and 編輯 on it opens
+// the form. Where each way out of the form lands spans DayScreen and
+// HomeScreen's routes, so these run end to end.
+describe('the Entry view (#119)', () => {
+  const today = new Date();
+  const date = localDateString(today);
+  /** A date as the month panel and the Entry view print it. */
+  const panelLabel = (d: Date) =>
+    `${d.getMonth() + 1}月${d.getDate()}日 星期${'日一二三四五六'[d.getDay()]}`;
+  const entry = (id: string, position: number, categoryId: string, title: string, extra: object = {}) => ({
+    id, date, position, categoryId, authorId: 'u1', content: encodeContent({ title, note: '' }), ...extra,
+  });
+
+  /** Signs in on a world whose today holds the given Entries, and opens today's day view. */
+  const openToday = async (entries: ReturnType<typeof entry>[]) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    api = installMockApi({
+      me: {
+        userId: 'u1',
+        journalId: 'j1',
+        categories: [cat.work, { ...cat.sport, position: 2 }, { ...cat.food, position: 3 }, cat.gym],
+      },
+      entries: { [date]: entries },
+    });
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+    // Today is already selected, so its cell opens.
+    await act(async () => {
+      fireEvent.press(
+        within(screen.getByTestId('month-page-current')).getByTestId(`day-holder-${today.getDate()}`),
+      );
+    });
+    await screen.findByLabelText('返回');
+  };
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it('opens from a card, while a Draft row still opens the form', async () => {
+    await saveDraft({
+      id: 'd1',
+      date,
+      categoryId: cat.food.id,
+      content: encodeContent({ title: '沒存到的午餐', note: '' }),
+      photos: [],
+      savedAt: new Date().toISOString(),
+    });
+    await openToday([entry('e1', 1, 'c-sport', '晨跑')]);
+
+    await act(async () => {
+      fireEvent.press(await screen.findByText('晨跑'));
+    });
+    expect(screen.getByText('編輯')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('標題')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    await act(async () => {
+      fireEvent.press(await screen.findByText('沒存到的午餐'));
+    });
+    expect(await screen.findByDisplayValue('沒存到的午餐')).toBeTruthy();
+    expect(screen.queryByText('編輯')).toBeNull();
+  });
+
+  const threePhotos = [0, 1, 2].map((i) => ({
+    id: `p${i}`,
+    position: i + 1,
+    url: `https://signed/full${i}`,
+    thumbUrl: `https://signed/thumb${i}`,
+  }));
+
+  /** Opens the card titled `title` into the Entry view. */
+  const openCard = async (title: string) => {
+    await act(async () => {
+      fireEvent.press(await screen.findByText(title));
+    });
+    await screen.findByText('編輯');
+  };
+
+  it('shows the Category chip, title, date, the whole note and the photos', async () => {
+    const note = '天氣很好，河濱的風很涼，跑完在橋下拉筋，看到很多人在遛狗。';
+    await openToday([
+      entry('e1', 1, 'c-sport', '晨跑', {
+        subcategoryId: 'c-gym',
+        content: encodeContent({ title: '晨跑', note }),
+        photos: threePhotos,
+      }),
+    ]);
+    await openCard('晨跑');
+
+    expect(screen.getByText('運動 · 健身房')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    expect(screen.getByText(panelLabel(today))).toBeTruthy();
+    // The whole note: the card's five-line limit does not carry over.
+    expect(screen.getByText(note).props.numberOfLines).toBeUndefined();
+    expect(threePhotos.map((p) => screen.getByTestId(`entry-photo-${p.id}`).props.source)).toEqual(
+      threePhotos.map((p) => ({ uri: p.thumbUrl })),
+    );
+  });
+
+  /** 編輯 on the Entry view, then the form's 儲存 with a new title. */
+  const editTitle = async (title: string) => {
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), title);
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+  };
+
+  it('returns to the Entry view after 編輯 → 儲存, showing what was saved', async () => {
+    await openToday([entry('e1', 1, 'c-sport', '晨跑')]);
+    await openCard('晨跑');
+
+    await editTitle('夜跑');
+
+    expect(await screen.findByText('夜跑')).toBeTruthy();
+    expect(screen.getByText('編輯')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('標題')).toBeNull();
+  });
+
+  it('follows an Entry the form moved to another date, and backs out to that day', async () => {
+    // Another day of this month, so the form's picker opens on it.
+    const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() === 15 ? 16 : 15);
+    await openToday([entry('e1', 1, 'c-sport', '晨跑')]);
+    await openCard('晨跑');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.press(screen.getByText('日期'));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText(String(target.getDate())));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    // The Entry view, on the Entry's new date.
+    expect(await screen.findByText(panelLabel(target))).toBeTruthy();
+    expect(screen.getByText('編輯')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+
+    // Back: the new date's day view, where the Entry lives now.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    expect(screen.queryByText('編輯')).toBeNull();
+    expect(screen.getByText(panelLabel(target))).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+  });
+
+  it('returns to the Entry view unchanged on 取消, and to the day view on 刪除紀錄', async () => {
+    await openToday([entry('e1', 1, 'c-sport', '晨跑'), entry('e2', 2, 'c-food', '午餐')]);
+    await openCard('晨跑');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+    expect(screen.getByText('編輯')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    expect(screen.queryByText('夜跑')).toBeNull();
+
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('刪除紀錄'));
+    });
+    const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+    await act(async () => {
+      destructive?.onPress?.();
+    });
+    alertSpy.mockRestore();
+
+    // The day view, with the deleted Entry gone and the other still there.
+    expect(await screen.findByText('午餐')).toBeTruthy();
+    expect(screen.queryByText('編輯')).toBeNull();
+    expect(screen.queryByText('晨跑')).toBeNull();
+  });
+
+  const fling = async (direction: 'next' | 'prev') => {
+    await act(async () => {
+      fireGestureHandler(getByGestureTestId(`entry-fling-${direction}`), [
+        { state: State.BEGAN },
+        { state: State.ACTIVE },
+        { state: State.END },
+      ]);
+    });
+  };
+
+  it("swipes through the day's visible Entries in order, stopping at either end", async () => {
+    // 寫程式 sits between the two and is Hidden, so the day view skips it
+    // and so does the swipe (ADR 0005: the day view is the surface here).
+    await saveHidden({ categoryIds: [cat.work.id], subcategoryIds: [] });
+    await openToday([
+      entry('e1', 1, 'c-sport', '晨跑'),
+      entry('e2', 2, 'c-work', '寫程式'),
+      entry('e3', 3, 'c-food', '午餐'),
+    ]);
+    await openCard('晨跑');
+    expect(screen.getByText('1 / 2')).toBeTruthy();
+
+    await fling('prev');
+    expect(screen.getByText('1 / 2')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+
+    await fling('next');
+    expect(screen.getByText('2 / 2')).toBeTruthy();
+    expect(screen.getByText('午餐')).toBeTruthy();
+    expect(screen.queryByText('寫程式')).toBeNull();
+
+    await fling('next');
+    expect(screen.getByText('2 / 2')).toBeTruthy();
+    expect(screen.getByText('午餐')).toBeTruthy();
+
+    await fling('prev');
+    expect(screen.getByText('1 / 2')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+  });
+
+  it('opens the photo viewer on the photo tapped', async () => {
+    await openToday([entry('e1', 1, 'c-sport', '晨跑', { photos: threePhotos })]);
+    await openCard('晨跑');
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('entry-photo-p1'));
+    });
+
+    expect(screen.getByLabelText('關閉')).toBeTruthy();
+    expect(screen.getByText('2 / 3')).toBeTruthy();
+    // The original, with the thumbnail the view showed beneath it.
+    const pager = screen.getByTestId('photo-viewer-pager');
+    expect(pager.props.data[pager.props.initialScrollIndex]).toMatchObject({
+      uri: 'https://signed/full1',
+      thumbUri: 'https://signed/thumb1',
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('關閉'));
+    });
+    expect(screen.queryByTestId('photo-viewer-pager')).toBeNull();
+    expect(screen.getByText('編輯')).toBeTruthy();
   });
 });

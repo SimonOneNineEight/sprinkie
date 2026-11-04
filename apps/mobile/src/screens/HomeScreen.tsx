@@ -96,9 +96,10 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         date={route.date}
         categories={categories}
         onCategoriesChanged={onCategoriesChanged}
-        onDone={(saved, savedOn) => {
-          if (saved) bumpMonth();
-          setRoute({ name: 'month', focus: focusOn(savedOn ?? route.date) });
+        onDone={(outcome) => {
+          if (outcome.kind === 'saved') bumpMonth();
+          const landing = outcome.kind === 'saved' ? outcome.date : route.date;
+          setRoute({ name: 'month', focus: focusOn(landing) });
         }}
       />
     );

@@ -117,6 +117,10 @@ export const en: StringCatalog = {
     close: 'Close',
     counter: (n: number, total: number) => `${n} / ${total}`,
   },
+  entryView: {
+    edit: 'Edit',
+    position: (n: number, total: number) => `${n} / ${total}`,
+  },
   entryForm: {
     cancel: 'Cancel',
     save: 'Save',

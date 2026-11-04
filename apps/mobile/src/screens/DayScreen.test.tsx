@@ -186,13 +186,17 @@ it('persists a drag reorder through the API', async () => {
   expect(JSON.parse(put?.[1]?.body ?? '{}').entryIds).toEqual(['e2', 'e1']);
 });
 
-it('opens an entry for editing, prefilled, and saves via PATCH', async () => {
+it('opens an entry for editing through the Entry view, prefilled, and saves via PATCH', async () => {
   listedEntries = api.world.entries['2026-08-19'] = dayEntriesFixture();
   render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
 
   const card = await screen.findByText('晨跑');
   await act(async () => {
     fireEvent.press(card);
+  });
+  // A card opens the Entry view (#119); its 編輯 opens the form.
+  await act(async () => {
+    fireEvent.press(screen.getByText('編輯'));
   });
   expect(screen.getByPlaceholderText('標題').props.value).toBe('晨跑');
   expect(screen.getByPlaceholderText('備註（選填）').props.value).toBe('河濱');
@@ -218,6 +222,10 @@ it('deletes an entry after confirmation', async () => {
   const card = await screen.findByText('晨跑');
   await act(async () => {
     fireEvent.press(card);
+  });
+  // A card opens the Entry view (#119); its 編輯 opens the form.
+  await act(async () => {
+    fireEvent.press(screen.getByText('編輯'));
   });
   await act(async () => {
     fireEvent.press(screen.getByText('刪除紀錄'));
@@ -369,16 +377,26 @@ it('shows existing photos in edit mode and hides the add tile at the cap', async
   await act(async () => {
     fireEvent.press(fullCard);
   });
+  await act(async () => {
+    fireEvent.press(screen.getByText('編輯'));
+  });
   expect(screen.queryByTestId('grid-item-__add__')).toBeNull();
   expect(screen.getByTestId('grid-item-photo:p9')).toBeTruthy();
+  // 取消 returns to the Entry view (#119); back from it to the day.
   await act(async () => {
     fireEvent.press(screen.getByText('取消'));
+  });
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText('返回'));
   });
 
   // Two photos: add tile present with the counter.
   const partialCard = await screen.findByText('兩張');
   await act(async () => {
     fireEvent.press(partialCard);
+  });
+  await act(async () => {
+    fireEvent.press(screen.getByText('編輯'));
   });
   expect(screen.getByTestId('grid-item-__add__')).toBeTruthy();
   expect(screen.getByText('2/3')).toBeTruthy();

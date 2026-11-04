@@ -18,6 +18,7 @@ import { decodeContent } from '../entries/content';
 import type { EntryDraft } from '../entries/drafts';
 import { listDrafts } from '../entries/drafts';
 import { EntryCard } from '../entries/EntryCard';
+import { EntryView } from '../entries/EntryView';
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
@@ -32,7 +33,10 @@ type Props = {
   /** Injectable for tests; defaults to the device's now. */
   today?: Date;
   onBack?: () => void;
-  /** A horizontal swipe asks for the previous/next date (#26). */
+  /**
+   * A horizontal swipe asks for the previous/next date (#26); so does 今天,
+   * and an Entry the form moved while the Entry view showed it (#119).
+   */
   onChangeDate?: (date: string) => void;
   /** Called after an Entry changes here (save, edit, delete, reorder). */
   onEntrySaved?: () => void;
@@ -49,7 +53,8 @@ type Props = {
 };
 
 // The day view (#7): the date's Entries as cards; long-press drag reorders
-// and persists, tap edits, the form's 刪除紀錄 deletes.
+// and persists, a tap opens the Entry view (#119), whose 編輯 opens the form,
+// and the form's 刪除紀錄 deletes.
 export function DayScreen({
   accessToken,
   categories,
@@ -68,6 +73,8 @@ export function DayScreen({
   const [reorderFailed, setReorderFailed] = useState(false);
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
+  // The Entry a card tap opened (#119), by id so a reload shows it fresh.
+  const [viewingId, setViewingId] = useState<string | null>(null);
   // Retained failed saves for this date (#14), shown as quiet rows above the
   // list; tapping one reopens the form prefilled, where 儲存 retries.
   const [drafts, setDrafts] = useState<EntryDraft[]>([]);
@@ -124,14 +131,22 @@ export function DayScreen({
         }
         draft={openDraft ?? undefined}
         onCategoriesChanged={onCategoriesChanged}
-        onDone={(saved) => {
+        onDone={(outcome) => {
           setComposing(false);
           setEditing(null);
           setOpenDraft(null);
           // A failed attempt in the form may have kept a draft; success
           // cleared one. Either way this date's rows need a fresh read.
           void listDrafts(date).then(setDrafts);
-          if (saved) changed();
+          if (outcome.kind !== 'cancelled') changed();
+          // From the Entry view (#119), a delete lands on the day view; a
+          // save or a cancel returns to the view, which a save to a new date
+          // follows: this screen moves there, so the view finds the Entry
+          // again and back lands on the day it lives on now.
+          if (outcome.kind === 'deleted') setViewingId(null);
+          if (viewingId !== null && outcome.kind === 'saved' && outcome.date !== date) {
+            onChangeDate?.(outcome.date);
+          }
         }}
       />
     );
@@ -153,6 +168,27 @@ export function DayScreen({
   const heading = dateHeading(strings, date);
   const visibleEntries = (entries ?? []).filter((entry) => entryIsVisible(entry, hidden));
   const partialDay = visibleEntries.length !== (entries?.length ?? 0);
+
+  // The Entry view (#119) moves over the Entries this day view shows, in its
+  // order: Hidden ones are skipped, and a swipe never leaves the day.
+  const viewedIndex = visibleEntries.findIndex((entry) => entry.id === viewingId);
+  if (viewedIndex >= 0) {
+    const viewed = visibleEntries[viewedIndex];
+    const previous = visibleEntries[viewedIndex - 1];
+    const next = visibleEntries[viewedIndex + 1];
+    return (
+      <EntryView
+        entry={viewed}
+        categories={categories}
+        position={viewedIndex + 1}
+        total={visibleEntries.length}
+        onBack={() => setViewingId(null)}
+        onEdit={() => setEditing(viewed)}
+        {...(previous ? { onPrevious: () => setViewingId(previous.id) } : {})}
+        {...(next ? { onNext: () => setViewingId(next.id) } : {})}
+      />
+    );
+  }
 
   // Day ↔ day swipes (#26), the month pager's gesture family. Flings only
   // recognize fast horizontal movement, so the list's vertical scroll and
@@ -183,7 +219,7 @@ export function DayScreen({
           note={content?.note || undefined}
           photos={item.photos?.map((p) => ({ id: p.id, thumbUrl: p.thumbUrl }))}
           dragging={isActive}
-          onPress={() => setEditing(item)}
+          onPress={() => setViewingId(item.id)}
           onLongPress={partialDay ? undefined : drag}
         />
       </View>

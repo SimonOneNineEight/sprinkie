@@ -214,9 +214,30 @@ export function installMockApi(
       const existing = Object.values(world.entries)
         .flat()
         .find((entry) => entry.id === id);
-      return ok({ id, date: '2026-08-19', position: 1, authorId: 'u1', ...existing, ...body() });
+      const updated = { id, date: '2026-08-19', position: 1, authorId: 'u1', ...existing, ...body() };
+      // A seeded Entry keeps the edit, so the next read of its day shows it,
+      // and a new date moves it to the end of that day, as the server does
+      // (#25, #119).
+      if (existing) {
+        const from = existing.date;
+        Object.assign(existing, updated);
+        if (existing.date !== from) {
+          world.entries[from] = world.entries[from].filter((entry) => entry !== existing);
+          const to = (world.entries[existing.date] ??= []);
+          existing.position = to.length + 1;
+          to.push(existing);
+        }
+      }
+      return ok(existing ?? updated);
     }
-    if (u.includes('/entries/') && method === 'DELETE') return ok({}, 204);
+    if (u.includes('/entries/') && method === 'DELETE') {
+      // Gone from its day for the next read, as on the server (#119).
+      const id = u.split('/').pop();
+      for (const day of Object.keys(world.entries)) {
+        world.entries[day] = world.entries[day].filter((entry) => entry.id !== id);
+      }
+      return ok({}, 204);
+    }
     if (u.endsWith('/entries') && method === 'POST') {
       if (failures.entryWrites) network();
       const requested = body();
