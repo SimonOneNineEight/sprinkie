@@ -594,10 +594,11 @@ section.
 | PV.4 | A saved photo on a slow connection | The thumbnail shows at once and the original replaces it |
 | PV.5 | A photo staged in the form, not yet saved | Shows from its copy on the phone **[auto]** |
 | PV.6 | Drag down slowly | The photo follows the finger and the black thins out |
-| PV.7 | Let go after a short drag | The photo springs back; the viewer stays **[auto]** |
+| PV.7 | Let go after a short drag | The photo springs back; the viewer stays |
 | PV.8 | Let go after a long drag | The viewer closes **[auto]** |
 | PV.9 | Tap ✕ | Closes **[auto]** |
 | PV.10 | A tall and a wide photo | Each fits whole, nothing cropped |
+| PV.11 | On a phone with a Dynamic Island or notch | ✕ and the count sit below the status bar, clear of the island |
 
 ### LG — App Language
 
@@ -744,7 +745,6 @@ the tag.
 | PV.1 | `entries/PhotoViewer.test.tsx` |
 | PV.3 | `entries/PhotoViewer.test.tsx` |
 | PV.5 | `entries/PhotoViewer.test.tsx` |
-| PV.7 | `entries/PhotoViewer.test.tsx` |
 | PV.8 | `entries/PhotoViewer.test.tsx` |
 | PV.9 | `entries/PhotoViewer.test.tsx` |
 | LG.1 | `i18n/appLanguage.test.ts` |

@@ -26,6 +26,9 @@ type Props = {
 // How far a downward drag has to travel before letting go closes the viewer;
 // short of it the photo springs back.
 const DISMISS_DISTANCE = 120;
+// How far a finger moves before the drag decides: down claims it, sideways
+// hands it to the pager.
+const DRAG_SLOP = 15;
 
 // The full-screen photo viewer (#114), shared by the Entry form and the Entry
 // view: on black like the Photos app, one photo per page, nothing that edits.
@@ -46,8 +49,8 @@ export function PhotoViewer({ photos, startIndex, onClose }: Props) {
   const dismiss = Gesture.Pan()
     .runOnJS(true)
     .withTestId('photo-viewer-dismiss')
-    .activeOffsetY(15)
-    .failOffsetX([-15, 15])
+    .activeOffsetY(DRAG_SLOP)
+    .failOffsetX([-DRAG_SLOP, DRAG_SLOP])
     .onUpdate((e) => dragY.setValue(Math.max(0, e.translationY)))
     .onEnd((e) => {
       if (e.translationY > DISMISS_DISTANCE) {
@@ -110,7 +113,7 @@ export function PhotoViewer({ photos, startIndex, onClose }: Props) {
             {photos.length > 1 ? (
               // Spans the bar to centre on the screen, so it must not take the ✕'s taps.
               <View style={styles.counterHolder} pointerEvents="none">
-                <Text style={styles.counter}>{`${index + 1} / ${photos.length}`}</Text>
+                <Text style={styles.counter}>{strings.photos.counter(index + 1, photos.length)}</Text>
               </View>
             ) : null}
           </SafeAreaView>

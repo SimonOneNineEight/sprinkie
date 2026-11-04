@@ -95,7 +95,7 @@ Settings and other long-tail screens (dialogs, errors, empty states, account del
 8. No emoji as category icons; the icon set is a drawn, consistent-weight family (SF Symbols style).
 9. No onboarding carousel: sign in, land on today's month; the seeded categories and the "+" teach everything.
 10. No gamification visuals and no cheerleading microcopy: no streak flames, badges, confetti, or "Great job!" — the month filling with color is the reward system.
-11. No horizontal carousels for photos in the day view; photos lay out as grids or stacks.
+11. No horizontal carousels for photos in the day view; photos lay out as grids or stacks. The full-screen photo viewer (#114) pages sideways and is not the day view: it opens over it.
 
 ## Feel
 
