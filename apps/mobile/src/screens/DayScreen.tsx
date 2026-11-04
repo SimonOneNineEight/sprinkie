@@ -18,6 +18,7 @@ import { decodeContent } from '../entries/content';
 import type { EntryDraft } from '../entries/drafts';
 import { listDrafts } from '../entries/drafts';
 import { EntryCard } from '../entries/EntryCard';
+import { EntryViewPrototype } from '../entries/EntryViewPrototype';
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
@@ -68,6 +69,8 @@ export function DayScreen({
   const [reorderFailed, setReorderFailed] = useState(false);
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
+  // PROTOTYPE (#117): the Entry being read, dev builds only.
+  const [viewingId, setViewingId] = useState<string | null>(null);
   // Retained failed saves for this date (#14), shown as quiet rows above the
   // list; tapping one reopens the form prefilled, where 儲存 retries.
   const [drafts, setDrafts] = useState<EntryDraft[]>([]);
@@ -154,6 +157,23 @@ export function DayScreen({
   const visibleEntries = (entries ?? []).filter((entry) => entryIsVisible(entry, hidden));
   const partialDay = visibleEntries.length !== (entries?.length ?? 0);
 
+  // PROTOTYPE (#117): a deleted Entry has no index, which drops back here.
+  const viewingIndex = viewingId ? visibleEntries.findIndex((e) => e.id === viewingId) : -1;
+  if (__DEV__ && viewingIndex >= 0) {
+    return (
+      <EntryViewPrototype
+        entries={visibleEntries}
+        startIndex={viewingIndex}
+        categories={categories}
+        onBack={() => setViewingId(null)}
+        onEdit={(entry) => {
+          setViewingId(entry.id);
+          setEditing(entry);
+        }}
+      />
+    );
+  }
+
   // Day ↔ day swipes (#26), the month pager's gesture family. Flings only
   // recognize fast horizontal movement, so the list's vertical scroll and
   // the long-press drag reorder keep working underneath.
@@ -183,7 +203,7 @@ export function DayScreen({
           note={content?.note || undefined}
           photos={item.photos?.map((p) => ({ id: p.id, thumbUrl: p.thumbUrl }))}
           dragging={isActive}
-          onPress={() => setEditing(item)}
+          onPress={() => (__DEV__ ? setViewingId(item.id) : setEditing(item))}
           onLongPress={partialDay ? undefined : drag}
         />
       </View>
