@@ -240,7 +240,7 @@ Keyboard cases are in **KB**.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| DA.1 | Open a day with Entries | Cards with title, Category icon, Subcategory name, note preview, photo thumbnails **[API]** |
+| DA.1 | Open a day with Entries | Cards with title (up to three lines), Category icon, Subcategory name, note preview (up to five lines), photo thumbnails **[API]** |
 | DA.2 | A day with none: today, then any other date | Today reads 今天還沒有紀錄; every other date reads 這天沒有紀錄 **[auto]** |
 | DA.3 | Tap a card | The Entry form opens prefilled **[auto]** |
 | DA.4 | On a day with nothing hidden, long-press and drag a card | It moves; the order holds on return **[API]** **[auto]** |
@@ -262,6 +262,8 @@ Keyboard cases are in **KB**.
 | DA.20 | On a device with a home indicator | Both controls sit above the indicator, never over it |
 | DA.21 | The gap below the controls | The same on the day, month and year views |
 | DA.22 | Tap the 類別 icon in the header | The same sheet the month and year views open: the two-level tree, ✎ per row, 全部隱藏 and 新增類別 **[auto]** |
+| DA.23 | An Entry whose title runs past three lines and note past five | The title stops at three lines and the note at five, each ending in …; the card grows taller but not wider, the note keeps its left edge, and the card never scrolls inside itself |
+| DA.24 | A card whose title wraps to three lines, then long-press and drag it | The icon and grip sit centered on the title block, the category line beneath it; the drag works as on a one-line card |
 
 ### EF — Entry form
 
