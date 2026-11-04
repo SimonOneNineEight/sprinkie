@@ -9,9 +9,12 @@
 // Every Entry carries a `seed1:` idempotency key, so a rerun after a failure
 // fills in what is missing rather than doubling it.
 
-const { EXPO_PUBLIC_SUPABASE_URL: supabaseUrl, EXPO_PUBLIC_SUPABASE_KEY: supabaseKey, EXPO_PUBLIC_API_URL: apiUrl } =
-  process.env;
-const { SEED_EMAIL: email, SEED_PASSWORD: password, SEED_AGAIN: again } = process.env;
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY;
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+const email = process.env.SEED_EMAIL;
+const password = process.env.SEED_PASSWORD;
+const again = process.env.SEED_AGAIN;
 if (!supabaseUrl || !supabaseKey || !apiUrl) throw new Error('Run through `pnpm seed:test-user`, which loads .env.hosted');
 if (!email || !password) throw new Error('Set SEED_EMAIL and SEED_PASSWORD to the test User you signed up in the app');
 
