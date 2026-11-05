@@ -5,6 +5,7 @@ import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
   Text,
   TextInput,
@@ -269,11 +270,20 @@ export function EntryFormScreen({
     const remaining = MAX_PHOTOS - photoCount;
     if (remaining < 1) return;
     // A failure anywhere in the attach says so once instead of vanishing into
-    // the caller's `void` (#87). A denied camera permission stays silent
-    // (EF.26): the User just said no.
+    // the caller's `void` (#87). The moment the camera is denied stays silent
+    // (EF.26): the User just said no. A later 拍照, once iOS will not ask
+    // again, points to Settings instead of doing nothing forever (#89).
     try {
       let result: ImagePicker.ImagePickerResult;
       if (source === 'camera') {
+        const current = await ImagePicker.getCameraPermissionsAsync();
+        if (!current.granted && !current.canAskAgain) {
+          Alert.alert(strings.photos.cameraOffTitle, strings.photos.cameraOffMessage, [
+            { text: strings.entryForm.cancel, style: 'cancel' },
+            { text: strings.photos.openSettings, onPress: () => void Linking.openSettings() },
+          ]);
+          return;
+        }
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) return;
         result = await ImagePicker.launchCameraAsync({ quality: 1, exif: true });
