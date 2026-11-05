@@ -21,6 +21,7 @@ const mockAuth = {
   verifyOtp: mockCall('verifyOtp', { data: {}, error: null }),
   updateUser: mockCall('updateUser', { data: {}, error: null }),
   resend: mockCall('resend', { data: {}, error: null }),
+  signOut: mockCall('signOut', { error: null }),
   signInWithIdToken: jest.fn(),
 };
 jest.mock('../auth/supabase', () => ({
@@ -67,6 +68,12 @@ async function requestResetCode() {
   await press('寄送驗證碼');
 }
 
+async function reachNewPassword(code = '123456') {
+  await requestResetCode();
+  type('驗證碼', code);
+  await press('下一步');
+}
+
 it('resets a forgotten password by a typed code and signs the User in', async () => {
   openEmailPage();
 
@@ -76,12 +83,15 @@ it('resets a forgotten password by a typed code and signs the User in', async ()
   type('電子郵件', 'pm@wlog.local');
   await press('寄送驗證碼');
 
-  expect(screen.getByText('輸入驗證碼')).toBeTruthy();
+  // 重設密碼 stays the title through every step of the reset.
+  expect(screen.getByText('重設密碼')).toBeTruthy();
   expect(screen.getByText('已寄送 6 位數驗證碼至 pm@wlog.local')).toBeTruthy();
   type('驗證碼', '123456');
   await press('下一步');
 
-  expect(screen.getByText('設定新密碼')).toBeTruthy();
+  // The code is checked only with the new password, so 下一步 sends nothing.
+  expect(mockCalls).toEqual([['resetPasswordForEmail', 'pm@wlog.local']]);
+  expect(screen.getByText('重設密碼')).toBeTruthy();
   type('新密碼', 'new-secret');
   await press('更新並登入');
 
@@ -90,34 +100,49 @@ it('resets a forgotten password by a typed code and signs the User in', async ()
     ['verifyOtp', { email: 'pm@wlog.local', token: '123456', type: 'recovery' }],
     ['updateUser', { password: 'new-secret' }],
   ]);
-  expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+  expect(screen.queryByText('更新密碼失敗，請再試一次')).toBeNull();
 });
 
-it('says a wrong or expired code is wrong, and stays on the code step', async () => {
+it('sends a wrong or expired code back to the code step, saying so', async () => {
   // GoTrue answers a wrong code and an expired one alike: 403 otp_expired.
   mockResults.verifyOtp = [{ data: {}, error: { code: 'otp_expired', status: 403 } }];
-  await requestResetCode();
+  await reachNewPassword('000000');
 
-  type('驗證碼', '000000');
-  await press('下一步');
+  type('新密碼', 'new-secret');
+  await press('更新並登入');
 
   expect(screen.getByText('驗證碼錯誤或已過期')).toBeTruthy();
-  expect(screen.getByText('輸入驗證碼')).toBeTruthy();
   expect(screen.getByPlaceholderText('驗證碼')).toBeTruthy();
   expect(screen.queryByPlaceholderText('新密碼')).toBeNull();
+  expect(mockCalls.map(([name]) => name)).not.toContain('updateUser');
 });
 
-it('asks for at least 6 characters before saving a new password', async () => {
-  await requestResetCode();
-  type('驗證碼', '123456');
-  await press('下一步');
+it('asks for at least 6 characters before checking the code', async () => {
+  await reachNewPassword();
 
   type('新密碼', '12345');
   await press('更新並登入');
 
   expect(screen.getByText('密碼至少需要 6 個字元')).toBeTruthy();
-  expect(screen.getByText('設定新密碼')).toBeTruthy();
-  expect(mockCalls.map(([name]) => name)).not.toContain('updateUser');
+  expect(screen.getByPlaceholderText('新密碼')).toBeTruthy();
+  expect(mockCalls.map(([name]) => name)).toEqual(['resetPasswordForEmail']);
+});
+
+it('signs the verified code back out when the new password fails to save', async () => {
+  mockResults.updateUser = [{ data: {}, error: { code: 'same_password', status: 422 } }];
+  await reachNewPassword();
+
+  type('新密碼', 'old-secret');
+  await press('更新並登入');
+
+  // No session with the old password outlives the failed save.
+  expect(mockCalls.slice(1).map(([name, args]) => [name, args])).toEqual([
+    ['verifyOtp', { email: 'pm@wlog.local', token: '123456', type: 'recovery' }],
+    ['updateUser', { password: 'old-secret' }],
+    ['signOut', { scope: 'local' }],
+  ]);
+  expect(screen.getByText('更新密碼失敗，請再試一次')).toBeTruthy();
+  expect(screen.getByPlaceholderText('新密碼')).toBeTruthy();
 });
 
 async function submitSignUp() {
@@ -200,15 +225,12 @@ describe('the back chevron steps back one step', () => {
   const back = () => fireEvent.press(screen.getByLabelText('返回'));
 
   it('through 忘記密碼, to the sign-in form and then off the page', async () => {
-    await requestResetCode();
-    type('驗證碼', '123456');
-    await press('下一步');
-    expect(screen.getByText('設定新密碼')).toBeTruthy();
+    await reachNewPassword();
+    expect(screen.getByPlaceholderText('新密碼')).toBeTruthy();
 
     back();
-    expect(screen.getByText('輸入驗證碼')).toBeTruthy();
+    expect(screen.getByPlaceholderText('驗證碼')).toBeTruthy();
     back();
-    expect(screen.getByText('重設密碼')).toBeTruthy();
     expect(screen.getByText('寄送驗證碼')).toBeTruthy();
     back();
     expect(screen.getByText('電子郵件登入')).toBeTruthy();

@@ -48,9 +48,10 @@ export function EmailSignInScreen({ onBack }: Props) {
     return () => clearTimeout(tick);
   }, [cooldown]);
 
-  // One request at a time; a thrown error becomes the error line. GoTrue
-  // answers a wrong code and an expired one alike, with otp_expired.
-  const run = async (work: () => Promise<void>) => {
+  // One request at a time; a thrown error becomes the error line, which
+  // says what failed. GoTrue answers a wrong code and an expired one alike,
+  // with otp_expired.
+  const run = async (failure: string, work: () => Promise<void>) => {
     if (busy) return;
     setError(null);
     setBusy(true);
@@ -58,7 +59,7 @@ export function EmailSignInScreen({ onBack }: Props) {
       await work();
     } catch (thrown) {
       const wrongCode = (thrown as { code?: string }).code === 'otp_expired';
-      setError(wrongCode ? strings.signIn.wrongCode : strings.signIn.error);
+      setError(wrongCode ? strings.signIn.wrongCode : failure);
     } finally {
       setBusy(false);
     }
@@ -71,7 +72,7 @@ export function EmailSignInScreen({ onBack }: Props) {
 
   const submit = async () => {
     if (email.trim() === '' || password === '') return;
-    await run(async () => {
+    await run(strings.signIn.error, async () => {
       if (registering) {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -98,7 +99,7 @@ export function EmailSignInScreen({ onBack }: Props) {
 
   const sendResetCode = () => {
     if (email.trim() === '') return;
-    void run(async () => {
+    void run(strings.signIn.error, async () => {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (error) throw error;
       setCode('');
@@ -109,7 +110,7 @@ export function EmailSignInScreen({ onBack }: Props) {
 
   // A reset code is resent by asking for the reset again.
   const resend = () => {
-    void run(async () => {
+    void run(strings.signIn.error, async () => {
       const { error } =
         step === 'signUpCode'
           ? await supabase.auth.resend({ type: 'signup', email: email.trim() })
@@ -119,34 +120,45 @@ export function EmailSignInScreen({ onBack }: Props) {
     });
   };
 
-  // A sign-up's code signs the User in outright; a reset code leads on to
-  // the new password.
-  const verifyCode = () => {
+  // A reset code waits for the new password before it is checked, so a
+  // verified code never leaves a session behind without one.
+  const confirmCode = () => {
     if (code.length !== 6) return;
-    void run(async () => {
-      const { error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: code,
-        type: step === 'signUpCode' ? 'email' : 'recovery',
-      });
-      if (error) throw error;
-      if (step === 'resetCode') {
-        setNewPassword('');
-        go('resetPassword');
-      }
+    if (step === 'resetCode') {
+      setNewPassword('');
+      go('resetPassword');
+      return;
+    }
+    // A sign-up's code signs the User in outright.
+    void run(strings.signIn.error, async () => {
+      const verified = await supabase.auth.verifyOtp({ email: email.trim(), token: code, type: 'email' });
+      if (verified.error) throw verified.error;
     });
   };
 
-  // The verified code already signed the client in; the new password is
-  // what lets the app past the sign-in gate (useSession).
+  // The verified code signs the client in, but useSession holds the app back
+  // until the password is saved (USER_UPDATED). A save that fails signs the
+  // code's session out again, so the old password is never left signed in.
   const saveNewPassword = () => {
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setError(strings.signIn.shortPassword);
       return;
     }
-    void run(async () => {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+    void run(strings.signIn.updatePasswordFailed, async () => {
+      const verified = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: code,
+        type: 'recovery',
+      });
+      if (verified.error) {
+        go('resetCode');
+        throw verified.error;
+      }
+      const updated = await supabase.auth.updateUser({ password: newPassword });
+      if (updated.error) {
+        await supabase.auth.signOut({ scope: 'local' });
+        throw updated.error;
+      }
     });
   };
 
@@ -160,8 +172,8 @@ export function EmailSignInScreen({ onBack }: Props) {
   const titles: Record<Step, string> = {
     form: strings.signIn.emailTitle,
     resetEmail: strings.signIn.resetTitle,
-    resetCode: strings.signIn.codeTitle,
-    resetPassword: strings.signIn.newPasswordTitle,
+    resetCode: strings.signIn.resetTitle,
+    resetPassword: strings.signIn.resetTitle,
     signUpCode: strings.signIn.confirmTitle,
   };
 
@@ -268,7 +280,7 @@ export function EmailSignInScreen({ onBack }: Props) {
               autoFocus
             />
             {errorLine}
-            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={verifyCode}>
+            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={confirmCode}>
               <Text style={styles.submitLabel}>
                 {step === 'signUpCode' ? strings.signIn.finishSignUp : strings.signIn.next}
               </Text>
