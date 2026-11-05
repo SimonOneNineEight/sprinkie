@@ -7,11 +7,12 @@ import { SignInScreen } from './SignInScreen';
 // screen made them in as well as their arguments.
 type Result = { data?: unknown; error: unknown };
 const mockCalls: [string, ...unknown[]][] = [];
-const mockResults: Record<string, Result[]> = {};
+// A queued Promise holds its call open until the test settles it.
+const mockResults: Record<string, (Result | Promise<Result>)[]> = {};
 function mockCall(name: string, fallback: Result) {
   return async (...args: unknown[]) => {
     mockCalls.push([name, ...args]);
-    return mockResults[name]?.shift() ?? fallback;
+    return (await mockResults[name]?.shift()) ?? fallback;
   };
 }
 const mockAuth = {
@@ -327,5 +328,38 @@ describe('the back chevron steps back one step', () => {
     expect(screen.getByText('電子郵件登入')).toBeTruthy();
     expect(screen.getByText('建立帳戶')).toBeTruthy();
     expect(screen.getByDisplayValue('pm@wlog.local')).toBeTruthy();
+  });
+});
+
+describe('while a request runs', () => {
+  it('the button shows it is working, and settles when the answer comes', async () => {
+    let answer: (result: Result) => void = () => {};
+    mockResults.signInWithPassword = [new Promise<Result>((resolve) => (answer = resolve))];
+    openEmailPage();
+    type('電子郵件', 'pm@wlog.local');
+    type('密碼', 'secret-123');
+
+    await press('登入');
+
+    // Busy is what VoiceOver announces; the spinner itself has no text to read.
+    expect(screen.getByRole('button', { name: '登入', busy: true })).toBeTruthy();
+    expect(screen.queryByText('登入')).toBeNull();
+
+    await act(async () => answer({ error: null }));
+    expect(screen.getByRole('button', { name: '登入', busy: false })).toBeTruthy();
+    expect(screen.getByText('登入')).toBeTruthy();
+  });
+
+  it('a double tap inside one render pass sends once', async () => {
+    openEmailPage();
+    await press('忘記密碼？');
+    type('電子郵件', 'pm@wlog.local');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('寄送驗證碼'));
+      fireEvent.press(screen.getByText('寄送驗證碼'));
+    });
+
+    expect(mockCalls).toEqual([['resetPasswordForEmail', 'pm@wlog.local']]);
   });
 });

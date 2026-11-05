@@ -1,6 +1,6 @@
 import { Check, ChevronLeft } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -40,7 +40,11 @@ export function EmailSignInScreen({ onBack }: Props) {
   const [newPassword, setNewPassword] = useState('');
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The primary button's spinner. Two taps can land inside one render pass,
+  // before busy has caught up, so the request in flight is also held where
+  // the handler reads it at once, as EntryFormScreen's inFlight does.
   const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   // When each kind of code last went out, and to which address: the wait
   // outlasts backing out of the step, and one flow's never holds the other.
   const [sent, setSent] = useState<Partial<Record<CodeFlow, { email: string; at: number }>>>({});
@@ -64,16 +68,19 @@ export function EmailSignInScreen({ onBack }: Props) {
   // One request at a time; a thrown error becomes the error line, which
   // says what failed. GoTrue answers a wrong code and an expired one alike,
   // with otp_expired.
-  const run = async (failure: string, work: () => Promise<void>) => {
-    if (busy) return;
+  // 重新寄送 is a quiet link, so it does not spin the primary button.
+  const run = async (failure: string, work: () => Promise<void>, spin = true) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setError(null);
-    setBusy(true);
+    if (spin) setBusy(true);
     try {
       await work();
     } catch (thrown) {
       const wrongCode = (thrown as { code?: string }).code === 'otp_expired';
       setError(wrongCode ? strings.signIn.wrongCode : failure);
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -141,7 +148,7 @@ export function EmailSignInScreen({ onBack }: Props) {
           : await supabase.auth.resetPasswordForEmail(email.trim());
       if (resent.error) throw resent.error;
       codeSent(codeFlow, step);
-    });
+    }, false);
   };
 
   // A reset code waits for the new password before it is checked, so a
@@ -257,11 +264,11 @@ export function EmailSignInScreen({ onBack }: Props) {
                 <Text style={styles.linkLabel}>{strings.signIn.forgotPassword}</Text>
               </Pressable>
             )}
-            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={() => void submit()}>
-              <Text style={styles.submitLabel}>
-                {registering ? strings.signIn.signUpAction : strings.signIn.signInAction}
-              </Text>
-            </Pressable>
+            <PrimaryButton
+              label={registering ? strings.signIn.signUpAction : strings.signIn.signInAction}
+              busy={busy}
+              onPress={() => void submit()}
+            />
             <Pressable
               accessibilityRole="button"
               style={styles.toggle}
@@ -271,7 +278,7 @@ export function EmailSignInScreen({ onBack }: Props) {
                 {registering ? strings.signIn.toggleToSignIn : strings.signIn.toggleToSignUp}
               </Text>
             </Pressable>
-            {error ? <Text style={[styles.error, styles.centered]}>{error}</Text> : null}
+            {errorLine}
           </>
         ) : null}
         {step === 'resetEmail' ? (
@@ -279,9 +286,7 @@ export function EmailSignInScreen({ onBack }: Props) {
             <Text style={styles.explain}>{strings.signIn.resetBody}</Text>
             {emailField}
             {errorLine}
-            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={sendResetCode}>
-              <Text style={styles.submitLabel}>{strings.signIn.sendCode}</Text>
-            </Pressable>
+            <PrimaryButton label={strings.signIn.sendCode} busy={busy} onPress={sendResetCode} />
           </>
         ) : null}
         {step === 'resetCode' || step === 'signUpCode' ? (
@@ -304,11 +309,11 @@ export function EmailSignInScreen({ onBack }: Props) {
               autoFocus
             />
             {errorLine}
-            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={confirmCode}>
-              <Text style={styles.submitLabel}>
-                {step === 'signUpCode' ? strings.signIn.finishSignUp : strings.signIn.next}
-              </Text>
-            </Pressable>
+            <PrimaryButton
+              label={step === 'signUpCode' ? strings.signIn.finishSignUp : strings.signIn.next}
+              busy={busy}
+              onPress={confirmCode}
+            />
             <Pressable
               accessibilityRole="button"
               disabled={cooldown > 0}
@@ -339,13 +344,31 @@ export function EmailSignInScreen({ onBack }: Props) {
               autoFocus
             />
             {errorLine}
-            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={saveNewPassword}>
-              <Text style={styles.submitLabel}>{strings.signIn.updateAndSignIn}</Text>
-            </Pressable>
+            <PrimaryButton label={strings.signIn.updateAndSignIn} busy={busy} onPress={saveNewPassword} />
           </>
         ) : null}
       </KeyboardAwareScrollView>
     </SafeAreaView>
+  );
+}
+
+// The spinner takes the label's place inside the button's fixed height, so
+// nothing below it moves while a request runs.
+function PrimaryButton({ label, busy, onPress }: { label: string; busy: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ busy }}
+      style={styles.submitButton}
+      onPress={onPress}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={theme.colors.controlPrimaryFg} />
+      ) : (
+        <Text style={styles.submitLabel}>{label}</Text>
+      )}
+    </Pressable>
   );
 }
 
@@ -449,8 +472,5 @@ const styles = createStyles((t) => ({
   error: {
     ...t.typography.meta,
     color: t.colors.textDestructive,
-  },
-  centered: {
-    textAlign: 'center',
   },
 }));
