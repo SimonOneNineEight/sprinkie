@@ -114,6 +114,7 @@ export const en: StringCatalog = {
     remove: 'Remove',
     uploadFailed: 'Photo upload failed. You can add it again by editing this entry later',
     attachFailed: "Some photos couldn't be added",
+    processing: 'Processing',
     cameraOffTitle: 'Camera unavailable',
     cameraOffMessage: 'Allow camera access for Sprinkie in Settings',
     openSettings: 'Open Settings',

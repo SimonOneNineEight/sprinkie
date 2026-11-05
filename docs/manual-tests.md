@@ -327,7 +327,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.27 | Add Photos up to the cap | The tile counts n/3 and disappears at the third **[auto]** |
 | EF.28 | Tap the ✕ on a photo just attached in this form | It goes at once, with no confirmation (it was never saved) **[auto]** |
 | EF.29 | Long-press and drag photos | Order changes and persists after save **[API]** |
-| EF.30 | Save an Entry carrying Photos | 儲存 spins for the whole save and the form beneath it is inert; the app never looks hung **[API]** **[auto]** |
+| EF.30 | Save an Entry carrying Photos | Past a moment, 儲存中 covers the screen until the save is done, and nothing beneath it takes a tap; the app never looks hung **[API]** **[auto]** |
 | EF.31 | Tap 儲存 twice quickly | One Entry, not two **[API]** **[auto]** |
 | EF.32 | Editing: change the Category | Saves; the dot color changes on the grid **[API]** |
 | EF.33 | **Editing: change the date, save** | The Entry leaves its day and appears on the target day, last in order **[API]** **[auto]** |
@@ -338,7 +338,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.39 | Choose 從相簿選擇 on a fresh install | The photo picker opens straight away, with no permission prompt: iOS's picker needs none |
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists **[auto]** |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** **[auto]** |
-| EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
+| EF.42 | Attach three 48MP photos taken a while ago, at once | All three photos are in the grid within ~2s, and the app survives |
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
 | EF.44 | Tap the ✕ on a Photo of a saved Entry | Confirmation, then it goes **[API]** **[auto]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
@@ -351,6 +351,11 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.52 | Type a long title, past three lines | One line while empty; it wraps, grows to three lines, then stays three tall and scrolls inside itself |
 | EF.53 | Type a title in 注音, then 拼音; press Return on a candidate, then again | The first Return confirms the candidate and focus stays in the title; only the second moves to the note |
 | EF.54 | After EF.26, tap 拍照 again | 無法使用相機 asks you to turn the camera on in Settings, with 取消 and 開啟設定; 開啟設定 opens Sprinkie's page in Settings, and turning the camera on there makes the next 拍照 open the camera |
+| EF.55 | Attach three photos at once | A tile with a spinner holds each one's place as soon as the picker closes, and each fills in with its photo when that one is ready **[auto]** |
+| EF.56 | Tap a tile while its spinner still turns | Nothing happens, and it has no ✕ **[auto]** |
+| EF.57 | Attach photos, then tap 儲存 before every tile has filled in | 儲存中 covers the screen until they are ready and the save is done; the Entry has every photo **[API]** **[auto]** |
+| EF.58 | Save an Entry with no photos | The form closes with no 儲存中 flashing on the way |
+| EF.59 | Attach photos, then tap 取消 while a spinner still turns | The form closes at once, and nothing is saved **[auto]** |
 
 **EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
 case ids stable. Before #102's follow-up the typed name vanished and the old
@@ -386,7 +391,12 @@ attach did nothing. The 48MP setting is the reliable way to get such a photo
 on an iPhone 17 Pro; a 24MP shot attached even before the fix. If a photo
 cannot be added, the form now says 無法加入照片 and keeps any others from the
 same pick. Nothing on a healthy device triggers that by hand, so the unit
-tests cover it.
+tests cover it, along with its tile leaving the grid.
+
+**Fresh photos fill their tiles late.** For three 48MP photos taken moments
+before, iOS keeps the picker open for ~8–9s while it finishes each one, so
+EF.55's tiles only appear near the end of that wait. That wait is iOS's, not
+the app's, and EF.55 uses photos taken a while ago.
 
 **Two photo fixes have no case here.** #70's portrait size cap is invisible on
 screen, so its unit tests and a real-module check cover it. #95 made the save's
@@ -760,6 +770,10 @@ the tag.
 | EF.46 | `screens/EntryFormScreen.test.tsx` |
 | EF.47 | `screens/EntryFormScreen.test.tsx` |
 | EF.51 | `screens/EntryFormScreen.test.tsx` |
+| EF.55 | `screens/EntryFormScreen.test.tsx` |
+| EF.56 | `screens/EntryFormScreen.test.tsx` |
+| EF.57 | `screens/EntryFormScreen.test.tsx` |
+| EF.59 | `screens/EntryFormScreen.test.tsx` |
 | YR.2 | `screens/YearScreen.test.tsx`, `years_test.go` |
 | YR.4 | `screens/YearScreen.test.tsx`, `calendar/ribbon.test.ts` |
 | YR.6 | `calendar/ribbon.test.ts` |

@@ -251,9 +251,9 @@ it('prunes purged photo files from a restored draft, says so, and still saves', 
   });
 
   expect(await screen.findByText('部分照片已無法讀取')).toBeTruthy();
-  // Only the surviving photo remains staged.
-  expect(screen.getByTestId('grid-item-staged:0')).toBeTruthy();
-  expect(screen.queryByTestId('grid-item-staged:1')).toBeNull();
+  // Only the surviving photo, the second, remains staged.
+  expect(screen.queryByTestId('grid-item-staged:0')).toBeNull();
+  expect(screen.getByTestId('grid-item-staged:1')).toBeTruthy();
 
   await act(async () => {
     fireEvent.press(screen.getByText('儲存'));
