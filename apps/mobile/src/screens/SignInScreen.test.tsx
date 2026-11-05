@@ -44,6 +44,7 @@ it('stays quiet when the Google sheet is closed, as it does for Apple', async ()
 
   expect(mockGoogleSignIn).toHaveBeenCalled();
   expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+  expect(screen.getByText('使用 Google 帳戶登入')).toBeTruthy();
 });
 
 it('signs in with email and password from its own page', async () => {
