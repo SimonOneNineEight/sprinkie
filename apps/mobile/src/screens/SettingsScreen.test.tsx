@@ -213,4 +213,32 @@ describe('連結帳戶 (#20)', () => {
     expect(within(google).getByText('連結')).toBeTruthy();
     expect(google).toBeEnabled();
   });
+
+  it.each([
+    [
+      'Apple',
+      () =>
+        mockAppleSignIn.mockRejectedValueOnce(
+          Object.assign(new Error('The user canceled'), { code: 'ERR_REQUEST_CANCELED' }),
+        ),
+    ],
+    [
+      'Google',
+      () => mockGoogleSignIn.mockResolvedValueOnce({ type: 'cancelled', data: null as never }),
+    ],
+  ])('changes nothing when the %s sheet is closed', async (name, closeSheet) => {
+    closeSheet();
+    await renderSettings();
+
+    await act(async () => {
+      fireEvent.press(await row(name));
+    });
+
+    expect(mockLinkIdentity).not.toHaveBeenCalled();
+    const unlinked = await row(name);
+    expect(within(unlinked).getByText('連結')).toBeTruthy();
+    expect(unlinked).toBeEnabled();
+    expect(screen.queryByText('此登入方式已屬於另一個帳戶')).toBeNull();
+    expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+  });
 });
