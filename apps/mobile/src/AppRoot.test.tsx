@@ -118,6 +118,21 @@ it('returns to the sign-in screen on sign-out through settings', async () => {
   expect(await screen.findByText('每天五分鐘，留下你的生活')).toBeTruthy();
 });
 
+// A verified reset code signs the client in before the new password is set
+// (#21): the app waits for the password, or 設定新密碼 would vanish under it.
+it('stays on sign-in through a password reset until the new password is saved', async () => {
+  render(<AppRoot />);
+  expect(await screen.findByText('每天五分鐘，留下你的生活')).toBeTruthy();
+
+  const session = { access_token: 'token-1', user: { id: 'u1' } };
+  act(() => mockAuthState.listeners.forEach((listener) => listener('PASSWORD_RECOVERY', session)));
+  expect(screen.getByText('每天五分鐘，留下你的生活')).toBeTruthy();
+  expect(screen.queryByLabelText('新增紀錄')).toBeNull();
+
+  act(() => mockAuthState.listeners.forEach((listener) => listener('USER_UPDATED', session)));
+  expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+});
+
 it('gates a deactivated account and restores only on the deliberate tap', async () => {
   mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
   api.restore();
