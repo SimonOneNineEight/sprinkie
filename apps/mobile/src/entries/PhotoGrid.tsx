@@ -5,6 +5,8 @@ import DraggableGrid from 'react-native-draggable-grid';
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
+import type { ProcessingTile, Variant } from './AttachSavePrototype';
+import { ProcessingTileView } from './AttachSavePrototype';
 
 export type GridPhoto = {
   key: string;
@@ -25,6 +27,9 @@ type Props = {
   editable?: EditableProps;
   /** Horizontal space the grid may fill; defaults to the window width minus gutters. */
   width?: number;
+  /** #92 prototype: placeholder tiles for photos still processing. */
+  processing?: ProcessingTile[];
+  variant?: Variant;
 };
 
 const COLUMNS = 4;
@@ -50,7 +55,7 @@ const REMOVE_HIT_SLOP = { top: REMOVE_INSET, right: REMOVE_INSET, bottom: REMOVE
 // (#118), long-press-drag to reorder, and the dashed tile adds (camera + n/3).
 // Every photo handed in renders, cap or no cap: an Entry saved under the
 // old cap of 10 keeps all of them and simply cannot gain more (#44).
-export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) {
+export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width, processing = [], variant = 'A' }: Props) {
   const strings = useStrings();
   const { width: windowWidth } = useWindowDimensions();
   const gridWidth = width ?? windowWidth - theme.spacing.screenGutter * 2;
@@ -71,10 +76,12 @@ export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) 
   }
 
   const items = photos.map((photo) => ({ ...photo, disabledDrag: false, disabledReSorted: false }));
+  const pending = processing.map((p) => ({ key: p.key, uri: p.previewUri ?? '', disabledDrag: true, disabledReSorted: true }));
+  const occupied = items.length + pending.length;
   const withAdd =
-    items.length < max
-      ? [...items, { key: ADD_KEY, uri: '', disabledDrag: true, disabledReSorted: true }]
-      : items;
+    occupied < max
+      ? [...items, ...pending, { key: ADD_KEY, uri: '', disabledDrag: true, disabledReSorted: true }]
+      : [...items, ...pending];
 
   return (
     <DraggableGrid
@@ -83,6 +90,7 @@ export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) 
       itemHeight={tile + theme.spacing.photoGridGap}
       style={{ width: gridWidth }}
       onItemPress={(item: GridPhoto) => {
+        if (item.key.startsWith('processing:')) return; // a processing tile ignores taps
         if (item.key === ADD_KEY) {
           editable.onAdd();
         } else {
@@ -90,13 +98,15 @@ export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) 
         }
       }}
       onDragRelease={(data: GridPhoto[]) => {
-        editable.onReorder(data.filter((d) => d.key !== ADD_KEY).map((d) => d.key));
+        editable.onReorder(data.filter((d) => d.key !== ADD_KEY && !d.key.startsWith('processing:')).map((d) => d.key));
       }}
       renderItem={(item: GridPhoto) =>
-        item.key === ADD_KEY ? (
+        item.key.startsWith('processing:') ? (
+          <ProcessingTileView variant={variant} size={tile} previewUri={item.uri || undefined} />
+        ) : item.key === ADD_KEY ? (
           <View style={[styles.addTile, { width: tile, height: tile }]}>
             <Camera size={18} color={theme.colors.iconMuted} strokeWidth={2} />
-            <Text style={styles.addCount}>{`${items.length}/${max}`}</Text>
+            <Text style={styles.addCount}>{`${occupied}/${max}`}</Text>
           </View>
         ) : (
           <View style={{ width: tile, height: tile }}>

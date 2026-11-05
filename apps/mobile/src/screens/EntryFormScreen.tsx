@@ -3,7 +3,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
-  ActivityIndicator,
   Alert,
   Linking,
   Platform,
@@ -19,7 +18,14 @@ import { deleteEntry, deletePhoto, reorderPhotos } from '../api/client';
 import { MAX_PHOTOS, PhotoGrid } from '../entries/PhotoGrid';
 import { PhotoViewer } from '../entries/PhotoViewer';
 import type { ProcessedPhoto } from '../photos/processPhoto';
-import { processPhoto } from '../photos/processPhoto';
+import type { ProcessingTile } from '../entries/AttachSavePrototype';
+import {
+  SavingOverlay,
+  VariantSwitcher,
+  prototypeProcess,
+  prototypeSaveDelay,
+  useVariant,
+} from '../entries/AttachSavePrototype';
 import { CategoryIcon } from '../calendar/CategoryIcon';
 import { dateHeading } from '../calendar/dateLabel';
 import { DatePickerSheet } from '../calendar/DatePickerSheet';
@@ -122,6 +128,17 @@ export function EntryFormScreen({
   const [photosFailed, setPhotosFailed] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<Photo[]>(entry?.photos ?? []);
   const [stagedPhotos, setStagedPhotos] = useState<ProcessedPhoto[]>(draft?.photos ?? []);
+  // #92 prototype: placeholder tiles, the in-flight processing a save waits
+  // for, and a ref mirror of the staged photos so a save that waited reads
+  // the photos that finished meanwhile.
+  const { variant, cycle } = useVariant();
+  const [processing, setProcessing] = useState<ProcessingTile[]>([]);
+  const pendingRef = useRef<Promise<void>[]>([]);
+  const stagedRef = useRef(stagedPhotos);
+  useEffect(() => {
+    stagedRef.current = stagedPhotos;
+  }, [stagedPhotos]);
+  const [showOverlay, setShowOverlay] = useState(false);
   // The OS may purge the cache files a draft's photo URIs point at; prune the
   // unreadable ones on restore so a retry saves what survives instead of
   // failing forever, and say so.
@@ -191,6 +208,9 @@ export function EntryFormScreen({
     setSaving(true);
     setFailed(false);
     setPhotosFailed(false);
+    const overlayTimer = setTimeout(() => setShowOverlay(true), 300);
+    await prototypeSaveDelay(stagedRef.current.length > 0 || pendingRef.current.length > 0);
+    await Promise.allSettled(pendingRef.current);
     // Read without the render path's !addingSub guard on purpose — pressing
     // 儲存 while the field is still open must not lose the typed name (#28).
     const pendingName = subcategory === null ? subName.trim() : '';
@@ -202,13 +222,15 @@ export function EntryFormScreen({
       ...(subcategory !== null ? { subcategoryId: subcategory.id } : {}),
       ...(pendingName !== '' ? { pendingSubcategoryName: pendingName } : {}),
       content: encodeContent({ title: title.trim(), note }),
-      photos: stagedPhotos,
+      photos: stagedRef.current,
       draftId,
       existingEntryId: entry?.id ?? draft?.entryId ?? savedEntryId,
     });
     // No finally needed: saveEntry never throws, by the contract documented
      // in entries/save.ts. If that totality ever goes, this needs one.
     inFlight.current = false;
+    clearTimeout(overlayTimer);
+    setShowOverlay(false);
     if ('createdSubcategory' in result && result.createdSubcategory !== undefined) {
       const made = result.createdSubcategory;
       setCreated((prev) => [...prev, made]);
@@ -236,7 +258,7 @@ export function EntryFormScreen({
     }
   };
 
-  const photoCount = existingPhotos.length + stagedPhotos.length;
+  const photoCount = existingPhotos.length + stagedPhotos.length + processing.length;
   // One list in the grid's order, saved then staged, feeds both the grid and
   // the viewer, so a key always opens the photo on its tile (#118).
   const formPhotos = [
@@ -297,11 +319,24 @@ export function EntryFormScreen({
         });
       }
       if (result.canceled) return;
-      // Each photo stands alone: the ones that process attach.
-      const settled = await Promise.allSettled(result.assets.slice(0, remaining).map(processPhoto));
-      const processed = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []));
-      setStagedPhotos((prev) => [...prev, ...processed]);
-      if (processed.length < settled.length) Alert.alert(strings.photos.attachFailed);
+      // Each photo stands alone: the ones that process attach, each as soon
+      // as it is ready, replacing its placeholder tile (#92 prototype).
+      const batch = Date.now();
+      const assets = result.assets.slice(0, remaining);
+      const tiles = assets.map((asset, i) => ({ key: `processing:${batch}:${i}`, previewUri: asset.uri }));
+      setProcessing((prev) => [...prev, ...tiles]);
+      const jobs = assets.map((asset, i) =>
+        prototypeProcess(asset, i)
+          .then((photo) => {
+            stagedRef.current = [...stagedRef.current, photo];
+            setStagedPhotos(stagedRef.current);
+          })
+          .finally(() => setProcessing((prev) => prev.filter((t) => t.key !== tiles[i].key))),
+      );
+      pendingRef.current = [...pendingRef.current, ...jobs];
+      const settled = await Promise.allSettled(jobs);
+      pendingRef.current = pendingRef.current.filter((job) => !jobs.includes(job));
+      if (settled.some((s) => s.status === 'rejected')) Alert.alert(strings.photos.attachFailed);
     } catch {
       Alert.alert(strings.photos.attachFailed);
     }
@@ -402,19 +437,10 @@ export function EntryFormScreen({
             style={[styles.saveButton, saveLooksDisabled && styles.saveButtonDisabled]}
             onPress={() => void save()}
           >
-            {saving ? (
-              // The spinner stands in the label's place so the pill keeps
-              // its size and the header does not jump mid-save.
-              <ActivityIndicator
-                accessibilityLabel={strings.entryForm.saving}
-                color={theme.colors.controlPrimaryFg}
-                style={styles.savingSpinner}
-              />
-            ) : (
-              <Text style={[styles.saveLabel, saveLooksDisabled && styles.saveLabelDisabled]}>
-                {strings.entryForm.save}
-              </Text>
-            )}
+            {/* #92 prototype: the overlay replaces the spinner that stood here. */}
+            <Text style={[styles.saveLabel, saveLooksDisabled && styles.saveLabelDisabled]}>
+              {strings.entryForm.save}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -538,6 +564,8 @@ export function EntryFormScreen({
               />
               <PhotoGrid
                 photos={formPhotos.map((p) => ({ key: p.key, uri: p.thumbUri }))}
+                processing={processing}
+                variant={variant}
                 editable={{
                   onAdd: addPhotos,
                   onOpen: setViewingKey,
@@ -666,6 +694,8 @@ export function EntryFormScreen({
           onClose={() => setViewingKey(null)}
         />
       ) : null}
+      <VariantSwitcher variant={variant} onCycle={cycle} />
+      <SavingOverlay variant={variant} visible={showOverlay} />
     </SafeAreaView>
   );
 }
@@ -735,12 +765,8 @@ const styles = createStyles((t) => ({
     paddingBottom: t.spacing.space10,
   },
   bodySaving: {
-    opacity: 0.4,
+    // #92 prototype: no dimming; the overlay, after 300ms, says it instead.
     pointerEvents: 'none',
-  },
-  savingSpinner: {
-    // Matched to the label it replaces, so the pill keeps its height.
-    height: t.typography.meta.lineHeight,
   },
   searchField: {
     flexDirection: 'row',
