@@ -167,6 +167,11 @@ describe('連結帳戶 (#20)', () => {
     expect(google).toBeEnabled();
   });
 
+  it('steers someone with an existing account to link from it', async () => {
+    await renderSettings();
+    expect(screen.getByText('已有帳戶？請先用原本的方式登入，再從這裡連結。')).toBeTruthy();
+  });
+
   it.each([
     ['Apple', 'apple', 'apple-id-token'],
     ['Google', 'google', 'google-id-token'],

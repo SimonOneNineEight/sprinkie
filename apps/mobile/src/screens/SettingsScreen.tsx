@@ -233,6 +233,7 @@ function LinkedAccounts() {
           <Text style={styles.linkError}>{strings.signIn.error}</Text>
         </View>
       ) : null}
+      <Text style={styles.linkFooter}>{strings.settings.linkSteer}</Text>
     </View>
   );
 }
@@ -441,6 +442,12 @@ const styles = createStyles((t) => ({
     ...t.typography.meta,
     fontWeight: '600',
     color: t.colors.textDestructive,
+  },
+  linkFooter: {
+    ...t.typography.meta,
+    color: t.colors.textTertiary,
+    marginTop: t.spacing.space4,
+    marginHorizontal: t.spacing.space1,
   },
   linkHint: {
     ...t.typography.meta,

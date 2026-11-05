@@ -48,6 +48,8 @@ const zhTW = {
     google: 'Google',
     linked: '已連結',
     link: '連結',
+    // The section's footer: linking happens from inside the account you keep.
+    linkSteer: '已有帳戶？請先用原本的方式登入，再從這裡連結。',
     // Linking never merges (#20): a method another account holds stays
     // there until that account is deleted and purged.
     claimed: '此登入方式已屬於另一個帳戶',

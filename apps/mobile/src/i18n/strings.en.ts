@@ -80,6 +80,7 @@ export const en: StringCatalog = {
     google: 'Google',
     linked: 'Linked',
     link: 'Link',
+    linkSteer: 'Already have an account? Sign in the way you did before, then link from here.',
     claimed: 'This sign-in method belongs to another account',
     claimedHint:
       'To link it, sign in to that account and delete it. Its sign-in methods free up 30 days after deletion.',
