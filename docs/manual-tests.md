@@ -334,7 +334,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.36 | 取消 with unsaved edits | Returns without saving |
 | EF.37 | Airplane mode, 儲存 | 儲存失敗，請再試一次; the form keeps everything |
 | EF.38 | A restored Draft whose photo files the OS purged | 部分照片已無法讀取, and a retry saves what survives **[auto]** |
-| EF.39 | Choose 從相簿選擇 on a fresh install | The photo picker opens straight away, with no permission prompt: iOS's picker needs none (seen on the simulator, 2026-11-04, #89) |
+| EF.39 | Choose 從相簿選擇 on a fresh install | The photo picker opens straight away, with no permission prompt: iOS's picker needs none |
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** **[auto]** |
 | EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
