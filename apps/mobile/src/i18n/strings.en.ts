@@ -80,6 +80,9 @@ export const en: StringCatalog = {
     google: 'Google',
     linked: 'Linked',
     link: 'Link',
+    claimed: 'This sign-in method belongs to another account',
+    claimedHint:
+      'To link it, sign in to that account and delete it. Its sign-in methods free up 30 days after deletion.',
     // 系統預設 translates with the UI; the endonyms never do.
     generalHeader: 'General',
     aboutHeader: 'About',

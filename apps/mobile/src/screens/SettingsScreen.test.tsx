@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
+import { AuthApiError } from '@supabase/supabase-js';
 import { Alert } from 'react-native';
 
 import { installMockApi, type MockApi } from '../testing/mockApi';
@@ -180,5 +181,31 @@ describe('連結帳戶 (#20)', () => {
     const linked = await row(name);
     expect(within(linked).getByText('已連結')).toBeTruthy();
     expect(linked).toBeDisabled();
+  });
+
+  it('says so when the identity belongs to another account, and links nothing', async () => {
+    // What Supabase Auth answers when the token's identity is already
+    // linked to a different user.
+    mockLinkIdentity.mockResolvedValueOnce({
+      data: { user: null, session: null } as never,
+      error: new AuthApiError(
+        'Identity is already linked to another user',
+        422,
+        'identity_already_exists',
+      ),
+    });
+    await renderSettings();
+
+    await act(async () => {
+      fireEvent.press(await row('Google'));
+    });
+
+    expect(screen.getByText('此登入方式已屬於另一個帳戶')).toBeTruthy();
+    expect(
+      screen.getByText('若要連結，請先登入那個帳戶並刪除它；刪除 30 天後，它的登入方式才會釋出。'),
+    ).toBeTruthy();
+    const google = await row('Google');
+    expect(within(google).getByText('連結')).toBeTruthy();
+    expect(google).toBeEnabled();
   });
 });

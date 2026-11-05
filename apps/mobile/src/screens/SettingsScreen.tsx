@@ -163,6 +163,7 @@ function LinkedAccounts() {
   const strings = useStrings();
   const [linked, setLinked] = useState<Provider[] | null>(null);
   const [busy, setBusy] = useState<Provider | null>(null);
+  const [failure, setFailure] = useState<'claimed' | 'other' | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -177,6 +178,7 @@ function LinkedAccounts() {
   // The provider's own sheet first, then Supabase links its ID token to the
   // signed-in account.
   const link = async (provider: Provider) => {
+    setFailure(null);
     setBusy(provider);
     try {
       const token = await providerIdToken(provider);
@@ -184,6 +186,12 @@ function LinkedAccounts() {
       const { data, error } = await supabase.auth.linkIdentity({ provider, token });
       if (error) throw error;
       setLinked(providersOf(data.user?.identities));
+    } catch (error) {
+      // Supabase Auth's code for an identity already linked to another
+      // user. Nothing was changed on either account.
+      setFailure(
+        (error as { code?: string }).code === 'identity_already_exists' ? 'claimed' : 'other',
+      );
     } finally {
       setBusy(null);
     }
@@ -215,6 +223,16 @@ function LinkedAccounts() {
           );
         })}
       </View>
+      {failure === 'claimed' ? (
+        <View style={styles.linkNote}>
+          <Text style={styles.linkError}>{strings.settings.claimed}</Text>
+          <Text style={styles.linkHint}>{strings.settings.claimedHint}</Text>
+        </View>
+      ) : failure === 'other' ? (
+        <View style={styles.linkNote}>
+          <Text style={styles.linkError}>{strings.signIn.error}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -413,5 +431,19 @@ const styles = createStyles((t) => ({
   error: {
     ...t.typography.meta,
     color: t.colors.textDestructive,
+  },
+  linkNote: {
+    gap: t.spacing.space1,
+    marginTop: t.spacing.space4,
+    marginHorizontal: t.spacing.space1,
+  },
+  linkError: {
+    ...t.typography.meta,
+    fontWeight: '600',
+    color: t.colors.textDestructive,
+  },
+  linkHint: {
+    ...t.typography.meta,
+    color: t.colors.textSecondary,
   },
 }));
