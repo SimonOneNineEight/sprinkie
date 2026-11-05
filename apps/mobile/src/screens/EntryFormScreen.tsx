@@ -149,11 +149,11 @@ export function EntryFormScreen({
   const processingJobs = useRef(new Set<Promise<void>>());
   // Once the form is left, a photo that fails afterwards says nothing: the
   // User has moved on, and the alert would land on another screen.
-  const open = useRef(false);
+  const formOpen = useRef(false);
   useEffect(() => {
-    open.current = true;
+    formOpen.current = true;
     return () => {
-      open.current = false;
+      formOpen.current = false;
     };
   }, []);
   // The OS may purge the cache files a draft's photo URIs point at; prune the
@@ -280,12 +280,13 @@ export function EntryFormScreen({
   // One list in the grid's order, saved then staged, feeds both the grid and
   // the viewer, so a key always opens the photo on its tile (#118). A slot
   // still processing is in the grid only: there is nothing yet to view.
+  const savedPhotos = existingPhotos.map((p) => ({ key: `photo:${p.id}`, thumbUri: p.thumbUrl, uri: p.url }));
   const formPhotos = [
-    ...existingPhotos.map((p) => ({ key: `photo:${p.id}`, thumbUri: p.thumbUrl, uri: p.url })),
+    ...savedPhotos,
     ...staged.flatMap(({ key, photo }) => (photo ? [{ key, thumbUri: photo.thumbUri, uri: photo.fullUri }] : [])),
   ];
   const gridPhotos = [
-    ...existingPhotos.map((p) => ({ key: `photo:${p.id}`, uri: p.thumbUrl })),
+    ...savedPhotos.map(({ key, thumbUri }) => ({ key, uri: thumbUri })),
     ...staged.map(({ key, photo }) => (photo ? { key, uri: photo.thumbUri } : { key, uri: '', processing: true })),
   ];
   const viewingIndex = formPhotos.findIndex((p) => p.key === viewingKey);
@@ -361,9 +362,9 @@ export function EntryFormScreen({
         return job;
       });
       const settled = await Promise.allSettled(jobs);
-      if (settled.some((s) => s.status === 'rejected') && open.current) Alert.alert(strings.photos.attachFailed);
+      if (settled.some((s) => s.status === 'rejected') && formOpen.current) Alert.alert(strings.photos.attachFailed);
     } catch {
-      if (open.current) Alert.alert(strings.photos.attachFailed);
+      if (formOpen.current) Alert.alert(strings.photos.attachFailed);
     }
   };
 
