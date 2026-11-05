@@ -86,6 +86,8 @@ const zhTW = {
     remove: '移除',
     uploadFailed: '照片上傳失敗，稍後可在編輯這筆紀錄時重新加入',
     attachFailed: '無法加入照片',
+    // A picked photo's tile until it is ready to attach (#92), read by VoiceOver.
+    processing: '處理中',
     // A 拍照 after the camera was denied, once iOS will not ask again (#89,
     // wording from its triage brief).
     cameraOffTitle: '無法使用相機',

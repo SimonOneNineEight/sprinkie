@@ -10,6 +10,7 @@ import { encodeContent } from '../entries/content';
 import { cat } from '../testing/fixtures';
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { installMockApi, type MockApi } from '../testing/mockApi';
+import type { ProcessedPhoto } from '../photos/processPhoto';
 import { processPhoto } from '../photos/processPhoto';
 import { theme } from '../theme';
 import { EntryFormScreen } from './EntryFormScreen';
@@ -527,6 +528,76 @@ describe('photos (#44)', () => {
       await pressAddFromLibrary();
 
       expect(alert).toHaveBeenCalledWith('無法加入照片');
+    });
+
+    describe('while the photos process (#92)', () => {
+      // Each picked photo processes until the test finishes or fails it by
+      // hand, so the form can be asked what it shows in between.
+      const processByHand = () => {
+        const pending = new Map<string, { resolve: (p: ProcessedPhoto) => void; reject: (e: Error) => void }>();
+        jest.mocked(processPhoto).mockImplementation(
+          (asset) => new Promise((resolve, reject) => pending.set(asset.uri, { resolve, reject })),
+        );
+        return {
+          finish: (uri: string) =>
+            act(async () => pending.get(uri)!.resolve({ fullUri: `${uri}.full`, thumbUri: `${uri}.thumb` })),
+          fail: (uri: string) =>
+            act(async () => pending.get(uri)!.reject(new Error('ImageContextLostException'))),
+        };
+      };
+      const viewerOpenOn = () => {
+        const pager = screen.getByTestId('photo-viewer-pager');
+        return pager.props.data[pager.props.initialScrollIndex].uri;
+      };
+
+      it('shows a processing tile per picked photo, each filling in when its photo is ready', async () => {
+        const photos = processByHand();
+        renderForm();
+
+        await pickFromLibrary(['file:///a.heic', 'file:///b.heic', 'file:///c.heic']);
+
+        expect(screen.getAllByLabelText('處理中')).toHaveLength(3);
+        // They hold their places against the cap: no room is left to add.
+        expect(screen.queryByTestId('grid-item-__add__')).toBeNull();
+
+        await photos.finish('file:///b.heic');
+
+        expect(screen.getAllByLabelText('處理中')).toHaveLength(2);
+        fireEvent.press(screen.getByTestId('grid-item-staged:0'));
+        expect(viewerOpenOn()).toBe('file:///b.heic.full');
+      });
+
+      it('ignores a tap on a processing tile, which has no ✕ to remove it', async () => {
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        processByHand();
+        renderForm();
+
+        await pickFromLibrary(['file:///a.heic']);
+        const tile = screen.getByTestId('grid-item-processing:0');
+        fireEvent.press(tile);
+
+        expect(screen.queryByTestId('photo-viewer-pager')).toBeNull();
+        expect(within(tile).queryByLabelText('移除')).toBeNull();
+        expect(alert).not.toHaveBeenCalled();
+        expect(screen.getAllByLabelText('處理中')).toHaveLength(1);
+      });
+
+      it('drops the tile of a photo that fails and says so once, keeping the rest', async () => {
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        const photos = processByHand();
+        renderForm();
+
+        await pickFromLibrary(['file:///a.heic', 'file:///b.heic', 'file:///c.heic']);
+        await photos.finish('file:///a.heic');
+        await photos.fail('file:///b.heic');
+        await photos.finish('file:///c.heic');
+
+        expect(screen.queryByLabelText('處理中')).toBeNull();
+        expect(screen.getAllByLabelText('移除')).toHaveLength(2);
+        expect(screen.getByText('2/3')).toBeTruthy();
+        expect(alert).toHaveBeenCalledTimes(1);
+        expect(alert).toHaveBeenCalledWith('無法加入照片');
+      });
     });
   });
 

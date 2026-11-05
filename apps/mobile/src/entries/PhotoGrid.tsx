@@ -1,5 +1,5 @@
 import { Camera, X } from 'lucide-react-native';
-import { Image, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Image, Text, View, useWindowDimensions } from 'react-native';
 import DraggableGrid from 'react-native-draggable-grid';
 
 import { useStrings } from '../i18n/AppLanguageProvider';
@@ -9,6 +9,8 @@ import { createStyles, theme } from '../theme';
 export type GridPhoto = {
   key: string;
   uri: string;
+  /** A picked photo not yet ready to attach (#92): a placeholder that ignores taps. */
+  processing?: boolean;
 };
 
 type EditableProps = {
@@ -48,6 +50,8 @@ const REMOVE_HIT_SLOP = { top: REMOVE_INSET, right: REMOVE_INSET, bottom: REMOVE
 // Photo grid per the canvas: square tiles, 4 columns, never a carousel.
 // Editing: tap a tile to open it in the viewer, tap its ✕ to remove it
 // (#118), long-press-drag to reorder, and the dashed tile adds (camera + n/3).
+// A photo still processing holds its place as a placeholder tile with a
+// spinner and nothing to tap or drag (#92).
 // Every photo handed in renders, cap or no cap: an Entry saved under the
 // old cap of 10 keeps all of them and simply cannot gain more (#44).
 export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) {
@@ -70,7 +74,11 @@ export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) 
     );
   }
 
-  const items = photos.map((photo) => ({ ...photo, disabledDrag: false, disabledReSorted: false }));
+  const items = photos.map((photo) => ({
+    ...photo,
+    disabledDrag: photo.processing === true,
+    disabledReSorted: photo.processing === true,
+  }));
   const withAdd =
     items.length < max
       ? [...items, { key: ADD_KEY, uri: '', disabledDrag: true, disabledReSorted: true }]
@@ -83,6 +91,7 @@ export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) 
       itemHeight={tile + theme.spacing.photoGridGap}
       style={{ width: gridWidth }}
       onItemPress={(item: GridPhoto) => {
+        if (item.processing) return;
         if (item.key === ADD_KEY) {
           editable.onAdd();
         } else {
@@ -90,13 +99,21 @@ export function PhotoGrid({ photos, max = MAX_PHOTOS, editable, width }: Props) 
         }
       }}
       onDragRelease={(data: GridPhoto[]) => {
-        editable.onReorder(data.filter((d) => d.key !== ADD_KEY).map((d) => d.key));
+        editable.onReorder(data.filter((d) => d.key !== ADD_KEY && !d.processing).map((d) => d.key));
       }}
       renderItem={(item: GridPhoto) =>
         item.key === ADD_KEY ? (
           <View style={[styles.addTile, { width: tile, height: tile }]}>
             <Camera size={18} color={theme.colors.iconMuted} strokeWidth={2} />
             <Text style={styles.addCount}>{`${items.length}/${max}`}</Text>
+          </View>
+        ) : item.processing ? (
+          <View
+            accessible
+            accessibilityLabel={strings.photos.processing}
+            style={[styles.processingTile, { width: tile, height: tile }]}
+          >
+            <ActivityIndicator size="small" color={theme.colors.iconMuted} />
           </View>
         ) : (
           <View style={{ width: tile, height: tile }}>
@@ -138,6 +155,13 @@ const styles = createStyles((t) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: t.spacing.space1,
+  },
+  // Ratified from the device prototype, variant A (#92, 2026-11-04).
+  processingTile: {
+    borderRadius: t.radius.photo,
+    backgroundColor: t.colors.surfaceFill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   addCount: {
     ...t.typography.dotOverflow,

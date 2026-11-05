@@ -122,6 +122,10 @@ export function EntryFormScreen({
   const [photosFailed, setPhotosFailed] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<Photo[]>(entry?.photos ?? []);
   const [stagedPhotos, setStagedPhotos] = useState<ProcessedPhoto[]>(draft?.photos ?? []);
+  // The grid keys of picked photos still processing, each a placeholder
+  // tile until it is ready (#92).
+  const [processing, setProcessing] = useState<string[]>([]);
+  const nextProcessingKey = useRef(0);
   // The OS may purge the cache files a draft's photo URIs point at; prune the
   // unreadable ones on restore so a retry saves what survives instead of
   // failing forever, and say so.
@@ -236,7 +240,7 @@ export function EntryFormScreen({
     }
   };
 
-  const photoCount = existingPhotos.length + stagedPhotos.length;
+  const photoCount = existingPhotos.length + stagedPhotos.length + processing.length;
   // One list in the grid's order, saved then staged, feeds both the grid and
   // the viewer, so a key always opens the photo on its tile (#118).
   const formPhotos = [
@@ -297,11 +301,18 @@ export function EntryFormScreen({
         });
       }
       if (result.canceled) return;
-      // Each photo stands alone: the ones that process attach.
-      const settled = await Promise.allSettled(result.assets.slice(0, remaining).map(processPhoto));
-      const processed = settled.flatMap((s) => (s.status === 'fulfilled' ? [s.value] : []));
-      setStagedPhotos((prev) => [...prev, ...processed]);
-      if (processed.length < settled.length) Alert.alert(strings.photos.attachFailed);
+      // Each photo stands alone: a placeholder tile holds its place from the
+      // moment the picker closes, and it attaches as soon as it is ready
+      // (#92). One that fails just goes, and the batch says so once.
+      const jobs = result.assets.slice(0, remaining).map((asset) => {
+        const key = `processing:${nextProcessingKey.current++}`;
+        setProcessing((prev) => [...prev, key]);
+        return processPhoto(asset)
+          .then((photo) => setStagedPhotos((prev) => [...prev, photo]))
+          .finally(() => setProcessing((prev) => prev.filter((k) => k !== key)));
+      });
+      const settled = await Promise.allSettled(jobs);
+      if (settled.some((s) => s.status === 'rejected')) Alert.alert(strings.photos.attachFailed);
     } catch {
       Alert.alert(strings.photos.attachFailed);
     }
@@ -537,7 +548,10 @@ export function EntryFormScreen({
                 onChangeText={setNote}
               />
               <PhotoGrid
-                photos={formPhotos.map((p) => ({ key: p.key, uri: p.thumbUri }))}
+                photos={[
+                  ...formPhotos.map((p) => ({ key: p.key, uri: p.thumbUri })),
+                  ...processing.map((key) => ({ key, uri: '', processing: true })),
+                ]}
                 editable={{
                   onAdd: addPhotos,
                   onOpen: setViewingKey,
