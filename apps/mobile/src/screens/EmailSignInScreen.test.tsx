@@ -118,3 +118,38 @@ it('asks for at least 6 characters before saving a new password', async () => {
   expect(screen.getByText('設定新密碼')).toBeTruthy();
   expect(mockCalls.map(([name]) => name)).not.toContain('updateUser');
 });
+
+async function submitSignUp() {
+  openEmailPage();
+  fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
+  type('電子郵件', 'pm@wlog.local');
+  type('密碼', 'secret-123');
+  await press('建立帳戶');
+}
+
+it('finishes a sign-up the server wants confirmed with the emailed code', async () => {
+  // No session back means the project requires email confirmation.
+  await submitSignUp();
+
+  expect(screen.getByText('確認電子郵件')).toBeTruthy();
+  expect(screen.getByText('已寄送 6 位數驗證碼至 pm@wlog.local，輸入後即完成註冊。')).toBeTruthy();
+  type('驗證碼', '654321');
+  await press('完成註冊');
+
+  expect(mockCalls).toEqual([
+    ['signUp', { email: 'pm@wlog.local', password: 'secret-123' }],
+    ['verifyOtp', { email: 'pm@wlog.local', token: '654321', type: 'email' }],
+  ]);
+  expect(screen.queryByText('驗證碼錯誤或已過期')).toBeNull();
+  expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+});
+
+it('asks for no code when sign-up comes back signed in, as with confirmations off', async () => {
+  mockResults.signUp = [{ data: { session: { access_token: 'token-1' } }, error: null }];
+  await submitSignUp();
+
+  expect(mockCalls).toEqual([['signUp', { email: 'pm@wlog.local', password: 'secret-123' }]]);
+  expect(screen.queryByText('確認電子郵件')).toBeNull();
+  expect(screen.queryByPlaceholderText('驗證碼')).toBeNull();
+  expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+});

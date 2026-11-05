@@ -16,14 +16,16 @@ type Props = {
 // Supabase Auth's minimum password length, the project's setting.
 const MIN_PASSWORD_LENGTH = 6;
 
-// Where the page is: the sign-in form, or a step of 忘記密碼.
-type Step = 'form' | 'resetEmail' | 'resetCode' | 'resetPassword';
+// Where the page is: the sign-in form, a step of 忘記密碼, or a sign-up
+// waiting on its emailed code.
+type Step = 'form' | 'resetEmail' | 'resetCode' | 'resetPassword' | 'signUpCode';
 
 // The email door (#20's fallback forever): its own quiet page behind the
 // sign-in screen's 使用電子郵件登入 button. One form, two modes — the toggle
-// flips 登入 into 建立帳戶 rather than duplicating the page. 忘記密碼 (#21)
-// changes the same form in place, one step at a time; the chevron steps back
-// one step, and only leaves the page from the form itself.
+// flips 登入 into 建立帳戶 rather than duplicating the page. 忘記密碼 and a
+// sign-up's emailed code (#21) change the same form in place, one step at a
+// time; the chevron steps back one step, and only leaves the page from the
+// form itself.
 export function EmailSignInScreen({ onBack }: Props) {
   const strings = useStrings();
   const [step, setStep] = useState<Step>('form');
@@ -32,7 +34,6 @@ export function EmailSignInScreen({ onBack }: Props) {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [registering, setRegistering] = useState(false);
-  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -59,7 +60,6 @@ export function EmailSignInScreen({ onBack }: Props) {
 
   const submit = async () => {
     if (email.trim() === '' || password === '') return;
-    setAwaitingConfirm(false);
     await run(async () => {
       if (registering) {
         const { data, error } = await supabase.auth.signUp({
@@ -67,9 +67,13 @@ export function EmailSignInScreen({ onBack }: Props) {
           password,
         });
         if (error) throw error;
-        // Confirmation-required projects return a user but no session; the
-        // person confirms in their inbox and signs in from here.
-        if (!data.session) setAwaitingConfirm(true);
+        // Confirmation-required projects return a user but no session: the
+        // emailed code finishes the sign-up. With confirmations off the
+        // session is already here and the app opens.
+        if (!data.session) {
+          setCode('');
+          go('signUpCode');
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -90,17 +94,21 @@ export function EmailSignInScreen({ onBack }: Props) {
     });
   };
 
-  const verifyResetCode = () => {
+  // A sign-up's code signs the User in outright; a reset code leads on to
+  // the new password.
+  const verifyCode = () => {
     if (code.length !== 6) return;
     void run(async () => {
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim(),
         token: code,
-        type: 'recovery',
+        type: step === 'signUpCode' ? 'email' : 'recovery',
       });
       if (error) throw error;
-      setNewPassword('');
-      go('resetPassword');
+      if (step === 'resetCode') {
+        setNewPassword('');
+        go('resetPassword');
+      }
     });
   };
 
@@ -129,6 +137,7 @@ export function EmailSignInScreen({ onBack }: Props) {
     resetEmail: strings.signIn.resetTitle,
     resetCode: strings.signIn.codeTitle,
     resetPassword: strings.signIn.newPasswordTitle,
+    signUpCode: strings.signIn.confirmTitle,
   };
 
   const emailField = (
@@ -201,9 +210,6 @@ export function EmailSignInScreen({ onBack }: Props) {
                 {registering ? strings.signIn.toggleToSignIn : strings.signIn.toggleToSignUp}
               </Text>
             </Pressable>
-            {awaitingConfirm ? (
-              <Text style={styles.notice}>{strings.signIn.confirmEmail}</Text>
-            ) : null}
             {error ? <Text style={[styles.error, styles.centered]}>{error}</Text> : null}
           </>
         ) : null}
@@ -217,9 +223,13 @@ export function EmailSignInScreen({ onBack }: Props) {
             </Pressable>
           </>
         ) : null}
-        {step === 'resetCode' ? (
+        {step === 'resetCode' || step === 'signUpCode' ? (
           <>
-            <Text style={styles.explain}>{strings.signIn.codeSent(email.trim())}</Text>
+            <Text style={styles.explain}>
+              {step === 'signUpCode'
+                ? strings.signIn.confirmBody(email.trim())
+                : strings.signIn.codeSent(email.trim())}
+            </Text>
             <TextInput
               style={[styles.field, styles.codeField]}
               placeholder={strings.signIn.codePlaceholder}
@@ -233,8 +243,10 @@ export function EmailSignInScreen({ onBack }: Props) {
               autoFocus
             />
             {errorLine}
-            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={verifyResetCode}>
-              <Text style={styles.submitLabel}>{strings.signIn.next}</Text>
+            <Pressable accessibilityRole="button" style={styles.submitButton} onPress={verifyCode}>
+              <Text style={styles.submitLabel}>
+                {step === 'signUpCode' ? strings.signIn.finishSignUp : strings.signIn.next}
+              </Text>
             </Pressable>
           </>
         ) : null}
@@ -355,11 +367,6 @@ const styles = createStyles((t) => ({
     ...t.typography.note,
     color: t.colors.textSecondary,
     flexShrink: 1,
-  },
-  notice: {
-    ...t.typography.meta,
-    color: t.colors.textSecondary,
-    textAlign: 'center',
   },
   error: {
     ...t.typography.meta,
