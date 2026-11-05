@@ -34,6 +34,8 @@ const zhTW = {
     wrongCode: '驗證碼錯誤或已過期',
     shortPassword: '密碼至少需要 6 個字元',
     updatePasswordFailed: '更新密碼失敗，請再試一次',
+    sendFailed: '寄送失敗，請再試一次',
+    alreadyRegistered: '此電子郵件已註冊，請直接登入或使用忘記密碼。',
     // A sign-up the server wants confirmed finishes with the emailed code.
     confirmTitle: '確認電子郵件',
     confirmBody: (email: string) => `已寄送 6 位數驗證碼至 ${email}，輸入後即完成註冊。`,

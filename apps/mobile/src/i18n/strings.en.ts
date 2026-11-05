@@ -67,6 +67,8 @@ export const en: StringCatalog = {
     wrongCode: 'Wrong or expired code',
     shortPassword: 'Use at least 6 characters',
     updatePasswordFailed: 'Password update failed. Please try again',
+    sendFailed: 'Sending failed. Please try again',
+    alreadyRegistered: 'This email already has an account. Sign in, or use Forgot password.',
     confirmTitle: 'Confirm your email',
     confirmBody: (email: string) => `We sent a 6-digit code to ${email}. Enter it to finish signing up.`,
     finishSignUp: 'Finish sign-up',

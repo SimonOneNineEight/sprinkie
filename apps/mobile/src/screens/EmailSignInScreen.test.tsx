@@ -153,6 +153,30 @@ async function submitSignUp() {
   await press('建立帳戶');
 }
 
+it('says a code that failed to send failed to send', async () => {
+  mockResults.resetPasswordForEmail = [{ data: {}, error: { status: 0 } }];
+  await requestResetCode();
+
+  expect(screen.getByText('寄送失敗，請再試一次')).toBeTruthy();
+  expect(screen.getByText('寄送驗證碼')).toBeTruthy();
+});
+
+describe('an address that already has an account', () => {
+  it.each([
+    // With confirmations on, Supabase hides the account: a user, no identities.
+    ['a user with no identities', { data: { user: { identities: [] }, session: null }, error: null }],
+    // With them off, it says so.
+    ['user_already_exists', { data: { user: null, session: null }, error: { code: 'user_already_exists', status: 422 } }],
+  ])('stays on the sign-up form and points to 登入 or 忘記密碼 (%s)', async (_answer, answer) => {
+    mockResults.signUp = [answer];
+    await submitSignUp();
+
+    expect(screen.getByText('此電子郵件已註冊，請直接登入或使用忘記密碼。')).toBeTruthy();
+    expect(screen.getByText('建立帳戶')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('驗證碼')).toBeNull();
+  });
+});
+
 it('finishes a sign-up the server wants confirmed with the emailed code', async () => {
   // No session back means the project requires email confirmation.
   await submitSignUp();
@@ -207,6 +231,16 @@ describe('重新寄送', () => {
 
     expect(mockCalls.slice(sent)).toEqual([resent]);
     expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
+  });
+
+  it('says a resend that failed to send failed to send', async () => {
+    mockResults.resend = [{ data: {}, error: { status: 0 } }];
+    await submitSignUp();
+    for (let s = 0; s < 30; s++) act(() => jest.advanceTimersByTime(1000));
+    await press('重新寄送');
+
+    expect(screen.getByText('寄送失敗，請再試一次')).toBeTruthy();
+    expect(screen.getByText('重新寄送')).toBeTruthy();
   });
 });
 

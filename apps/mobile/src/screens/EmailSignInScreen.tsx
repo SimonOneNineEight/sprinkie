@@ -74,34 +74,37 @@ export function EmailSignInScreen({ onBack }: Props) {
     if (email.trim() === '' || password === '') return;
     await run(strings.signIn.error, async () => {
       if (registering) {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
+        const signedUp = await supabase.auth.signUp({ email: email.trim(), password });
+        // An address that already has an account: said outright with
+        // confirmations off, and with them on, a user with no identities.
+        if (
+          signedUp.error?.code === 'user_already_exists' ||
+          signedUp.data.user?.identities?.length === 0
+        ) {
+          setError(strings.signIn.alreadyRegistered);
+          return;
+        }
+        if (signedUp.error) throw signedUp.error;
         // Confirmation-required projects return a user but no session: the
         // emailed code finishes the sign-up. With confirmations off the
         // session is already here and the app opens.
-        if (!data.session) {
+        if (!signedUp.data.session) {
           setCode('');
           setCooldown(RESEND_COOLDOWN_SECONDS);
           go('signUpCode');
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (error) throw error;
+        const signedIn = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (signedIn.error) throw signedIn.error;
       }
     });
   };
 
   const sendResetCode = () => {
     if (email.trim() === '') return;
-    void run(strings.signIn.error, async () => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-      if (error) throw error;
+    void run(strings.signIn.sendFailed, async () => {
+      const sent = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (sent.error) throw sent.error;
       setCode('');
       setCooldown(RESEND_COOLDOWN_SECONDS);
       go('resetCode');
@@ -110,12 +113,12 @@ export function EmailSignInScreen({ onBack }: Props) {
 
   // A reset code is resent by asking for the reset again.
   const resend = () => {
-    void run(strings.signIn.error, async () => {
-      const { error } =
+    void run(strings.signIn.sendFailed, async () => {
+      const sent =
         step === 'signUpCode'
           ? await supabase.auth.resend({ type: 'signup', email: email.trim() })
           : await supabase.auth.resetPasswordForEmail(email.trim());
-      if (error) throw error;
+      if (sent.error) throw sent.error;
       setCooldown(RESEND_COOLDOWN_SECONDS);
     });
   };
