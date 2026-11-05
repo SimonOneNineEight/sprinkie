@@ -164,16 +164,24 @@ function LinkedAccounts() {
   const [linked, setLinked] = useState<Provider[] | null>(null);
   const [busy, setBusy] = useState<Provider | null>(null);
   const [failure, setFailure] = useState<'claimed' | 'other' | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Bumped by 重試 to read the identities again.
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getUserIdentities().then(({ data }) => {
-      if (active && data) setLinked(providersOf(data.identities));
-    });
+    readLinked().then(
+      (fresh) => {
+        if (active) setLinked(fresh);
+      },
+      () => {
+        if (active) setLoadFailed(true);
+      },
+    );
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   // The provider's own sheet first, then Supabase links its ID token to the
   // signed-in account.
@@ -232,6 +240,22 @@ function LinkedAccounts() {
           );
         })}
       </View>
+      {loadFailed ? (
+        <View style={[styles.linkNote, styles.linkRetryLine]}>
+          <Text style={styles.linkError}>{strings.settings.linkLoadFailed}</Text>
+          <Pressable
+            accessibilityRole="button"
+            // A short word at meta size: the slop brings it to a fair target.
+            hitSlop={12}
+            onPress={() => {
+              setLoadFailed(false);
+              setLoadAttempt((n) => n + 1);
+            }}
+          >
+            <Text style={styles.linkRetry}>{strings.settings.linkRetry}</Text>
+          </Pressable>
+        </View>
+      ) : null}
       {failure === 'claimed' ? (
         <View style={styles.linkNote}>
           <Text style={styles.linkError}>{strings.settings.claimed}</Text>
@@ -464,6 +488,16 @@ const styles = createStyles((t) => ({
     color: t.colors.textTertiary,
     marginTop: t.spacing.space4,
     marginHorizontal: t.spacing.space1,
+  },
+  linkRetryLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: t.spacing.space4,
+  },
+  linkRetry: {
+    ...t.typography.meta,
+    fontWeight: '600',
+    color: t.colors.textPrimary,
   },
   linkHint: {
     ...t.typography.meta,

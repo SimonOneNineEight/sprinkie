@@ -54,6 +54,9 @@ const zhTW = {
     // there until that account is deleted and purged.
     claimed: '此登入方式已屬於另一個帳戶',
     linkFailed: '連結失敗，請再試一次',
+    // The link state could not be read; the rows wait for 重試.
+    linkLoadFailed: '無法載入連結狀態',
+    linkRetry: '重試',
     claimedHint: '若要連結，請先登入那個帳戶並刪除它；刪除 30 天後，它的登入方式才會釋出。',
     // The App Language row and picker (#35). 系統預設 translates with the
     // UI; the two language names are fixed endonyms, never translated.

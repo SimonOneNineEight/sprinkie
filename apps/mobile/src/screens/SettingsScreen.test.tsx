@@ -12,10 +12,14 @@ jest.mock('../auth/supabase', () => ({
   supabase: {
     auth: {
       signOut: () => mockSignOut(),
-      getUserIdentities: async () => ({ data: { identities: mockIdentities }, error: null }),
+      getUserIdentities: () => mockGetUserIdentities(),
       linkIdentity: (args: { provider: string; token: string }) => mockLinkIdentity(args),
     },
   },
+}));
+const mockGetUserIdentities = jest.fn(async () => ({
+  data: { identities: mockIdentities } as { identities: { provider: string }[] } | null,
+  error: null as unknown,
 }));
 // Supabase links the provider's ID token to the signed-in account and hands
 // back the account with its identities.
@@ -52,6 +56,7 @@ beforeEach(() => {
   mockSignOut.mockClear();
   mockIdentities = [{ provider: 'email' }];
   mockLinkIdentity.mockClear();
+  mockGetUserIdentities.mockClear();
   mockAppleSignIn.mockClear();
   mockGoogleSignIn.mockClear();
   mockOpenBrowser.mockClear();
@@ -282,5 +287,36 @@ describe('連結帳戶 (#20)', () => {
     expect(unlinked).toBeEnabled();
     expect(screen.queryByText('此登入方式已屬於另一個帳戶')).toBeNull();
     expect(screen.queryByText('連結失敗，請再試一次')).toBeNull();
+  });
+
+  it.each([
+    [
+      'answers with an error',
+      () =>
+        mockGetUserIdentities.mockResolvedValueOnce({
+          data: null,
+          error: new AuthApiError('Session expired', 401, 'session_expired'),
+        }),
+    ],
+    [
+      'cannot reach Supabase',
+      () => mockGetUserIdentities.mockRejectedValueOnce(new TypeError('Network request failed')),
+    ],
+  ])('offers 重試 when reading the account %s, then shows the state', async (_how, fail) => {
+    mockIdentities = [{ provider: 'email' }, { provider: 'apple' }];
+    fail();
+    await renderSettings();
+
+    expect(screen.getByText('無法載入連結狀態')).toBeTruthy();
+    expect(screen.queryByText('已連結')).toBeNull();
+    expect(screen.queryByText('連結')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: '重試' }));
+    });
+
+    expect(screen.queryByText('無法載入連結狀態')).toBeNull();
+    expect(within(await row('Apple')).getByText('已連結')).toBeTruthy();
+    expect(within(await row('Google')).getByText('連結')).toBeTruthy();
   });
 });
