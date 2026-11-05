@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
+import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { SignInScreen } from './SignInScreen';
 
 // Every auth call lands in one log, so a test can read the order the
@@ -181,5 +182,49 @@ describe('重新寄送', () => {
 
     expect(mockCalls.slice(sent)).toEqual([resent]);
     expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
+  });
+});
+
+describe('single-line fields (#42)', () => {
+  it('sizes the code and new-password fields for CJK, at the hit target', async () => {
+    await requestResetCode();
+    expectSingleLineField('驗證碼');
+
+    type('驗證碼', '123456');
+    await press('下一步');
+    expectSingleLineField('新密碼');
+  });
+});
+
+describe('the back chevron steps back one step', () => {
+  const back = () => fireEvent.press(screen.getByLabelText('返回'));
+
+  it('through 忘記密碼, to the sign-in form and then off the page', async () => {
+    await requestResetCode();
+    type('驗證碼', '123456');
+    await press('下一步');
+    expect(screen.getByText('設定新密碼')).toBeTruthy();
+
+    back();
+    expect(screen.getByText('輸入驗證碼')).toBeTruthy();
+    back();
+    expect(screen.getByText('重設密碼')).toBeTruthy();
+    expect(screen.getByText('寄送驗證碼')).toBeTruthy();
+    back();
+    expect(screen.getByText('電子郵件登入')).toBeTruthy();
+    expect(screen.getByText('忘記密碼？')).toBeTruthy();
+    back();
+    expect(screen.getByText('使用電子郵件登入')).toBeTruthy();
+  });
+
+  it('from a sign-up code, to the sign-up form as typed', async () => {
+    await submitSignUp();
+    expect(screen.getByText('確認電子郵件')).toBeTruthy();
+
+    back();
+
+    expect(screen.getByText('電子郵件登入')).toBeTruthy();
+    expect(screen.getByText('建立帳戶')).toBeTruthy();
+    expect(screen.getByDisplayValue('pm@wlog.local')).toBeTruthy();
   });
 });
