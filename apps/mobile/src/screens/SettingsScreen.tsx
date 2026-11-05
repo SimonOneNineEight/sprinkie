@@ -230,7 +230,7 @@ function LinkedAccounts() {
         </View>
       ) : failure === 'other' ? (
         <View style={styles.linkNote}>
-          <Text style={styles.linkError}>{strings.signIn.error}</Text>
+          <Text style={styles.linkError}>{strings.settings.linkFailed}</Text>
         </View>
       ) : null}
       <Text style={styles.linkFooter}>{strings.settings.linkSteer}</Text>

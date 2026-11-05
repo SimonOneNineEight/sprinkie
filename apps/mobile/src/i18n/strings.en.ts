@@ -82,6 +82,7 @@ export const en: StringCatalog = {
     link: 'Link',
     linkSteer: 'Already have an account? Sign in the way you did before, then link from here.',
     claimed: 'This sign-in method belongs to another account',
+    linkFailed: 'Linking failed. Please try again',
     claimedHint:
       'To link it, sign in to that account and delete it. Its sign-in methods free up 30 days after deletion.',
     // 系統預設 translates with the UI; the endonyms never do.

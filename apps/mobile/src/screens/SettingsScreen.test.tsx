@@ -191,6 +191,24 @@ describe('連結帳戶 (#20)', () => {
     expect(linked).toBeDisabled();
   });
 
+  it('says linking failed when Supabase refuses for any other reason', async () => {
+    mockLinkIdentity.mockResolvedValueOnce({
+      data: { user: null, session: null } as never,
+      error: new AuthApiError('Manual linking is disabled', 422, 'manual_linking_disabled'),
+    });
+    await renderSettings();
+
+    await act(async () => {
+      fireEvent.press(await row('Google'));
+    });
+
+    expect(screen.getByText('連結失敗，請再試一次')).toBeTruthy();
+    expect(screen.queryByText('此登入方式已屬於另一個帳戶')).toBeNull();
+    const google = await row('Google');
+    expect(within(google).getByText('連結')).toBeTruthy();
+    expect(google).toBeEnabled();
+  });
+
   it('says so when the identity belongs to another account, and links nothing', async () => {
     // What Supabase Auth answers when the token's identity is already
     // linked to a different user.
@@ -242,6 +260,6 @@ describe('連結帳戶 (#20)', () => {
     expect(within(unlinked).getByText('連結')).toBeTruthy();
     expect(unlinked).toBeEnabled();
     expect(screen.queryByText('此登入方式已屬於另一個帳戶')).toBeNull();
-    expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+    expect(screen.queryByText('連結失敗，請再試一次')).toBeNull();
   });
 });
