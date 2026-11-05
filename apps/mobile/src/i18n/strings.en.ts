@@ -75,6 +75,11 @@ export const en: StringCatalog = {
       'Your account can be restored within 30 days. After that, all entries, photos, and categories are permanently deleted.',
     restore: 'Restore account',
     restoreFailed: 'Restore failed. Please try again',
+    linkHeader: 'Linked accounts',
+    apple: 'Apple',
+    google: 'Google',
+    linked: 'Linked',
+    link: 'Link',
     // 系統預設 translates with the UI; the endonyms never do.
     generalHeader: 'General',
     aboutHeader: 'About',

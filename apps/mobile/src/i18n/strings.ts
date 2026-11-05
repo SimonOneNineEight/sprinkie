@@ -41,6 +41,13 @@ const zhTW = {
     deactivatedBody: '30天內可復原帳號。之後所有紀錄、照片與類別將永久刪除。',
     restore: '復原帳號',
     restoreFailed: '復原失敗，請再試一次',
+    // The 連結帳戶 section (#20): one row per provider, its state trailing.
+    // Provider names are brands and never translate.
+    linkHeader: '連結帳戶',
+    apple: 'Apple',
+    google: 'Google',
+    linked: '已連結',
+    link: '連結',
     // The App Language row and picker (#35). 系統預設 translates with the
     // UI; the two language names are fixed endonyms, never translated.
     generalHeader: '一般',

@@ -1,6 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Modal, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -70,6 +70,8 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
             </View>
           </View>
         </View>
+
+        <LinkedAccounts />
 
         <View>
           <Text style={styles.sectionHeader}>{strings.settings.generalHeader}</Text>
@@ -148,6 +150,58 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
       ) : null}
     </SafeAreaView>
   );
+}
+
+type Provider = 'apple' | 'google';
+const providers: Provider[] = ['apple', 'google'];
+
+// 連結帳戶 (#20), variant A of the device prototype (ratified 2026-11-05): a
+// plain grouped list, one row per provider, ending in 已連結 or 連結. Link
+// state is the account's identities as Supabase holds them, read fresh on
+// open: another phone may have linked one since this session began.
+function LinkedAccounts() {
+  const strings = useStrings();
+  const [linked, setLinked] = useState<Provider[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUserIdentities().then(({ data }) => {
+      if (active && data) setLinked(providersOf(data.identities));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return (
+    <View>
+      <Text style={styles.sectionHeader}>{strings.settings.linkHeader}</Text>
+      <View style={styles.card}>
+        {providers.map((provider, index) => {
+          const isLinked = linked?.includes(provider) ?? false;
+          return (
+            <Pressable
+              key={provider}
+              accessibilityRole="button"
+              disabled={linked === null || isLinked}
+              style={[styles.row, index < providers.length - 1 && styles.rowDivided]}
+            >
+              <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings[provider]}</Text>
+              {linked === null ? null : isLinked ? (
+                <Text style={styles.rowValue}>{strings.settings.linked}</Text>
+              ) : (
+                <Text style={styles.rowAction}>{strings.settings.link}</Text>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function providersOf(identities: { provider: string }[] | undefined): Provider[] {
+  return providers.filter((provider) => identities?.some((i) => i.provider === provider));
 }
 
 // The row readout and the sheet rows share one mapping: 系統預設 translates
@@ -271,6 +325,12 @@ const styles = createStyles((t) => ({
   rowValue: {
     ...t.typography.entryTitle,
     color: t.colors.textSecondary,
+  },
+  rowAction: {
+    // An action reads heavier than a value beside it, as in the prototype.
+    ...t.typography.entryTitle,
+    fontWeight: '600',
+    color: t.colors.textPrimary,
   },
   overlay: {
     flex: 1,

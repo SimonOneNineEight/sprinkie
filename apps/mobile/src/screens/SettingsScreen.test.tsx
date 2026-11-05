@@ -1,12 +1,19 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 
 import { installMockApi, type MockApi } from '../testing/mockApi';
 import { SettingsScreen } from './SettingsScreen';
 
 const mockSignOut = jest.fn(async () => ({ error: null }));
+// The account's sign-in methods as Supabase holds them (#20).
+let mockIdentities: { provider: string }[] = [];
 jest.mock('../auth/supabase', () => ({
-  supabase: { auth: { signOut: () => mockSignOut() } },
+  supabase: {
+    auth: {
+      signOut: () => mockSignOut(),
+      getUserIdentities: async () => ({ data: { identities: mockIdentities }, error: null }),
+    },
+  },
 }));
 const mockOpenBrowser = jest.fn(async (_url: string) => ({ type: 'cancel' as const }));
 jest.mock('expo-web-browser', () => ({
@@ -20,6 +27,7 @@ let api: MockApi;
 
 beforeEach(() => {
   mockSignOut.mockClear();
+  mockIdentities = [{ provider: 'email' }];
   mockOpenBrowser.mockClear();
   api = installMockApi();
 });
@@ -28,12 +36,16 @@ afterEach(() => {
   api.restore();
 });
 
-function renderSettings(overrides: Partial<React.ComponentProps<typeof SettingsScreen>> = {}) {
+// Settles the 連結帳戶 read that opening the screen starts (#20).
+async function renderSettings(
+  overrides: Partial<React.ComponentProps<typeof SettingsScreen>> = {},
+) {
   render(<SettingsScreen accessToken="tok" onBack={jest.fn()} {...overrides} />);
+  await act(async () => {});
 }
 
-it('shows the account row', () => {
-  renderSettings();
+it('shows the account row', async () => {
+  await renderSettings();
   expect(screen.getByText('simon@wlog.local')).toBeTruthy();
   // 類別 moved out (ratified 2026-08-20): it lives behind the calendar's
   // 類別 sheet, not in settings.
@@ -45,31 +57,31 @@ it('shows the account row', () => {
 // wants the same URL. The literal URLs are asserted here rather than the
 // constants the screen reads: a test that compares a value to the value it
 // came from would pass through any typo.
-it('opens the privacy policy in an in-app browser', () => {
-  renderSettings();
+it('opens the privacy policy in an in-app browser', async () => {
+  await renderSettings();
   fireEvent.press(screen.getByText('隱私權政策'));
   expect(mockOpenBrowser).toHaveBeenCalledWith(
     'https://simononenineeight.github.io/sprinkie/privacy/',
   );
 });
 
-it('opens the terms in an in-app browser', () => {
-  renderSettings();
+it('opens the terms in an in-app browser', async () => {
+  await renderSettings();
   fireEvent.press(screen.getByText('服務條款'));
   expect(mockOpenBrowser).toHaveBeenCalledWith(
     'https://simononenineeight.github.io/sprinkie/terms/',
   );
 });
 
-it('signs out from its own row', () => {
-  renderSettings();
+it('signs out from its own row', async () => {
+  await renderSettings();
   fireEvent.press(screen.getByText('登出'));
   expect(mockSignOut).toHaveBeenCalled();
 });
 
 it('deletes the account after the 30-day confirm, then signs out', async () => {
   const alertSpy = jest.spyOn(Alert, 'alert');
-  renderSettings();
+  await renderSettings();
 
   fireEvent.press(screen.getByText('刪除帳號'));
   expect(alertSpy).toHaveBeenCalledWith(
@@ -93,7 +105,7 @@ it('deletes the account after the 30-day confirm, then signs out', async () => {
 it('does nothing when the delete confirmation is cancelled', async () => {
   const alertSpy = jest.spyOn(Alert, 'alert');
   const onBack = jest.fn();
-  renderSettings({ onBack });
+  await renderSettings({ onBack });
 
   fireEvent.press(screen.getByText('刪除帳號'));
   const buttons = alertSpy.mock.calls[0][2] ?? [];
@@ -110,4 +122,22 @@ it('does nothing when the delete confirmation is cancelled', async () => {
   expect(screen.getByText('simon@wlog.local')).toBeTruthy();
   expect(screen.getByText('刪除帳號')).toBeTruthy();
   alertSpy.mockRestore();
+});
+
+describe('連結帳戶 (#20)', () => {
+  // A row reads as its provider then its state, e.g. "Apple 已連結".
+  const row = (provider: string) =>
+    screen.findByRole('button', { name: new RegExp(`^${provider}`) });
+
+  it('shows each provider as linked or not, from the account', async () => {
+    mockIdentities = [{ provider: 'email' }, { provider: 'apple' }];
+    await renderSettings();
+
+    const apple = await row('Apple');
+    expect(within(apple).getByText('已連結')).toBeTruthy();
+    expect(apple).toBeDisabled();
+    const google = await row('Google');
+    expect(within(google).getByText('連結')).toBeTruthy();
+    expect(google).toBeEnabled();
+  });
 });
