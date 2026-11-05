@@ -290,7 +290,7 @@ Keyboard cases are in **KB**.
 | EF.19 | Tap the typed pill | The field reopens with the name; emptied and left, the pill is gone **[auto]** |
 | EF.20 | Title field | Stops at 80 characters **[auto]** |
 | EF.21 | Empty title | 儲存 disabled **[auto]** |
-| EF.22 | Note field | Multiline, grows as you type |
+| EF.22 | Note field: type past five lines | It opens five lines tall and stays that tall; the text scrolls inside it. The first line sits at the top, with no blank line above it |
 | EF.23 | Tap the photo tile | Camera / library / cancel offered |
 | EF.24 | Choose from the library | Multi-select allowed, capped at the slots still free of the three |
 | EF.25 | Take a photo | Appears in the grid |
@@ -317,10 +317,21 @@ Keyboard cases are in **KB**.
 | EF.47 | Tap a photo, saved or just attached | The viewer opens on that photo; nothing is removed. Where the tile stops and the ✕ begins is EF.49 **[auto]** |
 | EF.48 | Long-press-drag a photo to another place, then tap it | It moves, and the viewer opens on the photo tapped, not on the one that sat there before |
 | EF.49 | Tap just below, or just left of, a ✕ (about a ✕'s width off it) | Removes, as the ✕ does: it answers across the tile's 44pt corner. A tap further into the tile opens the viewer |
+| EF.50 | Type a title, press Return | The return key reads as next, not as a new line; focus moves to the note, and the title gains no new line |
+| EF.51 | Paste text with line breaks into the title | It reads, and saves, with a space where each line break was **[auto]** |
+| EF.52 | Type a long title, past three lines | One line while empty; it wraps, grows to three lines, then stays three tall and scrolls inside itself |
+| EF.53 | Type a title in 注音, then 拼音; press Return on a candidate, then again | The first Return confirms the candidate and focus stays in the title; only the second moves to the note |
 
 **EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
 case ids stable. Before #102's follow-up the typed name vanished and the old
 pick was saved.
+
+**EF.50–EF.53 are #115**, with EF.22. The title wraps now but never holds a
+newline. EF.53 is device-only: the suites cannot compose Chinese. A Return
+that confirms a candidate is the keyboard's own, and never reaches the field
+as a Return, so it should not move focus; this is where that is checked. If
+a note shows a blank first line (round 3), look first for a Return typed
+before its first word: the day view's card showed the same blank line.
 
 **EF.47–EF.49 are #118.** A tap on a tile used to remove the photo. The ✕
 sits inside the grid's own drag handling, so only a device shows that the ✕,
@@ -560,14 +571,14 @@ section is only ever verified here.
 | --- | --- | --- |
 | KB.1 | Entry form, tap the Category search | The field rises clear of the keyboard, with the list still readable beneath it |
 | KB.2 | Entry form on a chosen Category, tap 子類別 | The pill's field rises clear |
-| KB.3 | Entry form, tap 標題 | Rises clear |
-| KB.4 | Entry form, tap the note and type past one line | Stays clear as it grows, rather than sliding back under |
+| KB.3 | Entry form, tap 標題 and type past three lines | Rises clear, and stays clear as it grows |
+| KB.4 | Entry form, tap the note and type past five lines | Stays clear while it scrolls inside itself, rather than sliding back under |
 | KB.5 | Category editor, tap 名稱 | The sheet makes room; the field and its preview icon stay visible |
 | KB.6 | Color drawer, tap the hex readout | The drawer rises, and the saturation area stays visible while you type |
 | KB.7 | Email sign-in, tap 電子郵件 | Rises clear |
 | KB.8 | Email sign-in, tap 密碼 | Rises clear |
 | KB.9 | With the keyboard up, tap a button below the field | Acts on the first tap; it does not spend the tap dismissing the keyboard |
-| KB.10 | Type Chinese into every single-line field | No glyph clipped top or bottom, and the placeholder sits centered |
+| KB.10 | Type Chinese into every single-line field, and into the Entry form's title and note, to three lines | No glyph clipped top or bottom, on any line; the placeholder sits centered in the single-line fields and the empty title |
 | KB.11 | Dismiss by tapping empty ground, then refocus | Drops and rises again cleanly, no stuck padding |
 | KB.12 | The smallest device you have, color drawer, hex field | The drawer's 取消 and 完成 stay reachable |
 | KB.13 | 類別 sheet, tap the search field | The sheet makes room; the filtered tree stays readable beneath it |
@@ -696,6 +707,7 @@ the tag.
 | EF.41 | `screens/EntryFormScreen.test.tsx`, `screens/DayScreen.test.tsx` |
 | EF.44 | `screens/EntryFormScreen.test.tsx` |
 | EF.47 | `screens/EntryFormScreen.test.tsx` |
+| EF.51 | `screens/EntryFormScreen.test.tsx` |
 | YR.2 | `screens/YearScreen.test.tsx`, `years_test.go` |
 | YR.4 | `screens/YearScreen.test.tsx`, `calendar/ribbon.test.ts` |
 | YR.6 | `calendar/ribbon.test.ts` |

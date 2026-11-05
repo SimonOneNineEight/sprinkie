@@ -20,7 +20,9 @@ type TypographyToken = Theme['typography'][keyof Theme['typography']];
  * rounds); PM round 2 item 14 found it again on the category search. The
  * compact inline fields — that subcategory pill, and the color drawer's hex
  * readout — deliberately do not use this. They are already built the right way
- * and are sized to the controls beside them, not to the hit target.
+ * and are sized to the controls beside them, not to the hit target. Nor does
+ * the entry form's title since #115: it wraps, so it is a multiline input,
+ * which iOS lays out as a text view rather than the text field this guards.
  */
 export function singleLineField(t: Theme, token: TypographyToken) {
   const { lineHeight, ...rest } = token;
