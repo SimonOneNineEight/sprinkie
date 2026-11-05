@@ -349,7 +349,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.51 | Paste text with line breaks into the title | It reads, and saves, with a space where each line break was **[auto]** |
 | EF.52 | Type a long title, past three lines | One line while empty; it wraps, grows to three lines, then stays three tall and scrolls inside itself |
 | EF.53 | Type a title in 注音, then 拼音; press Return on a candidate, then again | The first Return confirms the candidate and focus stays in the title; only the second moves to the note |
-| EF.54 | After EF.26, tap 拍照 again | 無法使用相機 offers 取消 and 前往設定; 前往設定 opens Sprinkie's page in Settings, and turning the camera on there makes the next 拍照 open the camera |
+| EF.54 | After EF.26, tap 拍照 again | 無法使用相機 asks you to turn the camera on in Settings, with 取消 and 開啟設定; 開啟設定 opens Sprinkie's page in Settings, and turning the camera on there makes the next 拍照 open the camera |
 
 **EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
 case ids stable. Before #102's follow-up the typed name vanished and the old

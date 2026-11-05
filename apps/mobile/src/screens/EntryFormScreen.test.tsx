@@ -589,8 +589,6 @@ describe('photos (#44)', () => {
     expect(api.entryPosts()).toHaveLength(1);
   });
 
-  // The PM tapped to see which photo they'd picked and lost it: a tap now
-  // shows the photo, and only its ✕ removes it (#118).
   describe('taking a photo once the camera was denied (#89)', () => {
     afterEach(() => {
       jest.restoreAllMocks();
@@ -610,7 +608,7 @@ describe('photos (#44)', () => {
       });
     };
 
-    it('offers Settings on a 拍照 after iOS has stopped asking', async () => {
+    it('offers Settings, and only Settings, on a 拍照 after the camera was denied', async () => {
       const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
       const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
       jest.mocked(ImagePicker.getCameraPermissionsAsync).mockResolvedValue(denied as ImagePicker.PermissionResponse);
@@ -618,13 +616,15 @@ describe('photos (#44)', () => {
 
       await pressTakePhoto();
 
+      expect(ImagePicker.requestCameraPermissionsAsync).not.toHaveBeenCalled();
       expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
       expect(alert).toHaveBeenCalledTimes(1);
-      const [title, , buttons] = alert.mock.calls[0];
+      const [title, message, buttons] = alert.mock.calls[0];
       expect(title).toBe('無法使用相機');
-      const settings = buttons?.find((b) => b.text === '前往設定');
-      expect(settings).toBeTruthy();
-      settings?.onPress?.();
+      expect(message).toBe('請到設定開啟 Sprinkie 的相機權限。');
+      buttons?.find((b) => b.text === '取消')?.onPress?.();
+      expect(openSettings).not.toHaveBeenCalled();
+      buttons?.find((b) => b.text === '開啟設定')?.onPress?.();
       expect(openSettings).toHaveBeenCalled();
     });
 
@@ -646,8 +646,24 @@ describe('photos (#44)', () => {
       expect(alert).not.toHaveBeenCalled();
       expect(screen.getByText('0/3')).toBeTruthy();
     });
+
+    it('opens the camera as before once access is granted', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const granted = { granted: true, status: 'granted', canAskAgain: true, expires: 'never' };
+      jest.mocked(ImagePicker.getCameraPermissionsAsync).mockResolvedValue(granted as ImagePicker.PermissionResponse);
+      jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockResolvedValue(granted as ImagePicker.PermissionResponse);
+      jest.mocked(ImagePicker.launchCameraAsync).mockResolvedValue({ canceled: true, assets: null });
+      renderForm();
+
+      await pressTakePhoto();
+
+      expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
+      expect(alert).not.toHaveBeenCalled();
+    });
   });
 
+  // The PM tapped to see which photo they'd picked and lost it: a tap now
+  // shows the photo, and only its ✕ removes it (#118).
   describe('tapping and removing (#118)', () => {
     afterEach(() => {
       jest.restoreAllMocks();

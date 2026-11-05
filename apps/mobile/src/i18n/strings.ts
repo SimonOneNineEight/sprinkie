@@ -86,10 +86,11 @@ const zhTW = {
     remove: '移除',
     uploadFailed: '照片上傳失敗，稍後可在編輯這筆紀錄時重新加入',
     attachFailed: '無法加入照片',
-    // A 拍照 after the camera was denied, once iOS will not ask again (#89).
+    // A 拍照 after the camera was denied, once iOS will not ask again (#89,
+    // wording from its triage brief).
     cameraOffTitle: '無法使用相機',
-    cameraOffMessage: '到「設定」開啟相機權限，就能在這裡拍照。',
-    openSettings: '前往設定',
+    cameraOffMessage: '請到設定開啟 Sprinkie 的相機權限。',
+    openSettings: '開啟設定',
     // The full-screen viewer's ✕ (#114).
     close: '關閉',
     counter: (n: number, total: number) => `${n} / ${total}`,
