@@ -151,7 +151,10 @@ it('does nothing when the delete confirmation is cancelled', async () => {
 });
 
 describe('連結帳戶 (#20)', () => {
-  // A row reads as its provider then its state, e.g. "Apple 已連結".
+  // A row reads as its provider then its state, e.g. "Apple 已連結". Whether
+  // it takes a tap is asserted through toBeDisabled, which reads the
+  // disabled state VoiceOver announces rather than anything drawn, a
+  // departure from #45's testing rule.
   const row = (provider: string) =>
     screen.findByRole('button', { name: new RegExp(`^${provider}`) });
 

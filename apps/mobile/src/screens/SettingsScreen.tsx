@@ -187,8 +187,8 @@ function LinkedAccounts() {
       if (error) throw error;
       setLinked(providersOf(data.user?.identities));
     } catch (error) {
-      // Supabase Auth's code for an identity already linked to another
-      // user. Nothing was changed on either account.
+      // identity_already_exists is Supabase Auth's answer for an identity
+      // linked to another user; neither account has changed.
       setFailure(
         (error as { code?: string }).code === 'identity_already_exists' ? 'claimed' : 'other',
       );
