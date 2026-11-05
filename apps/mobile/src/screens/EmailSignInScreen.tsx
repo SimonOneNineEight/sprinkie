@@ -9,14 +9,23 @@ import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, singleLineField, theme } from '../theme';
 
+import { EmailSignInPrototype } from './EmailSignInPrototype';
+
 type Props = {
   onBack: () => void;
+  // PROTOTYPE (#21): set only by 設定's dev row; every auth call is stubbed.
+  prototype?: boolean;
 };
 
 // The email door (#20's fallback forever): its own quiet page behind the
 // sign-in screen's 使用電子郵件登入 button. One form, two modes — the toggle
 // flips 登入 into 建立帳戶 rather than duplicating the page.
-export function EmailSignInScreen({ onBack }: Props) {
+export function EmailSignInScreen({ onBack, prototype }: Props) {
+  if (__DEV__ && prototype) return <EmailSignInPrototype onBack={onBack} />;
+  return <RealEmailSignInScreen onBack={onBack} />;
+}
+
+function RealEmailSignInScreen({ onBack }: Props) {
   const strings = useStrings();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

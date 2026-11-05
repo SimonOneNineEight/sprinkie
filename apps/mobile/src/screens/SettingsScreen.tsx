@@ -13,6 +13,10 @@ import { legalUrls } from '../legal';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
 
+import { VariantSwitcher } from './AccountVariantPrototype';
+import { EmailSignInScreen } from './EmailSignInScreen';
+import { LinkAccountsPrototype } from './LinkAccountsPrototype';
+
 type Props = {
   accessToken: string;
   onBack: () => void;
@@ -28,6 +32,8 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
   const session = useSession();
   const [failed, setFailed] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  // PROTOTYPE (#21): opens the real email page with its auth calls stubbed.
+  const [prototypeSignIn, setPrototypeSignIn] = useState(false);
 
   const confirmDelete = () => {
     Alert.alert(strings.settings.deleteConfirmTitle, strings.settings.deleteConfirmBody, [
@@ -45,6 +51,10 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
       },
     ]);
   };
+
+  if (__DEV__ && prototypeSignIn) {
+    return <EmailSignInScreen prototype onBack={() => setPrototypeSignIn(false)} />;
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -70,6 +80,22 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
             </View>
           </View>
         </View>
+
+        {__DEV__ ? <LinkAccountsPrototype /> : null}
+
+        {__DEV__ ? (
+          <View style={styles.card}>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.row}
+              onPress={() => setPrototypeSignIn(true)}
+            >
+              {/* eslint-disable-next-line i18next/no-literal-string */}
+              <Text style={[styles.rowTitle, styles.rowText]}>PROTOTYPE · 登入畫面</Text>
+              <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
+            </Pressable>
+          </View>
+        ) : null}
 
         <View>
           <Text style={styles.sectionHeader}>{strings.settings.generalHeader}</Text>
@@ -135,6 +161,8 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
           <Text style={styles.deleteLabel}>{strings.settings.deleteAccount}</Text>
         </Pressable>
       </ScrollView>
+
+      <VariantSwitcher label="#20/#21" />
 
       {languageOpen ? (
         <LanguageSheet
