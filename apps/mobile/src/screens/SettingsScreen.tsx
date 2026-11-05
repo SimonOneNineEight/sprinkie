@@ -187,11 +187,20 @@ function LinkedAccounts() {
       if (error) throw error;
       setLinked(providersOf(data.user?.identities));
     } catch (error) {
-      // identity_already_exists is Supabase Auth's answer for an identity
-      // linked to another user; neither account has changed.
-      setFailure(
-        (error as { code?: string }).code === 'identity_already_exists' ? 'claimed' : 'other',
-      );
+      if ((error as { code?: string }).code !== 'identity_already_exists') {
+        setFailure('other');
+        return;
+      }
+      // Supabase Auth gives that code both for a method on another account
+      // and for one already on this account, linked from another phone since
+      // 設定 opened. A fresh read tells them apart; neither changed anything.
+      try {
+        const fresh = await readLinked();
+        setLinked(fresh);
+        if (!fresh.includes(provider)) setFailure('claimed');
+      } catch {
+        setFailure('other');
+      }
     } finally {
       setBusy(null);
     }
@@ -236,6 +245,13 @@ function LinkedAccounts() {
       <Text style={styles.linkFooter}>{strings.settings.linkSteer}</Text>
     </View>
   );
+}
+
+// The providers on the signed-in account, read from Supabase Auth.
+async function readLinked(): Promise<Provider[]> {
+  const { data, error } = await supabase.auth.getUserIdentities();
+  if (error) throw error;
+  return providersOf(data.identities);
 }
 
 function providersOf(identities: { provider: string }[] | undefined): Provider[] {

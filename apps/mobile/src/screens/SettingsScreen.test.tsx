@@ -191,6 +191,27 @@ describe('連結帳戶 (#20)', () => {
     expect(linked).toBeDisabled();
   });
 
+  it('shows 已連結 when the method turns out to be on this account already', async () => {
+    await renderSettings();
+    // Linked from another phone after 設定 opened here: Supabase answers
+    // with the same code it uses for another account's method.
+    mockIdentities = [...mockIdentities, { provider: 'google' }];
+    mockLinkIdentity.mockResolvedValueOnce({
+      data: { user: null, session: null } as never,
+      error: new AuthApiError('Identity is already linked', 422, 'identity_already_exists'),
+    });
+
+    await act(async () => {
+      fireEvent.press(await row('Google'));
+    });
+
+    const google = await row('Google');
+    expect(within(google).getByText('已連結')).toBeTruthy();
+    expect(google).toBeDisabled();
+    expect(screen.queryByText('此登入方式已屬於另一個帳戶')).toBeNull();
+    expect(screen.queryByText('連結失敗，請再試一次')).toBeNull();
+  });
+
   it('says linking failed when Supabase refuses for any other reason', async () => {
     mockLinkIdentity.mockResolvedValueOnce({
       data: { user: null, session: null } as never,
