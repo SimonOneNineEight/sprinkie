@@ -32,6 +32,15 @@ import { Pressable } from '../theme/press';
 import { createStyles, singleLineField, theme } from '../theme';
 import type { Theme } from '../theme';
 
+/**
+ * How the form was left. A save carries the date the Entry was saved onto,
+ * which the date row may have moved from the opened-for date (#113).
+ */
+export type FormOutcome =
+  | { kind: 'saved'; date: string }
+  | { kind: 'deleted' }
+  | { kind: 'cancelled' };
+
 type Props = {
   accessToken: string;
   /** The day the form was opened for; the date row starts here (#24). */
@@ -41,9 +50,8 @@ type Props = {
   entry?: Entry;
   /** A retained failed save (#14): the form opens prefilled from it and 儲存 retries. */
   draft?: EntryDraft;
-  /** `date` is the date the Entry was saved onto, which the date row may
-   * have moved from the opened-for date (#113); absent on cancel. */
-  onDone: (saved: boolean, date?: string) => void;
+  /** How the form was left; each lands somewhere different (#119). */
+  onDone: (outcome: FormOutcome) => void;
   /** Fired after an inline category/subcategory creation lands server-side. */
   onCategoriesChanged?: () => void;
 };
@@ -125,6 +133,9 @@ export function EntryFormScreen({
   // Set when photos fail after the Entry landed, so the in-session retry
   // updates that Entry instead of creating a duplicate.
   const [savedEntryId, setSavedEntryId] = useState<string | undefined>(undefined);
+  // The date those words landed on. 取消 after them is not a cancel: the
+  // server already holds the edit, so the form reports a save (#119).
+  const [wordsSavedOn, setWordsSavedOn] = useState<string | null>(null);
 
   useEffect(() => {
     if (!draft || draft.photos.length === 0) return;
@@ -207,11 +218,12 @@ export function EntryFormScreen({
     }
     switch (result.kind) {
       case 'saved':
-        onDone(true, date);
+        onDone({ kind: 'saved', date });
         return;
       case 'photosFailed':
         // The Entry's words reached the server; retrying updates it.
         setSavedEntryId(result.entryId);
+        setWordsSavedOn(date);
         setPhotosFailed(true);
         setSaving(false);
         return;
@@ -325,6 +337,9 @@ export function EntryFormScreen({
     }
   };
 
+  const cancel = () =>
+    onDone(wordsSavedOn !== null ? { kind: 'saved', date: wordsSavedOn } : { kind: 'cancelled' });
+
   const confirmDelete = () => {
     if (!entry) return;
     Alert.alert(strings.entryForm.deleteConfirmTitle, undefined, [
@@ -334,7 +349,7 @@ export function EntryFormScreen({
         style: 'destructive',
         onPress: () => {
           deleteEntry(accessToken, entry.id)
-            .then(() => onDone(true))
+            .then(() => onDone({ kind: 'deleted' }))
             .catch(() => setFailed(true));
         },
       },
@@ -361,7 +376,7 @@ export function EntryFormScreen({
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" style={styles.headerSide} onPress={() => onDone(false)}>
+        <Pressable accessibilityRole="button" style={styles.headerSide} onPress={cancel}>
           <Text style={styles.cancelLabel}>{strings.entryForm.cancel}</Text>
         </Pressable>
         <View style={styles.headerCenter}>

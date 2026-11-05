@@ -90,6 +90,12 @@ const zhTW = {
     close: '關閉',
     counter: (n: number, total: number) => `${n} / ${total}`,
   },
+  // The read-only Entry view between a day card and the form (#119).
+  entryView: {
+    edit: '編輯',
+    // Where this Entry sits among the day's visible ones, centred in the bar.
+    position: (n: number, total: number) => `${n} / ${total}`,
+  },
   entryForm: {
     cancel: '取消',
     save: '儲存',
