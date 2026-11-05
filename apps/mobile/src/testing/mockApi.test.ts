@@ -88,6 +88,61 @@ it('fails Category create and edit as network throws on categoryWrites (#109)', 
   expect((await edit()).ok).toBe(true);
 });
 
+describe('Category delete, as DeleteCategory answers it (#109)', () => {
+  const del = (id: string) => globalThis.fetch(`https://api/categories/${id}`, { method: 'DELETE' });
+  const meIds = async () =>
+    ((await (await globalThis.fetch('https://api/me')).json()).categories as { id: string }[]).map((c) => c.id);
+  const world = () => ({
+    me: {
+      userId: 'u1',
+      journalId: 'j1',
+      categories: [
+        { id: 'c-work', name: '工作', inUse: true, hasChildren: false },
+        { id: 'c-sport', name: '運動', inUse: false, hasChildren: true },
+        { id: 'c-gym', name: '健身房', parentId: 'c-sport', inUse: false, hasChildren: false },
+        { id: 'c-food', name: '美食', inUse: false, hasChildren: false },
+      ],
+    },
+  });
+
+  it('removes an unused Category from the next /me with a 204', async () => {
+    api = installMockApi(world());
+    const res = await del('c-food');
+    expect(res.status).toBe(204);
+    expect(await meIds()).toEqual(['c-work', 'c-sport', 'c-gym']);
+  });
+
+  it('answers 409 category in use, from the flag or from an Entry on it, and keeps it', async () => {
+    api = installMockApi({
+      ...world(),
+      entries: {
+        '2026-08-19': [
+          { id: 'e1', date: '2026-08-19', position: 1, categoryId: 'c-food', authorId: 'u1', content: 'x' },
+        ],
+      },
+    });
+    for (const id of ['c-work', 'c-food']) {
+      const res = await del(id);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ message: 'category in use' });
+    }
+    expect(await meIds()).toEqual(['c-work', 'c-sport', 'c-gym', 'c-food']);
+  });
+
+  it('answers 409 category has children until its last child is gone', async () => {
+    api = installMockApi(world());
+    const blocked = await del('c-sport');
+    expect(blocked.status).toBe(409);
+    expect(await blocked.json()).toEqual({ message: 'category has children' });
+
+    expect((await del('c-gym')).status).toBe(204);
+    const me = await (await globalThis.fetch('https://api/me')).json();
+    expect(me.categories.find((c: { id: string }) => c.id === 'c-sport').hasChildren).toBe(false);
+    expect((await del('c-sport')).status).toBe(204);
+    expect(await meIds()).toEqual(['c-work', 'c-food']);
+  });
+});
+
 it('world state is live: reassigning a day feeds the list arm', async () => {
   api = installMockApi();
   api.world.entries['2026-08-19'] = [

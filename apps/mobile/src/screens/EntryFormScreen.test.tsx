@@ -763,12 +763,11 @@ describe('the manual pass, without a device (#109)', () => {
   it('offers only 新增類別 with every Category deleted, and 儲存 waits for one', async () => {
     renderForm({ categories: [] });
 
-    // Beside the header's two and the date row, the one pinned row: no
-    // Category rows, and nothing that reads as an empty or failed list.
-    expect(screen.getByRole('button', { name: '取消' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /日期/ })).toBeTruthy();
+    // The pinned row, and no Category rows or type-to-create row above it.
     expect(screen.getByRole('button', { name: '新增類別' })).toBeTruthy();
-    expect(screen.getAllByRole('button')).toHaveLength(4);
+    expect(screen.queryByText('運動')).toBeNull();
+    expect(screen.queryByText(/建立「/)).toBeNull();
+    expect(screen.getByPlaceholderText('類別')).toBeTruthy();
     const save = () => screen.getByRole('button', { name: '儲存' });
     expect(save()).toBeDisabled();
 

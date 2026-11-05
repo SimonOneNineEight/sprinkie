@@ -1,14 +1,17 @@
 // The suite's one mock API — the api seam's second adapter. Every contract
 // arm the app calls is implemented here once, stateful where the server is
-// (entries per date, the idempotency-key replay of #17, category creation),
-// with per-arm failure switches for the airplane-mode stories. Suites
+// (entries per date, the idempotency-key replay of #17, category creation,
+// category delete), with per-arm failure switches for the airplane-mode
+// stories. Suites
 // declare a world in installMockApi() and assert through the returned
 // helpers; nobody hand-rolls globalThis.fetch anymore.
 //
 // Failure semantics mirror what the screens actually meet: entry writes,
 // presign, category writes and the month, year and day reads fail as
 // network throws (TypeError), categoryPost fails creation as a 500
-// response, health fails either way.
+// response, health fails either way. With both categoryWrites and
+// categoryPost on, creation throws: airplane mode never reaches a server
+// that could answer 500.
 
 type FetchInit = { method?: string; headers?: Record<string, string>; body?: unknown };
 // The recorded view types body as string — the JSON wire case every suite
@@ -25,6 +28,8 @@ export type MockEntry = {
   content: string;
   photos?: object[];
 };
+
+type MockCategory = { id: string; parentId?: string; inUse?: boolean; hasChildren?: boolean };
 
 export type MockWorld = {
   /**
@@ -54,14 +59,10 @@ export type MockFailures = {
   entryWrites: boolean;
   presign: boolean;
   categoryPost: boolean;
-  /** Category create and edit, as airplane mode fails them (#109). */
   categoryWrites: boolean;
   colorRecentDelete: boolean;
-  /** GET /months/{YYYY-MM}, as airplane mode fails it (#109). */
   monthReads: boolean;
-  /** GET /years/{YYYY}. */
   yearReads: boolean;
-  /** A day's Entries, GET /entries?date=. */
   dayReads: boolean;
   health?: 'reject' | 'unhealthy';
 };
@@ -196,10 +197,31 @@ export function installMockApi(
       return ok({ id: u.split('/').pop(), ...body() });
     }
     if (u.includes('/categories/') && method === 'DELETE') {
-      // Gone from the next /me, as on the server (#109).
+      // As DeleteCategory (#109): a Category in use or with children is a
+      // 409, in use winning when both apply. In use is its own flag or any
+      // Entry the world holds on it; children are its flag or any child in
+      // /me. A deleted Category leaves the next /me, and a Subcategory's
+      // parent loses hasChildren with its last child. A Category the world
+      // never declared deletes like any other.
       const id = u.split('/').pop();
-      const me = world.me as { categories?: { id: string }[] };
-      if (me.categories) me.categories = me.categories.filter((c) => c.id !== id);
+      const me = world.me as { categories?: MockCategory[] };
+      const all = me.categories ?? [];
+      const target = all.find((c) => c.id === id);
+      const conflict = (message: string) => ({ ok: false, status: 409, json: async () => ({ message }) });
+      const inUse =
+        target?.inUse === true ||
+        Object.values(world.entries)
+          .flat()
+          .some((entry) => entry.categoryId === id || entry.subcategoryId === id);
+      if (inUse) return conflict('category in use');
+      if (target?.hasChildren === true || all.some((c) => c.parentId === id)) {
+        return conflict('category has children');
+      }
+      if (me.categories) {
+        me.categories = all.filter((c) => c.id !== id);
+        const parent = me.categories.find((c) => c.id === target?.parentId);
+        if (parent) parent.hasChildren = me.categories.some((c) => c.parentId === parent.id);
+      }
       return ok({}, 204);
     }
     if (u.includes('/color-recents') && method === 'PUT') {

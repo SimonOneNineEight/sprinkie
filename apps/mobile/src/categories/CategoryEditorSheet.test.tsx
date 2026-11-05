@@ -9,10 +9,14 @@ import { CategoryEditorSheet } from './CategoryEditorSheet';
 
 const sport = { id: 'c-sport', name: '運動', color: '#73B062', icon: 'dumbbell', position: 1 };
 
-function renderEditor(parentChoices: (typeof sport)[] = []) {
+function renderEditor(
+  parentChoices: (typeof sport)[] = [],
+  editing: Pick<React.ComponentProps<typeof CategoryEditorSheet>, 'target' | 'parent'> = {},
+) {
   return render(
     <CategoryEditorSheet
       accessToken="tok"
+      {...editing}
       parentChoices={parentChoices}
       childrenOfTarget={[]}
       onOpen={jest.fn()}
@@ -178,17 +182,9 @@ describe('the manual pass, without a device (#109)', () => {
       '運動',
     ],
   ])('keeps the parent row untappable while editing %s', (_, target, parent, shown) => {
-    render(
-      <CategoryEditorSheet
-        accessToken="tok"
-        target={target}
-        parent={parent}
-        parentChoices={[sport, { id: 'c-food', name: '美食', color: '#D3AE40', icon: 'utensils', position: 2 }]}
-        childrenOfTarget={[]}
-        onOpen={jest.fn()}
-        onClose={jest.fn()}
-        onCategoriesChanged={jest.fn()}
-      />,
+    renderEditor(
+      [sport, { id: 'c-food', name: '美食', color: '#D3AE40', icon: 'utensils', position: 2 }],
+      { target, parent },
     );
 
     const row = screen.getByRole('button', { name: new RegExp(`^${shown}`) });

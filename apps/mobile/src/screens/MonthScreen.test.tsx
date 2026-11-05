@@ -479,6 +479,8 @@ describe('the manual pass, without a device (#109)', () => {
     api.world.monthDays = { '2026-08': [{ date: '2026-08-12', categoryIds: ['c-work'] }] };
     renderMonth({ initialMonth: { year: 2026, month: 9, day: 1 } });
     expect(await screen.findByText('9月')).toBeTruthy();
+    // An empty answer paints nothing, so there is nothing to wait for on
+    // screen: wait for September's read, then let its answer settle.
     await waitFor(() =>
       expect(api.calls().some(([u]) => String(u).includes('/months/2026-09'))).toBe(true),
     );

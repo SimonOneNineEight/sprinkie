@@ -413,7 +413,7 @@ is about scrolling rather than paging.
 | YR.11 | Tap the year title | The wheel opens directly under the header, the year the header is showing centred; the count beneath is not a tap target |
 | YR.12 | Pick a year from the wheel | The ribbon scrolls to that year rather than swapping a page **[API]** **[auto]** |
 | YR.13 | Pick a year at either end of the wheel | Scrolls there without crashing; future years are allowed, since backfilling is the product |
-| YR.14 | Tap the scrim | The wheel closes, the position unchanged **[auto]** |
+| YR.14 | Tap the scrim | The wheel closes, the position unchanged |
 | YR.15 | Scroll far away, then tap 今天 | Scrolls back to today's month and stays on the year view **[auto]** |
 | YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now **[auto]** |
 | YR.17 | There is no back button and no chevrons | Correct; scrolling, the title and a month tap are the navigation **[auto]** |
@@ -765,7 +765,6 @@ the tag.
 | YR.9 | `screens/YearScreen.test.tsx` |
 | YR.10 | `screens/YearScreen.test.tsx` |
 | YR.12 | `screens/YearScreen.test.tsx` |
-| YR.14 | `screens/YearScreen.test.tsx` |
 | YR.15 | `screens/YearScreen.test.tsx` |
 | YR.16 | `screens/YearScreen.test.tsx` |
 | YR.17 | `screens/YearScreen.test.tsx` |

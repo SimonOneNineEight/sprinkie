@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Alert, StyleSheet } from 'react-native';
 
 import { cat } from '../testing/fixtures';
+import { isHollowRow } from '../testing/isHollowRow';
 import { installMockApi, type MockApi } from '../testing/mockApi';
 import { CategorySheet } from './CategorySheet';
 import { nothingHidden } from './hidden';
@@ -293,34 +294,26 @@ describe('searching the sheet (#48)', () => {
 
 // The manual pass's cases that need no device (#109).
 describe('the manual pass, without a device (#109)', () => {
-  /** Whether a Category row's icon is drawn hollow, as its hidden family is. */
-  const isHollow = (name: string) => {
-    let row = screen.getByText(name);
-    while (row.props.accessibilityRole !== 'button') row = row.parent!;
-    const outlined = row.findAll(
-      (node) =>
-        typeof node.type === 'string' &&
-        (StyleSheet.flatten(node.props.style) as { borderWidth?: number } | undefined)?.borderWidth === 1.5,
-    );
-    return outlined.length > 0;
-  };
 
   // CS.14
   it('shows only 新增類別 with every Category deleted, and no error', () => {
     renderSheet({ categories: [] });
 
-    expect(screen.getByText('新增類別')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '新增類別' })).toBeTruthy();
+    // No tree above it, not even an empty one: every tree row carries a ✎,
+    // and a Subcategory row a check-circle under its parent's name.
     expect(screen.queryAllByLabelText('編輯類別')).toHaveLength(0);
+    for (const name of ['工作', '運動', '健身房', '美食']) expect(screen.queryByText(name)).toBeNull();
     expect(screen.queryByText('儲存失敗，請再試一次')).toBeNull();
-    // The card holds the one row, not an empty tree above it.
-    const card = screen.getByText('新增類別').parent!.parent!;
-    expect(within(card).getAllByRole('button')).toHaveLength(1);
+    // The sheet around it is whole: its header is all there.
+    expect(screen.getByText('全部隱藏')).toBeTruthy();
+    expect(screen.getByText('完成')).toBeTruthy();
   });
 
   // CS.17
   it('brings the whole tree back when the field is cleared, visibility unchanged', () => {
     const { onChange } = renderSheet({ hidden: { categoryIds: ['c-work'], subcategoryIds: [] } });
-    expect(isHollow('工作')).toBe(true);
+    expect(isHollowRow('工作')).toBe(true);
 
     fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '美食');
     expect(screen.queryByText('工作')).toBeNull();
@@ -330,9 +323,9 @@ describe('the manual pass, without a device (#109)', () => {
       expect(screen.getByText(name)).toBeTruthy();
     }
     expect(screen.getAllByLabelText('編輯類別')).toHaveLength(4);
-    expect(isHollow('工作')).toBe(true);
-    expect(isHollow('運動')).toBe(false);
-    expect(isHollow('美食')).toBe(false);
+    expect(isHollowRow('工作')).toBe(true);
+    expect(isHollowRow('運動')).toBe(false);
+    expect(isHollowRow('美食')).toBe(false);
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -384,10 +377,9 @@ describe('the manual pass, without a device (#109)', () => {
       await act(async () => {
         fireEvent.press(screen.getByText('儲存'));
       });
-      const posts = api
-        .calls()
-        .filter(([u, init]) => String(u).includes('/categories') && init?.method === 'POST');
-      expect(JSON.parse(posts.at(-1)?.[1]?.body ?? '{}')).toEqual({
+      // The create carries everything chosen, and the editor closing below is
+      // the retry landing with those fields still in it.
+      expect(JSON.parse(api.find('POST', '/categories')?.[1]?.body ?? '{}')).toEqual({
         name: '園藝',
         color: '#A26FBD',
         icon: 'bike',
