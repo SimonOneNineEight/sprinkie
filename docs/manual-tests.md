@@ -181,13 +181,22 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.6 | 使用電子郵件登入 | The email page opens on its own **[auto]** |
 | SI.7 | Email page, back chevron | Returns to the provider screen **[auto]** |
 | SI.8 | Email + password, 登入 | Signs in **[API]** **[auto]** |
-| SI.9 | Toggle to 建立帳戶, submit a new address | Either signs in, or shows the confirm-your-email notice **[API]** **[auto]** |
+| SI.9 | Toggle to 建立帳戶, submit a new address | Signs in while Confirm email is off in Supabase; with it on, 確認電子郵件 asks for the emailed code instead **[API]** **[auto]** |
 | SI.10 | Wrong password | Plain error, nothing lost from the fields **[API]** |
 | SI.11 | Empty email or password, submit | Nothing happens; no request fired **[auto]** |
 | SI.12 | Airplane mode, submit | Plain error, no crash |
 | SI.13 | Password field | Masked, and offers the right autofill (current vs new) per mode |
 | SI.14 | The home screen | The Sprinkie icon (seven rounded colored squares on a three-by-three layout, the centre and bottom-right empty) labelled Sprinkie |
 | SI.15 | Every screen's background | Warm off-white (#FAF7F2), never pure white. Cards, sheets and buttons are white on it by design |
+| SI.16 | Email page, 忘記密碼？ under the password field, enter the email, 寄送驗證碼 | 輸入驗證碼 reads 已寄送 6 位數驗證碼至 and the address; an email from Sprinkie arrives carrying a 6-digit code **[API]** |
+| SI.17 | Type the emailed code, 下一步, then a new password of 6 or more characters, 更新並登入 | Lands on the month view. After 登出, the new password signs in and the old one does not **[API]** |
+| SI.18 | A wrong code, 下一步 | 驗證碼錯誤或已過期, still on 輸入驗證碼 **[API]** **[auto]** |
+| SI.19 | 設定新密碼, a new password under 6 characters, 更新並登入 | 密碼至少需要 6 個字元, still on 設定新密碼 **[auto]** |
+| SI.20 | A code step, 重新寄送 | Reads 重新寄送（30 秒） from the moment a code was sent, counting down a second at a time; at the end, a tap sends a second email and the wait starts again **[API]** |
+| SI.21 | Each step of 忘記密碼, back chevron | Steps back one step: 設定新密碼, 輸入驗證碼, 重設密碼, the sign-in form, then the provider screen **[auto]** |
+| SI.22 | With Confirm email on: 確認電子郵件, type the emailed code, 完成註冊 | Lands on the month view **[API]** |
+| SI.23 | 確認電子郵件, back chevron | The sign-up form, with the email as typed **[auto]** |
+| SI.24 | The code field | Number pad; takes digits only, six at most; with the email arrived, the keyboard offers its code |
 
 **SI.2 and SI.3 passed on build 5 (0.9.0), 2026-10-05**, the first build signed
 against a real App ID. Both had failed on every previous build: the App ID
@@ -699,8 +708,12 @@ the tag.
 | SI.6 | `screens/SignInScreen.test.tsx` |
 | SI.7 | `screens/SignInScreen.test.tsx` |
 | SI.8 | `screens/SignInScreen.test.tsx` |
-| SI.9 | `screens/SignInScreen.test.tsx` |
+| SI.9 | `screens/EmailSignInScreen.test.tsx` |
 | SI.11 | `screens/SignInScreen.test.tsx` |
+| SI.18 | `screens/EmailSignInScreen.test.tsx` |
+| SI.19 | `screens/EmailSignInScreen.test.tsx` |
+| SI.21 | `screens/EmailSignInScreen.test.tsx` |
+| SI.23 | `screens/EmailSignInScreen.test.tsx` |
 | MO.1 | `screens/MonthScreen.test.tsx`, `AppRoot.test.tsx` |
 | MO.2 | `screens/MonthScreen.test.tsx` |
 | MO.3 | `screens/MonthScreen.test.tsx` |
