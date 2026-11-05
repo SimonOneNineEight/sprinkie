@@ -24,9 +24,27 @@ jest.mock('expo-apple-authentication', () => ({
   signInAsync: jest.fn(),
 }));
 
+const mockGoogleSignIn = jest.fn();
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: { configure: jest.fn(), signIn: () => mockGoogleSignIn() },
+}));
+
 beforeEach(() => {
   mockSignInWithPassword.mockClear();
   mockSignUp.mockClear();
+});
+
+it('stays quiet when the Google sheet is closed, as it does for Apple', async () => {
+  mockGoogleSignIn.mockResolvedValueOnce({ type: 'cancelled', data: null });
+  render(<SignInScreen />);
+
+  await act(async () => {
+    fireEvent.press(screen.getByText('使用 Google 帳戶登入'));
+  });
+
+  expect(mockGoogleSignIn).toHaveBeenCalled();
+  expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
+  expect(screen.getByText('使用 Google 帳戶登入')).toBeTruthy();
 });
 
 it('signs in with email and password from its own page', async () => {
