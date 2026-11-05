@@ -1267,7 +1267,16 @@ components:
             - ok
         schemaVersion:
           type: integer
-          description: Version read from the app_info migration baseline.
+          format: int64
+          description: >
+            The newest migration applied to the database: the version prefix
+            of its file in supabase/migrations/ (e.g. 20260826000000). The
+            post-deploy smoke run (#108) compares it with the repo's newest.
+        revision:
+          type: string
+          description: >
+            The Cloud Run revision that answered (its K_REVISION). Absent off
+            Cloud Run.
     SaveColorRecent:
       type: object
       required:

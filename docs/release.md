@@ -238,9 +238,39 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 
 ## Per-release
 
-Walk `manual-tests.md` on a device first: the whole document before a build,
-the **[API]** cases after any `gcloud run deploy`. Post the run as a comment on
-the release issue, naming the build and the Cloud Run revision it tested.
+Walk `manual-tests.md` on a device before a build: the whole document, the
+**[API]** cases included. Post the run as a comment on the release issue,
+naming the build and the Cloud Run revision it tested.
+
+After any `gcloud run deploy`, run the smoke run instead of walking the
+**[API]** cases by hand (#108):
+
+```sh
+git switch main && git pull --ff-only
+cd apps/mobile
+SMOKE_EMAIL=… SMOKE_PASSWORD=… pnpm smoke:api
+```
+
+Run it from an up-to-date `main`: the `/health` check compares the deployed
+schema with the newest file in the local `supabase/migrations/`, so a branch
+carrying a migration that was never pushed fails it.
+
+It signs in as the dedicated **smoke User** through the hosted API, prints the
+revision that answered, and gives one PASS or FAIL line per check with the
+response that proved it; any FAIL exits non-zero. Each check is a request an
+older revision would answer 2xx while doing nothing, so a FAIL usually means
+the revision predates a feature, or `supabase db push` was skipped (the
+`/health` check compares the applied schema with the newest file in
+`supabase/migrations/`). Paste the run on the release issue.
+
+The smoke User is an email account signed up in the app for this alone, never
+the standing test User and never a real Journal (ADR-0007). Its email must
+contain "smoke" (e.g. `you+smoke@…`): before any request that writes, the
+script refuses any other account, then any account holding an Entry it did
+not make (it looks from 2000 to next year), and it deletes everything it made
+before and after the checks, so a run that died halfway is cleaned up by
+rerunning it. Its own Entries live in the year 2000, which keeps them clear of
+anything real.
 
 **Build 1 is the exception** — its pass runs on the TestFlight build itself, by
 both testers, because the distribution path is as untested as the app is.

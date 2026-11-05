@@ -4,7 +4,7 @@
 import 'react-native-gesture-handler/jestSetup';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActionSheetIOS, Alert, StyleSheet, TextInput, type TextStyle } from 'react-native';
+import { ActionSheetIOS, Alert, Linking, StyleSheet, TextInput, type TextStyle } from 'react-native';
 
 import { encodeContent } from '../entries/content';
 import { cat } from '../testing/fixtures';
@@ -17,6 +17,7 @@ import { EntryFormScreen } from './EntryFormScreen';
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
   launchCameraAsync: jest.fn(),
+  getCameraPermissionsAsync: jest.fn(),
   requestCameraPermissionsAsync: jest.fn(),
 }));
 jest.mock('../photos/processPhoto', () => ({ processPhoto: jest.fn() }));
@@ -592,6 +593,79 @@ describe('photos (#44)', () => {
     });
 
     expect(api.entryPosts()).toHaveLength(1);
+  });
+
+  describe('taking a photo once the camera was denied (#89)', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.mocked(ImagePicker.getCameraPermissionsAsync).mockReset();
+      jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockReset();
+      jest.mocked(ImagePicker.launchCameraAsync).mockReset();
+    });
+
+    const denied = { granted: false, status: 'denied', canAskAgain: false, expires: 'never' };
+    const pressTakePhoto = async () => {
+      jest
+        .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+        .mockImplementation((_options, choose) => choose(0));
+      fireEvent.press(screen.getByText('運動'));
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('grid-item-__add__'));
+      });
+    };
+
+    it('offers Settings, and only Settings, on a 拍照 after the camera was denied', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const openSettings = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+      jest.mocked(ImagePicker.getCameraPermissionsAsync).mockResolvedValue(denied as ImagePicker.PermissionResponse);
+      renderForm();
+
+      await pressTakePhoto();
+
+      expect(ImagePicker.requestCameraPermissionsAsync).not.toHaveBeenCalled();
+      expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+      expect(alert).toHaveBeenCalledTimes(1);
+      const [title, message, buttons] = alert.mock.calls[0];
+      expect(title).toBe('無法使用相機');
+      expect(message).toBe('請到設定開啟 Sprinkie 的相機權限。');
+      buttons?.find((b) => b.text === '取消')?.onPress?.();
+      expect(openSettings).not.toHaveBeenCalled();
+      buttons?.find((b) => b.text === '開啟設定')?.onPress?.();
+      expect(openSettings).toHaveBeenCalled();
+    });
+
+    it('stays silent at the moment the camera is denied', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      jest.mocked(ImagePicker.getCameraPermissionsAsync).mockResolvedValue({
+        granted: false,
+        status: 'undetermined',
+        canAskAgain: true,
+        expires: 'never',
+      } as ImagePicker.PermissionResponse);
+      jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockResolvedValue(denied as ImagePicker.PermissionResponse);
+      renderForm();
+
+      await pressTakePhoto();
+
+      expect(ImagePicker.requestCameraPermissionsAsync).toHaveBeenCalled();
+      expect(ImagePicker.launchCameraAsync).not.toHaveBeenCalled();
+      expect(alert).not.toHaveBeenCalled();
+      expect(screen.getByText('0/3')).toBeTruthy();
+    });
+
+    it('opens the camera as before once access is granted', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+      const granted = { granted: true, status: 'granted', canAskAgain: true, expires: 'never' };
+      jest.mocked(ImagePicker.getCameraPermissionsAsync).mockResolvedValue(granted as ImagePicker.PermissionResponse);
+      jest.mocked(ImagePicker.requestCameraPermissionsAsync).mockResolvedValue(granted as ImagePicker.PermissionResponse);
+      jest.mocked(ImagePicker.launchCameraAsync).mockResolvedValue({ canceled: true, assets: null });
+      renderForm();
+
+      await pressTakePhoto();
+
+      expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
+      expect(alert).not.toHaveBeenCalled();
+    });
   });
 
   // The PM tapped to see which photo they'd picked and lost it: a tap now

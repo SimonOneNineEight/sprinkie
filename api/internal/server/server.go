@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -36,6 +37,9 @@ type handlers struct {
 	logger  *slog.Logger
 	queries dbgen.Querier
 	store   ObjectStore
+	// revision is the Cloud Run revision serving this instance, "" off Cloud
+	// Run; /health reports it so a smoke run can record what it tested.
+	revision string
 }
 
 func (h handlers) GetHealth(ctx context.Context, _ apigen.GetHealthRequestObject) (apigen.GetHealthResponseObject, error) {
@@ -48,7 +52,11 @@ func (h handlers) GetHealth(ctx context.Context, _ apigen.GetHealthRequestObject
 		}
 		return apigen.GetHealth503JSONResponse{Message: "database unreachable"}, nil
 	}
-	return apigen.GetHealth200JSONResponse{Status: "ok", SchemaVersion: int(version)}, nil
+	health := apigen.GetHealth200JSONResponse{Status: "ok", SchemaVersion: version}
+	if h.revision != "" {
+		health.Revision = &h.revision
+	}
+	return health, nil
 }
 
 func (h handlers) ProvisionMe(ctx context.Context, req apigen.ProvisionMeRequestObject) (apigen.ProvisionMeResponseObject, error) {
@@ -139,6 +147,8 @@ func NewWithQuerier(logger *slog.Logger, queries dbgen.Querier, verifier *auth.V
 	router.Use(sentryhttp.New(sentryhttp.Options{Repanic: true}).Handle)
 	router.Use(auth.Middleware(verifier, map[string]bool{"/health": true}))
 	router.Use(deactivationGate(queries, logger))
-	h := handlers{logger: logger, queries: queries, store: store}
+	// K_REVISION is set by Cloud Run itself, not by our deploy config, so it
+	// is read here rather than through config.Load.
+	h := handlers{logger: logger, queries: queries, store: store, revision: os.Getenv("K_REVISION")}
 	return apigen.HandlerFromMux(apigen.NewStrictHandler(h, nil), router)
 }

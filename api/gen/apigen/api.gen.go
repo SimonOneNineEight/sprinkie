@@ -127,8 +127,11 @@ type Error struct {
 
 // Health defines model for Health.
 type Health struct {
-	// SchemaVersion Version read from the app_info migration baseline.
-	SchemaVersion int          `json:"schemaVersion"`
+	// Revision The Cloud Run revision that answered (its K_REVISION). Absent off Cloud Run.
+	Revision *string `json:"revision,omitempty"`
+
+	// SchemaVersion The newest migration applied to the database: the version prefix of its file in supabase/migrations/ (e.g. 20260826000000). The post-deploy smoke run (#108) compares it with the repo's newest.
+	SchemaVersion int64        `json:"schemaVersion"`
 	Status        HealthStatus `json:"status"`
 }
 

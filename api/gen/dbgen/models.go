@@ -68,6 +68,10 @@ type Photo struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type SupabaseMigrationsSchemaMigration struct {
+	Version string
+}
+
 type User struct {
 	ID        string
 	CreatedAt pgtype.Timestamptz
