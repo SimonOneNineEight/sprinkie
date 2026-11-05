@@ -407,3 +407,109 @@ describe('calendar navigation (#40)', () => {
     expect(screen.getByLabelText('今天')).toBeTruthy();
   });
 });
+
+describe('the manual pass, without a device (#109)', () => {
+  const selected = { backgroundColor: theme.colors.surfaceToday };
+  const holder = (day: number) =>
+    within(screen.getByTestId('month-page-current')).getByTestId(`day-holder-${day}`);
+  const allDots = () => {
+    const page = within(screen.getByTestId('month-page-current'));
+    return [...page.queryAllByTestId('day-dot'), ...page.queryAllByTestId('dot-overflow')];
+  };
+  const settleBack = async () => {
+    await act(async () => {
+      fireEvent(screen.getByTestId('month-pager'), 'momentumScrollEnd', {
+        nativeEvent: { contentOffset: { x: 0 } },
+      });
+    });
+  };
+
+  // MO.11
+  it("selects another month's 1st, and today again back on this month", async () => {
+    renderMonth();
+    await screen.findByText('8月');
+
+    await settleForward();
+    expect(await screen.findByText('9月')).toBeTruthy();
+    expect(holder(1)).toHaveStyle(selected);
+    expect(screen.getByText('9月1日 星期二')).toBeTruthy();
+
+    await settleBack();
+    expect(await screen.findByText('8月')).toBeTruthy();
+    expect(holder(17)).toHaveStyle(selected);
+    expect(holder(1)).not.toHaveStyle(selected);
+    expect(screen.getByText('8月17日 星期一')).toBeTruthy();
+  });
+
+  // MO.20
+  it('paints no dots, and no error, on months swiped to that cannot load', async () => {
+    api.world.monthDays = {
+      '2026-08': [{ date: '2026-08-12', categoryIds: ['c-work'] }],
+      '2026-09': [{ date: '2026-09-03', categoryIds: ['c-sport'] }],
+      '2026-10': [{ date: '2026-10-05', categoryIds: ['c-work'] }],
+    };
+    renderMonth();
+    await screen.findByText('8月');
+    await waitFor(() => expect(dotsOn(12)).toHaveLength(1));
+
+    // Airplane mode: every read is a network throw from here on.
+    api.failures.monthReads = true;
+    api.failures.dayReads = true;
+    await settleForward();
+    expect(await screen.findByText('9月')).toBeTruthy();
+    expect(allDots()).toHaveLength(0);
+    await settleForward();
+    expect(await screen.findByText('10月')).toBeTruthy();
+    expect(allDots()).toHaveLength(0);
+    // Back on the month that did load once: absent, not its old dots.
+    await settleBack();
+    await settleBack();
+    expect(await screen.findByText('8月')).toBeTruthy();
+    expect(allDots()).toHaveLength(0);
+
+    // No error wall: the grid and the day panel are still the month view.
+    for (let day = 1; day <= 31; day += 1) expect(holder(day)).toBeTruthy();
+    expect(screen.getByText('8月17日 星期一')).toBeTruthy();
+    expect(screen.queryByText('無法載入紀錄')).toBeNull();
+  });
+
+  // MO.21
+  it('renders a month holding no Entries as a whole grid with no dots anywhere', async () => {
+    // August has Entries; September, where the view lands, has none.
+    api.world.monthDays = { '2026-08': [{ date: '2026-08-12', categoryIds: ['c-work'] }] };
+    renderMonth({ initialMonth: { year: 2026, month: 9, day: 1 } });
+    expect(await screen.findByText('9月')).toBeTruthy();
+    // An empty answer paints nothing, so there is nothing to wait for on
+    // screen: wait for September's read, then let its answer settle.
+    await waitFor(() =>
+      expect(api.calls().some(([u]) => String(u).includes('/months/2026-09'))).toBe(true),
+    );
+    await act(async () => {});
+
+    for (let day = 1; day <= 30; day += 1) expect(holder(day)).toBeTruthy();
+    expect(allDots()).toHaveLength(0);
+  });
+
+  // MO.23
+  it('returns the selection to today on 今天 within this month, and moves nothing else', async () => {
+    api.world.monthDays = { '2026-08': [{ date: '2026-08-12', categoryIds: ['c-work'] }] };
+    renderMonth();
+    await screen.findByText('8月');
+    await waitFor(() => expect(dotsOn(12)).toHaveLength(1));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('month-page-current')).getAllByText('3')[0]);
+    });
+    expect(holder(3)).toHaveStyle(selected);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('今天'));
+    });
+    expect(holder(17)).toHaveStyle(selected);
+    expect(holder(3)).not.toHaveStyle(selected);
+    expect(screen.getByText('8月17日 星期一')).toBeTruthy();
+    // The same month, its dots still painted where they were.
+    expect(screen.getByText('8月')).toBeTruthy();
+    expect(screen.getByText('2026年')).toBeTruthy();
+    expect(dotsOn(12)).toHaveLength(1);
+  });
+});

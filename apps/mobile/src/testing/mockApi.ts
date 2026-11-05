@@ -1,13 +1,16 @@
 // The suite's one mock API — the api seam's second adapter. Every contract
 // arm the app calls is implemented here once, stateful where the server is
-// (entries per date, the idempotency-key replay of #17, category creation),
-// with per-arm failure switches for the airplane-mode stories. Suites
-// declare a world in installMockApi() and assert through the returned
-// helpers; nobody hand-rolls globalThis.fetch anymore.
+// (entries per date, the idempotency-key replay of #17, category creation,
+// category delete), with per-arm failure switches for the airplane-mode
+// stories. Suites declare a world in installMockApi() and assert through the
+// returned helpers; nobody hand-rolls globalThis.fetch anymore.
 //
-// Failure semantics mirror what the screens actually meet: entry writes and
-// presign fail as network throws (TypeError), category creation fails as a
-// 500 response, health fails either way.
+// Failure semantics mirror what the screens actually meet: entry writes,
+// presign, category writes and the month, year and day reads fail as
+// network throws (TypeError), categoryPost fails creation as a 500
+// response, health fails either way. With both categoryWrites and
+// categoryPost on, creation throws: airplane mode never reaches a server
+// that could answer 500.
 
 type FetchInit = { method?: string; headers?: Record<string, string>; body?: unknown };
 // The recorded view types body as string — the JSON wire case every suite
@@ -24,6 +27,8 @@ export type MockEntry = {
   content: string;
   photos?: object[];
 };
+
+type MockCategory = { id: string; parentId?: string; inUse?: boolean; hasChildren?: boolean };
 
 export type MockWorld = {
   /**
@@ -53,7 +58,11 @@ export type MockFailures = {
   entryWrites: boolean;
   presign: boolean;
   categoryPost: boolean;
+  categoryWrites: boolean;
   colorRecentDelete: boolean;
+  monthReads: boolean;
+  yearReads: boolean;
+  dayReads: boolean;
   health?: 'reject' | 'unhealthy';
 };
 
@@ -86,7 +95,11 @@ export function installMockApi(
     entryWrites: false,
     presign: false,
     categoryPost: false,
+    categoryWrites: false,
     colorRecentDelete: false,
+    monthReads: false,
+    yearReads: false,
+    dayReads: false,
     ...setup.failures,
   };
   // The server's idempotency memory (#17): the first 201 per key replays
@@ -161,6 +174,7 @@ export function installMockApi(
     }
     if (u.includes('/photos/') && method === 'DELETE') return ok({}, 204);
     if (u.includes('/categories') && method === 'POST') {
+      if (failures.categoryWrites) network();
       if (failures.categoryPost) {
         return { ok: false, status: 500, json: async () => ({ message: 'nope' }) };
       }
@@ -178,9 +192,37 @@ export function installMockApi(
       });
     }
     if (u.includes('/categories/') && method === 'PATCH') {
+      if (failures.categoryWrites) network();
       return ok({ id: u.split('/').pop(), ...body() });
     }
-    if (u.includes('/categories/') && method === 'DELETE') return ok({}, 204);
+    if (u.includes('/categories/') && method === 'DELETE') {
+      // As DeleteCategory (#109): a Category in use or with children is a
+      // 409, in use winning when both apply. In use is its own flag or any
+      // Entry the world holds on it; children are its flag or any child in
+      // /me. A deleted Category leaves the next /me, and a Subcategory's
+      // parent loses hasChildren with its last child. A Category the world
+      // never declared deletes like any other.
+      const id = u.split('/').pop();
+      const me = world.me as { categories?: MockCategory[] };
+      const all = me.categories ?? [];
+      const target = all.find((c) => c.id === id);
+      const conflict = (message: string) => ({ ok: false, status: 409, json: async () => ({ message }) });
+      const inUse =
+        target?.inUse === true ||
+        Object.values(world.entries)
+          .flat()
+          .some((entry) => entry.categoryId === id || entry.subcategoryId === id);
+      if (inUse) return conflict('category in use');
+      if (target?.hasChildren === true || all.some((c) => c.parentId === id)) {
+        return conflict('category has children');
+      }
+      if (me.categories) {
+        me.categories = all.filter((c) => c.id !== id);
+        const parent = me.categories.find((c) => c.id === target?.parentId);
+        if (parent) parent.hasChildren = me.categories.some((c) => c.parentId === parent.id);
+      }
+      return ok({}, 204);
+    }
     if (u.includes('/color-recents') && method === 'PUT') {
       return ok({ colors: [body().color, ...world.colorRecents] });
     }
@@ -198,6 +240,7 @@ export function installMockApi(
     if (u.includes('/months/')) {
       // The hidden-set rides as query params; the month key is the path.
       const month = u.split('/months/')[1].split('?')[0];
+      if (failures.monthReads) network();
       if (monthHold && (monthHold.month === undefined || monthHold.month === month)) {
         await monthHold.promise;
       }
@@ -205,6 +248,7 @@ export function installMockApi(
     }
     if (u.includes('/years/')) {
       const year = u.split('/years/')[1].split('?')[0];
+      if (failures.yearReads) network();
       if (yearHold && (yearHold.year === undefined || yearHold.year === year)) {
         await yearHold.promise;
       }
@@ -267,6 +311,7 @@ export function installMockApi(
     }
     if (u.includes('/entries')) {
       const date = u.includes('date=') ? u.split('date=')[1] : undefined;
+      if (failures.dayReads) network();
       if (entriesHold && (entriesHold.date === undefined || entriesHold.date === date)) {
         await entriesHold.promise;
       }

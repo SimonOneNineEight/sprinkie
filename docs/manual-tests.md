@@ -179,11 +179,11 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.3 | Cancel the Apple sheet | Returns to sign-in with **no** error message — a cancelled sheet is a decision |
 | SI.5 | Cancel the Google sheet | Returns to sign-in; an error here is acceptable, a crash is not |
 | SI.6 | 使用電子郵件登入 | The email page opens on its own **[auto]** |
-| SI.7 | Email page, back chevron | Returns to the provider screen |
+| SI.7 | Email page, back chevron | Returns to the provider screen **[auto]** |
 | SI.8 | Email + password, 登入 | Signs in **[API]** **[auto]** |
 | SI.9 | Toggle to 建立帳戶, submit a new address | Either signs in, or shows the confirm-your-email notice **[API]** **[auto]** |
 | SI.10 | Wrong password | Plain error, nothing lost from the fields **[API]** |
-| SI.11 | Empty email or password, submit | Nothing happens; no request fired |
+| SI.11 | Empty email or password, submit | Nothing happens; no request fired **[auto]** |
 | SI.12 | Airplane mode, submit | Plain error, no crash |
 | SI.13 | Password field | Masked, and offers the right autofill (current vs new) per mode |
 | SI.14 | The home screen | The Sprinkie icon (seven rounded colored squares on a three-by-three layout, the centre and bottom-right empty) labelled Sprinkie |
@@ -212,7 +212,7 @@ Keyboard cases are in **KB**.
 | MO.8 | Days outside the month | Greyed and not tappable |
 | MO.9 | Swipe left / right | One month per swipe, both directions, repeatedly **[API]** **[auto]** |
 | MO.10 | Swipe several months fast | Each settle loads that month's dots; the month you left never paints on the one you arrived at, even for an instant **[API]** **[auto]** |
-| MO.11 | Move to a month that is not this month | Its 1st is selected; back on this month, today is |
+| MO.11 | Move to a month that is not this month | Its 1st is selected; back on this month, today is **[auto]** |
 | MO.12 | The day panel | The selected day's Entry titles with Category icons **[API]** |
 | MO.13 | A panel row for an Entry with Photos | Carries the photo glyph **[API]** |
 | MO.14 | Tap the panel header or any row | Opens the day view |
@@ -221,10 +221,10 @@ Keyboard cases are in **KB**.
 | MO.17 | Tap ‹ 2026年 (the year under the month title) | The year ribbon opens on the month you were viewing, including after swiping across a year boundary (YR.21) **[auto]** |
 | MO.18 | Tap the 設定 (gear) icon | Settings opens **[auto]** |
 | MO.19 | Tap the 類別 (tag) icon | The visibility sheet opens **[auto]** |
-| MO.20 | Airplane mode, swipe months | Dots are absent, not wrong; no error wall, no crash |
-| MO.21 | A month holding no Entries at all | Grid renders with no dots anywhere **[API]** |
+| MO.20 | Airplane mode, swipe months | Dots are absent, not wrong; no error wall, no crash **[auto]** |
+| MO.21 | A month holding no Entries at all | Grid renders with no dots anywhere **[API]** **[auto]** |
 | MO.22 | Swipe months away, tap the floating 今天 | This month, with today selected **[API]** **[auto]** |
-| MO.23 | Tap 今天 while already on this month | Selection returns to today; nothing else moves |
+| MO.23 | Tap 今天 while already on this month | Selection returns to today; nothing else moves **[auto]** |
 | MO.24 | Hide a Category while its dots are on screen | The dots go; the month never briefly shows the old set **[API]** **[auto]** |
 | MO.25 | The nav bar | Only the 類別 and 設定 icons; 今天 floats at the bottom **[auto]** |
 | MO.26 | A day with more Entries than the panel fits | The panel scrolls, and its last row scrolls clear of the floating controls |
@@ -253,7 +253,7 @@ Keyboard cases are in **KB**.
 | DA.10 | Several Drafts on one day | All of them listed |
 | DA.11 | Tap a Draft row | The form opens prefilled from it **[auto]** |
 | DA.12 | A day where something is hidden | Hidden cards absent; long-press drag does nothing |
-| DA.13 | Airplane mode, open a day | 無法載入紀錄, no crash |
+| DA.13 | Airplane mode, open a day | 無法載入紀錄, no crash **[auto]** |
 | DA.14 | An Entry whose content will not decode | The card renders （無法讀取的紀錄） rather than failing. Nothing in the app can make one, so the unit tests cover it: skip by hand |
 | DA.15 | Airplane mode, long-press and drag a card | 排序失敗，請再試一次, and the order returns to what the server holds **[API]** **[auto]** |
 | DA.16 | Tap the floating 今天 | The view moves to today's date **[API]** **[auto]** |
@@ -302,14 +302,14 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.2 | Tap the date row | The picker sheet opens on that month, the day marked |
 | EF.3 | Step the picker's months | Both directions; today wears its mark only in its own month |
 | EF.4 | Pick a day | Sheet closes, the date row updates |
-| EF.5 | Tap the scrim | Closes without changing the date |
+| EF.5 | Tap the scrim | Closes without changing the date **[auto]** |
 | EF.6 | Before choosing a Category | Only the search field and Category list show; no title or note |
 | EF.7 | Type in the search field | The list filters live **[auto]** |
 | EF.8 | Type a name nothing matches | A 建立「…」 row appears above the pinned 新增類別 row |
 | EF.9 | Tap either creation row | The full Category editor opens, prefilled with what you typed |
 | EF.10 | Save from that editor | The editor closes and the new Category is selected into the form **[API]** **[auto]** |
 | EF.11 | Pick a Category | Its row collapses; title, note, and the photo grid appear |
-| EF.12 | Tap the collapsed Category row | Deselects, returning to the list |
+| EF.12 | Tap the collapsed Category row | Deselects, returning to the list **[auto]** |
 | EF.13 | Subcategory pills | One per child, dots in the parent's color |
 | EF.14 | Tap a pill, tap it again | Selects, then deselects |
 | EF.15 | Tap + in the pill row | A field opens, with no 建立 beside it; the keyboard's return key reads 完成 **[auto]** |
@@ -332,17 +332,17 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.32 | Editing: change the Category | Saves; the dot color changes on the grid **[API]** |
 | EF.33 | **Editing: change the date, save** | The Entry leaves its day and appears on the target day, last in order **[API]** **[auto]** |
 | EF.35 | 刪除紀錄, confirm | The Entry and its dot are gone **[API]** |
-| EF.36 | 取消 with unsaved edits | Returns without saving |
+| EF.36 | 取消 with unsaved edits | Returns without saving **[auto]** |
 | EF.37 | Airplane mode, 儲存 | 儲存失敗，請再試一次; the form keeps everything |
 | EF.38 | A restored Draft whose photo files the OS purged | 部分照片已無法讀取, and a retry saves what survives **[auto]** |
 | EF.39 | Choose 從相簿選擇 on a fresh install | The photo picker opens straight away, with no permission prompt: iOS's picker needs none |
-| EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
+| EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists **[auto]** |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** **[auto]** |
 | EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
 | EF.43 | Attach a 48MP HEIF portrait from a Pro iPhone (Settings → Camera → Formats → Resolution Control, then 48MP in the camera) | It appears in the grid. Before #87 the picker closed and nothing was added |
 | EF.44 | Tap the ✕ on a Photo of a saved Entry | Confirmation, then it goes **[API]** **[auto]** |
 | EF.45 | Open an Entry whose title is 41–80 characters (72 is the PM's longest), change only the note, save, reopen | The title is intact, not cut to 40 **[API]** |
-| EF.46 | With a Subcategory pill selected, tap +, type a new name, leave the field, save | The typed pill replaces the selected one; the new Subcategory is created and refines the Entry **[API]** |
+| EF.46 | With a Subcategory pill selected, tap +, type a new name, leave the field, save | The typed pill replaces the selected one; the new Subcategory is created and refines the Entry **[API]** **[auto]** |
 | EF.47 | Tap a photo, saved or just attached | The viewer opens on that photo; nothing is removed. Where the tile stops and the ✕ begins is EF.49 **[auto]** |
 | EF.48 | Long-press-drag a photo to another place, then tap it | It moves, and the viewer opens on the photo tapped, not on the one that sat there before |
 | EF.49 | Tap just below, or just left of, a ✕ (about a ✕'s width off it) | Removes, as the ✕ does: it answers across the tile's 44pt corner. A tap further into the tile opens the viewer |
@@ -420,7 +420,7 @@ is about scrolling rather than paging.
 | YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now **[auto]** |
 | YR.17 | There is no back button and no chevrons | Correct; scrolling, the title and a month tap are the navigation **[auto]** |
 | YR.18 | Tap the 類別 (tag) icon | The visibility sheet opens |
-| YR.20 | Airplane mode | Mini months render empty, no crash |
+| YR.20 | Airplane mode | Mini months render empty, no crash **[auto]** |
 | YR.21 | From a month in a past year, tap ‹ and its year | The ribbon opens on **that month**, not that year's January and not this year **[auto]** |
 | YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
 | YR.23 | Scroll, then stop | 今天 fades out while moving and returns when the ribbon settles |
@@ -457,14 +457,14 @@ deliberately unchanged until testers say whether it matters. Not a YR failure.
 | CS.10 | Tap ✎ on any row | The editor opens for it **[auto]** |
 | CS.11 | Tap 新增類別 | The editor opens in create mode **[auto]** |
 | CS.12 | 完成 or the scrim | Closes; changes already applied |
-| CS.13 | Reopen after closing | The same visibility state |
-| CS.14 | The sheet with every Category deleted | Only 新增類別; no empty tree, no error |
+| CS.13 | Reopen after closing | The same visibility state **[auto]** |
+| CS.14 | The sheet with every Category deleted | Only 新增類別; no empty tree, no error **[auto]** |
 | CS.15 | Type a Category's name in the search field | Only that Category's family remains **[auto]** |
 | CS.16 | Type a Subcategory's name | Its parent stays as context; the parent's other children drop **[auto]** |
-| CS.17 | Clear the field | The whole tree returns, visibility unchanged |
-| CS.18 | Type something nothing matches | Only the pinned 新增類別 row remains |
+| CS.17 | Clear the field | The whole tree returns, visibility unchanged **[auto]** |
+| CS.18 | Type something nothing matches | Only the pinned 新增類別 row remains **[auto]** |
 | CS.19 | While filtered, tap a parent row | The whole family toggles, including members the search is hiding **[auto]** |
-| CS.20 | While filtered, 全部隱藏 | Acts on every Category, not just the matches |
+| CS.20 | While filtered, 全部隱藏 | Acts on every Category, not just the matches **[auto]** |
 | CS.21 | Type a name, then 新增類別 | The editor opens with that name already in the field **[auto]** |
 
 Keyboard cases are in **KB**.
@@ -475,12 +475,12 @@ Keyboard cases are in **KB**.
 | --- | --- | --- |
 | CE.1 | Open in create mode | Name focused, the preview icon beside it |
 | CE.2 | Type a name | The preview updates live |
-| CE.3 | Empty name | 儲存 disabled |
+| CE.3 | Empty name | 儲存 disabled **[auto]** |
 | CE.4 | Tap the 上層分類 row | The list swaps in for the summary row **[auto]** |
 | CE.5 | Pick a parent | The list collapses, the choice marked ✓ |
-| CE.6 | Pick 無 | Collapses back to an independent Category |
+| CE.6 | Pick 無 | Collapses back to an independent Category **[auto]** |
 | CE.7 | With a parent chosen | The color and icon blocks render disabled, with the inherit note |
-| CE.8 | Editing an existing Category | The parent row is not tappable — parenthood is fixed |
+| CE.8 | Editing an existing Category | The parent row is not tappable — parenthood is fixed **[auto]** |
 | CE.9 | Tap a preset color | Selected with a ring; the preview follows |
 | CE.10 | Scroll the icon grid | Scrolls inside its card, not the sheet |
 | CE.11 | Tap an icon | It becomes the selection **[auto]** |
@@ -491,7 +491,7 @@ Keyboard cases are in **KB**.
 | CE.16 | An unused Category | 刪除類別 offered; deleting removes it **[API]** **[auto]** |
 | CE.17 | A Category with Entries | No delete; the in-use explanation instead **[API]** |
 | CE.18 | A Category with children | No delete; the children explanation instead **[API]** |
-| CE.20 | Airplane mode, save | 儲存失敗，請再試一次; nothing lost |
+| CE.20 | Airplane mode, save | 儲存失敗，請再試一次; nothing lost **[auto]** |
 | CE.21 | Change the color after choosing an icon | The chosen cell takes the new color; the icon stays chosen **[auto]** |
 | CE.22 | With a parent chosen, the dimmed icon grid | The inherited glyph is still identifiable, filled in the parent's color **[auto]** |
 
@@ -540,10 +540,10 @@ Keyboard cases are in **KB**.
 | ST.4 | Pick 繁體中文 | The UI switches immediately; the row's value updates |
 | ST.5 | Pick English | Same, in the other direction |
 | ST.6 | Pick 系統預設 | Follows the phone again |
-| ST.7 | After switching | Entry titles and Category names are untouched |
+| ST.7 | After switching | Entry titles and Category names are untouched **[auto]** |
 | ST.8 | Relaunch after switching | The choice survived **[auto]** |
 | ST.10 | 刪除帳號 | Confirmation naming the 30-day grace **[auto]** |
-| ST.11 | Cancel it | Nothing happens |
+| ST.11 | Cancel it | Nothing happens **[auto]** |
 | ST.15 | 登出 from the deactivated screen | Sign-in screen; signing back in returns to the gate **[API]** |
 | ST.16 | Deactivate on one device, use the app on another | The second device meets the gate **[API]** **[auto]** |
 | ST.17 | Deactivate on a second device while this one sits open, then act here | The next request meets the gate rather than failing oddly **[API]** |
@@ -575,7 +575,7 @@ already translate. Not a failure.
 | VI.9 | Change visibility on the year view, return to the month | Both agree **[API]** |
 | VI.10 | Force-quit with something hidden, relaunch | The hidden-set survived |
 | VI.11 | Create a Category while something is hidden | Born visible **[auto]** |
-| VI.12 | Delete a hidden Category | Nothing breaks; the stale id is harmless |
+| VI.12 | Delete a hidden Category | Nothing breaks; the stale id is harmless **[auto]** |
 | VI.13 | Hide a Category from the day view's 類別 sheet | Its cards leave the day at once, without closing the day **[auto]** |
 | VI.14 | Return to the month, then the year view | Both agree with the hide made on the day view, no relaunch **[API]** **[auto]** |
 
@@ -687,8 +687,10 @@ the tag.
 | J5.3 | `screens/DayScreen.drafts.test.tsx`, `AppRoot.test.tsx` |
 | J6.1 | `AppRoot.test.tsx` |
 | SI.6 | `screens/SignInScreen.test.tsx` |
+| SI.7 | `screens/SignInScreen.test.tsx` |
 | SI.8 | `screens/SignInScreen.test.tsx` |
 | SI.9 | `screens/SignInScreen.test.tsx` |
+| SI.11 | `screens/SignInScreen.test.tsx` |
 | MO.1 | `screens/MonthScreen.test.tsx`, `AppRoot.test.tsx` |
 | MO.2 | `screens/MonthScreen.test.tsx` |
 | MO.3 | `screens/MonthScreen.test.tsx` |
@@ -696,12 +698,16 @@ the tag.
 | MO.5 | `screens/MonthScreen.test.tsx` |
 | MO.9 | `screens/MonthScreen.test.tsx` |
 | MO.10 | `screens/MonthScreen.test.tsx` |
+| MO.11 | `screens/MonthScreen.test.tsx` |
 | MO.15 | `screens/MonthScreen.test.tsx` |
 | MO.16 | `screens/MonthScreen.test.tsx` |
 | MO.17 | `screens/MonthScreen.test.tsx`, `AppRoot.test.tsx` |
 | MO.18 | `screens/MonthScreen.test.tsx`, `AppRoot.test.tsx` |
 | MO.19 | `screens/MonthScreen.test.tsx` |
+| MO.20 | `screens/MonthScreen.test.tsx` |
+| MO.21 | `screens/MonthScreen.test.tsx` |
 | MO.22 | `screens/MonthScreen.test.tsx` |
+| MO.23 | `screens/MonthScreen.test.tsx` |
 | MO.24 | `screens/MonthScreen.test.tsx` |
 | MO.25 | `screens/MonthScreen.test.tsx` |
 | MO.30 | `calendar/CalendarFloatingActions.test.tsx` |
@@ -715,6 +721,7 @@ the tag.
 | DA.8 | `screens/DayScreen.drafts.test.tsx` |
 | DA.9 | `screens/DayScreen.drafts.test.tsx` |
 | DA.11 | `screens/DayScreen.drafts.test.tsx`, `AppRoot.test.tsx` |
+| DA.13 | `screens/DayScreen.test.tsx` |
 | DA.15 | `screens/DayScreen.test.tsx` |
 | DA.16 | `screens/DayScreen.test.tsx` |
 | DA.22 | `screens/DayScreen.test.tsx`, `calendar/CategorySheet.test.tsx` |
@@ -728,8 +735,10 @@ the tag.
 | EV.14 | `AppRoot.test.tsx` |
 | EV.15 | `AppRoot.test.tsx` |
 | EF.1 | `screens/EntryFormScreen.test.tsx` |
+| EF.5 | `screens/EntryFormScreen.test.tsx` |
 | EF.7 | `screens/DayScreen.test.tsx` |
 | EF.10 | `screens/DayScreen.test.tsx`, `screens/EntryFormScreen.test.tsx` |
+| EF.12 | `screens/EntryFormScreen.test.tsx` |
 | EF.15 | `screens/EntryFormScreen.test.tsx` |
 | EF.16 | `screens/EntryFormScreen.test.tsx` |
 | EF.17 | `screens/EntryFormScreen.test.tsx`, `entries/save.test.ts` |
@@ -743,9 +752,12 @@ the tag.
 | EF.30 | `screens/EntryFormScreen.test.tsx` |
 | EF.31 | `screens/EntryFormScreen.test.tsx`, `entries_test.go` |
 | EF.33 | `entries_edit_test.go`, `screens/EntryFormScreen.test.tsx` |
+| EF.36 | `screens/DayScreen.test.tsx` |
 | EF.38 | `screens/DayScreen.drafts.test.tsx` |
+| EF.40 | `screens/EntryFormScreen.test.tsx` |
 | EF.41 | `screens/EntryFormScreen.test.tsx`, `screens/DayScreen.test.tsx` |
 | EF.44 | `screens/EntryFormScreen.test.tsx` |
+| EF.46 | `screens/EntryFormScreen.test.tsx` |
 | EF.47 | `screens/EntryFormScreen.test.tsx` |
 | EF.51 | `screens/EntryFormScreen.test.tsx` |
 | YR.2 | `screens/YearScreen.test.tsx`, `years_test.go` |
@@ -759,6 +771,7 @@ the tag.
 | YR.15 | `screens/YearScreen.test.tsx` |
 | YR.16 | `screens/YearScreen.test.tsx` |
 | YR.17 | `screens/YearScreen.test.tsx` |
+| YR.20 | `screens/YearScreen.test.tsx` |
 | YR.21 | `screens/YearScreen.test.tsx`, `screens/MonthScreen.test.tsx` |
 | CS.4 | `calendar/hidden.test.ts` |
 | CS.6 | `calendar/CategorySheet.test.tsx` |
@@ -766,14 +779,23 @@ the tag.
 | CS.9 | `calendar/CategorySheet.test.tsx` |
 | CS.10 | `calendar/CategorySheet.test.tsx` |
 | CS.11 | `calendar/CategorySheet.test.tsx` |
+| CS.13 | `AppRoot.test.tsx` |
+| CS.14 | `calendar/CategorySheet.test.tsx` |
 | CS.15 | `calendar/CategorySheet.test.tsx` |
 | CS.16 | `calendar/CategorySheet.test.tsx` |
+| CS.17 | `calendar/CategorySheet.test.tsx` |
+| CS.18 | `calendar/CategorySheet.test.tsx` |
 | CS.19 | `calendar/CategorySheet.test.tsx` |
+| CS.20 | `calendar/CategorySheet.test.tsx` |
 | CS.21 | `calendar/CategorySheet.test.tsx` |
+| CE.3 | `categories/CategoryEditorSheet.test.tsx` |
 | CE.4 | `categories/CategoryEditorSheet.test.tsx` |
+| CE.6 | `categories/CategoryEditorSheet.test.tsx` |
+| CE.8 | `categories/CategoryEditorSheet.test.tsx` |
 | CE.11 | `categories/CategoryEditorSheet.test.tsx` |
 | CE.12 | `categories/CategoryEditorSheet.test.tsx` |
 | CE.16 | `calendar/CategorySheet.test.tsx` |
+| CE.20 | `calendar/CategorySheet.test.tsx` |
 | CE.21 | `categories/CategoryEditorSheet.test.tsx` |
 | CE.22 | `categories/CategoryEditorSheet.test.tsx` |
 | CD.5 | `categories/ColorPresetPicker.test.tsx` |
@@ -787,8 +809,10 @@ the tag.
 | CD.20 | `colors_test.go` |
 | CD.21 | `categories/ColorDrawer.test.tsx` |
 | ST.3 | `screens/SettingsScreen.language.test.tsx` |
+| ST.7 | `AppRoot.test.tsx` |
 | ST.8 | `screens/SettingsScreen.language.test.tsx` |
 | ST.10 | `screens/SettingsScreen.test.tsx` |
+| ST.11 | `screens/SettingsScreen.test.tsx` |
 | ST.16 | `AppRoot.test.tsx`, `account_test.go` |
 | ST.18 | `screens/SettingsScreen.test.tsx` |
 | ST.19 | `screens/SettingsScreen.test.tsx` |
@@ -801,6 +825,7 @@ the tag.
 | VI.7 | `months_test.go` |
 | VI.8 | `months_test.go` |
 | VI.11 | `calendar/hidden.test.ts` |
+| VI.12 | `AppRoot.test.tsx` |
 | VI.13 | `AppRoot.test.tsx` |
 | VI.14 | `AppRoot.test.tsx` |
 | DR.4 | `screens/DayScreen.drafts.test.tsx`, `entries/save.test.ts` |

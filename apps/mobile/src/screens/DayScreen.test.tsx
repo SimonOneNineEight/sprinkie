@@ -440,3 +440,66 @@ it('opens the full 類別 sheet from the day header (#41)', async () => {
   expect(screen.getByText('健身房')).toBeTruthy();
   expect(screen.getByText('新增類別')).toBeTruthy();
 });
+
+// DA.13 (#109)
+it('says 無法載入紀錄 when the day cannot load, and stays the day view', async () => {
+  api.failures.dayReads = true;
+  render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
+
+  expect(await screen.findByText('無法載入紀錄')).toBeTruthy();
+  // Not mistaken for an empty day, and the day view is still usable.
+  expect(screen.queryByText('這天沒有紀錄')).toBeNull();
+  expect(screen.getByLabelText('新增紀錄')).toBeTruthy();
+  expect(screen.getByText('8月19日 星期三')).toBeTruthy();
+});
+
+// EF.36 (#109)
+describe('取消 with unsaved edits returns without saving', () => {
+  const writes = () =>
+    api.calls().filter(([u, init]) => String(u).includes('/entries') && (init?.method === 'POST' || init?.method === 'PATCH'));
+
+  it('a new Entry', async () => {
+    render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
+    fireEvent.press(await screen.findByLabelText('新增紀錄'));
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晚上打籃球');
+    fireEvent.changeText(screen.getByPlaceholderText('備註（選填）'), '和同事');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+
+    expect(screen.queryByPlaceholderText('標題')).toBeNull();
+    expect(await screen.findByText('這天沒有紀錄')).toBeTruthy();
+    expect(screen.queryByText('晚上打籃球')).toBeNull();
+    // Nor kept as a Draft: 取消 is a decision, not a failed save.
+    expect(screen.queryByText('尚未儲存')).toBeNull();
+    expect(writes()).toEqual([]);
+  });
+
+  it('an existing Entry', async () => {
+    listedEntries = api.world.entries['2026-08-19'] = dayEntriesFixture();
+    render(<DayScreen accessToken="tok" categories={categories} date="2026-08-19" />);
+    const card = await screen.findByText('晨跑');
+    await act(async () => {
+      fireEvent.press(card);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    fireEvent.changeText(screen.getByPlaceholderText('備註（選填）'), '橋下');
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+
+    // Back on the Entry view it was opened from, unchanged (EV.8).
+    expect(screen.queryByPlaceholderText('標題')).toBeNull();
+    expect(screen.getByText('編輯')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    expect(screen.queryByText('夜跑')).toBeNull();
+    expect(screen.queryByText('橋下')).toBeNull();
+    expect(writes()).toEqual([]);
+  });
+});

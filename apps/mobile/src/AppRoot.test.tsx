@@ -10,12 +10,14 @@ import { ActionSheetIOS, Alert } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
-import { saveHidden } from './calendar/hidden';
+import { loadHidden, saveHidden } from './calendar/hidden';
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
+import { AppLanguageProvider } from './i18n/AppLanguageProvider';
 import { processPhoto } from './photos/processPhoto';
 import { saveDraft } from './entries/drafts';
 import { cat } from './testing/fixtures';
+import { isHollowRow } from './testing/isHollowRow';
 import { installMockApi, type MockApi } from './testing/mockApi';
 import { ribbonSpan, rowOfMonth } from './calendar/ribbon';
 import { AppRoot } from './AppRoot';
@@ -867,5 +869,158 @@ describe('the Entry view (#119)', () => {
     });
     expect(await screen.findByText('夜跑')).toBeTruthy();
     expect(screen.getByText('1 / 1')).toBeTruthy();
+  });
+});
+
+// The manual pass's cases that need no device (#109), where the state they
+// are about lives above any one screen.
+describe('the manual pass, without a device (#109)', () => {
+  const today = new Date();
+  const date = localDateString(today);
+  const entry = (id: string, position: number, categoryId: string, title: string) => ({
+    id, date, position, categoryId, authorId: 'u1', content: encodeContent({ title, note: '' }),
+  });
+
+  /** Signs in on a world whose today holds 寫程式 (工作) and 晨跑 (運動), on the month view. */
+  const signIn = async (tree: React.ReactElement = <AppRoot />) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    api = installMockApi({
+      me: {
+        userId: 'u1',
+        journalId: 'j1',
+        categories: [
+          { ...cat.work, inUse: true, hasChildren: false },
+          { ...cat.sport, inUse: true, hasChildren: false },
+          { ...cat.food, inUse: false, hasChildren: false },
+        ],
+      },
+      entries: { [date]: [entry('e1', 1, 'c-work', '寫程式'), entry('e2', 2, 'c-sport', '晨跑')] },
+      monthDays: { [date.slice(0, 7)]: [{ date, categoryIds: ['c-work', 'c-sport'] }] },
+      years: { [date.slice(0, 4)]: { days: [{ date, categoryId: 'c-work' }], totalEntries: 2 } },
+    });
+    render(tree);
+    expect(await screen.findByText('寫程式')).toBeTruthy();
+  };
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    // The language override and the hidden-set persist; neither may leak.
+    await AsyncStorage.clear();
+  });
+
+  // CS.13
+  it('reopens the 類別 sheet in the visibility state it was closed in', async () => {
+    await signIn();
+
+    fireEvent.press(screen.getByLabelText('類別'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('運動'));
+    });
+    fireEvent.press(screen.getByText('完成'));
+    expect(screen.queryByText('全部隱藏')).toBeNull();
+
+    fireEvent.press(screen.getByLabelText('類別'));
+    expect(isHollowRow('運動')).toBe(true);
+    expect(isHollowRow('工作')).toBe(false);
+    expect(isHollowRow('美食')).toBe(false);
+    expect(screen.getByText('全部隱藏')).toBeTruthy();
+  });
+
+  // VI.12
+  it('deletes a hidden Category without anything breaking', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    await signIn();
+    const reads = (path: string) =>
+      api.calls().map(([u]) => String(u)).filter((u) => u.includes(path));
+
+    // Hide 美食, then delete it from its editor while it is hidden.
+    fireEvent.press(screen.getByLabelText('類別'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('美食'));
+    });
+    expect(isHollowRow('美食')).toBe(true);
+    const editButtons = screen.getAllByLabelText('編輯類別');
+    fireEvent.press(editButtons[editButtons.length - 1]);
+    fireEvent.press(screen.getByText('刪除類別'));
+    const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+    const monthReadsBefore = reads('/months/').length;
+    await act(async () => {
+      destructive?.onPress?.();
+    });
+    alertSpy.mockRestore();
+    await waitFor(() => expect(screen.queryByText('美食')).toBeNull());
+
+    // The id stays behind in the hidden-set: nothing cleans it up.
+    expect((await loadHidden()).categoryIds).toEqual(['c-food']);
+
+    // It touches nothing still here: the sheet reads the rest as visible,
+    // its switches still work, and hiding the rest reads as everything.
+    expect(isHollowRow('工作')).toBe(false);
+    expect(isHollowRow('運動')).toBe(false);
+    expect(screen.getByText('全部隱藏')).toBeTruthy();
+    for (const name of ['工作', '運動']) {
+      await act(async () => {
+        fireEvent.press(screen.getByText(name));
+      });
+    }
+    expect(screen.getByText('全部顯示')).toBeTruthy();
+    for (const name of ['工作', '運動']) {
+      await act(async () => {
+        fireEvent.press(screen.getByText(name));
+      });
+    }
+    expect(isHollowRow('工作')).toBe(false);
+    fireEvent.press(screen.getByText('完成'));
+
+    // The month view asks with the stale id, is answered, and paints.
+    expect(await screen.findByText('寫程式')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    await waitFor(() => expect(reads('/months/').length).toBeGreaterThan(monthReadsBefore));
+    expect(reads('/months/').at(-1)).toContain('hiddenCategories=c-food');
+    const todayDots = () =>
+      within(
+        within(screen.getByTestId('month-page-current')).getByTestId(`day-dots-${today.getDate()}`),
+      ).queryAllByTestId('day-dot');
+    await waitFor(() => expect(todayDots()).toHaveLength(2));
+
+    // So does the year view.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('年'));
+    });
+    await screen.findByLabelText('選擇年份');
+    expect(reads('/years/').at(-1)).toContain(`/years/${today.getFullYear()}?hiddenCategories=c-food`);
+    expect(
+      await screen.findByTestId(`year-day-${today.getMonth() + 1}-${today.getDate()}`),
+    ).toHaveStyle({ backgroundColor: cat.work.color });
+  });
+
+  // ST.7
+  it('leaves Entry titles and Category names untouched when the App Language switches', async () => {
+    await signIn(
+      <AppLanguageProvider>
+        <AppRoot />
+      </AppLanguageProvider>,
+    );
+
+    fireEvent.press(screen.getByLabelText('設定'));
+    fireEvent.press(await screen.findByText('語言'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('English'));
+    });
+    expect(await screen.findByText('Settings')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Back'));
+    });
+
+    // The app speaks English; what the User wrote and named does not change.
+    expect(await screen.findByText('寫程式')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Categories'));
+    expect(screen.getByText('Hide all')).toBeTruthy();
+    for (const name of ['工作', '運動', '美食']) expect(screen.getByText(name)).toBeTruthy();
   });
 });

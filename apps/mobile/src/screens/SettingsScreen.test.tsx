@@ -88,3 +88,26 @@ it('deletes the account after the 30-day confirm, then signs out', async () => {
   expect(mockSignOut).toHaveBeenCalled();
   alertSpy.mockRestore();
 });
+
+// ST.11 (#109)
+it('does nothing when the delete confirmation is cancelled', async () => {
+  const alertSpy = jest.spyOn(Alert, 'alert');
+  const onBack = jest.fn();
+  renderSettings({ onBack });
+
+  fireEvent.press(screen.getByText('刪除帳號'));
+  const buttons = alertSpy.mock.calls[0][2] ?? [];
+  const cancel = buttons.find((b) => b.style === 'cancel');
+  expect(cancel).toBeTruthy();
+  await act(async () => {
+    cancel?.onPress?.();
+  });
+
+  expect(api.calls().filter(([, init]) => init?.method === 'DELETE')).toEqual([]);
+  expect(mockSignOut).not.toHaveBeenCalled();
+  expect(onBack).not.toHaveBeenCalled();
+  // Still on 設定, the account as it was.
+  expect(screen.getByText('simon@wlog.local')).toBeTruthy();
+  expect(screen.getByText('刪除帳號')).toBeTruthy();
+  alertSpy.mockRestore();
+});

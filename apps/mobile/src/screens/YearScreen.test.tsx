@@ -280,3 +280,37 @@ it('offers no +, having no day to create into (#50)', () => {
 
   expect(screen.queryByLabelText('新增紀錄')).toBeNull();
 });
+
+// A proxy for YR.14, which stays a device check: the position it means is
+// the real scroll offset, which jest never has. This only shows the scrim
+// asks the ribbon to scroll nowhere.
+it('closes the wheel on a scrim tap and leaves the ribbon where it was', () => {
+  const scrollToIndex = jest.spyOn(FlatList.prototype, 'scrollToIndex').mockImplementation(() => {});
+  renderScreen();
+
+  fireEvent.press(screen.getByLabelText('選擇年份'));
+  expect(screen.getByTestId('year-wheel')).toBeTruthy();
+  fireEvent.press(screen.getByLabelText('取消'));
+
+  expect(screen.queryByTestId('year-wheel')).toBeNull();
+  expect(scrollToIndex).not.toHaveBeenCalled();
+  expect(screen.getByText('2026年')).toBeTruthy();
+});
+
+// YR.20 (#109)
+it('renders the mini months empty when the years cannot load', async () => {
+  api.failures.yearReads = true;
+  renderScreen();
+
+  // A failed read paints nothing, so there is nothing to wait for on screen:
+  // wait for 2026's read, then let its failure settle.
+  await waitFor(() => expect(api.calls().some(([u]) => String(u).includes('/years/2026'))).toBe(true));
+  await act(async () => {});
+  // The months are all there, with no day boxed in any of them.
+  for (let month = 1; month <= 12; month += 1) {
+    expect(screen.getAllByLabelText(`${month}月`).length).toBeGreaterThan(0);
+  }
+  expect(screen.queryByTestId('year-day-8-2')).toBeNull();
+  expect(screen.queryByTestId('year-day-3-15')).toBeNull();
+  expect(screen.getByText('2026年')).toBeTruthy();
+});
