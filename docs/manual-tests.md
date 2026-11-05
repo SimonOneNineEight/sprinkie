@@ -570,6 +570,7 @@ Keyboard cases are in **KB**.
 | ST.28 | 連結, then close the Apple or Google sheet | Nothing changes; no error line **[auto]** |
 | ST.29 | Apple row, 連結, choose Hide My Email on the sheet | The row turns 已連結; 登出, then Sign in with Apple opens this journal, though the relay address matches no account's email |
 | ST.30 | Signed out, Sign in with Google using the address of an existing email account whose address is confirmed | Lands in that account's journal, not a new one; its 設定 shows Google 已連結 |
+| ST.31 | Airplane mode, open 設定; then airplane mode off, tap 重試 | Under the 連結帳戶 card, 無法載入連結狀態 and 重試, with neither 已連結 nor 連結 on a row; after 重試, each row shows its state and the line is gone **[auto]** |
 
 **ST.1 after Sign in with Apple** may show an `@privaterelay.appleid.com`
 address: the User chose Hide My Email, and that relay is their account email.
@@ -852,6 +853,7 @@ the tag.
 | ST.24 | `screens/SettingsScreen.test.tsx` |
 | ST.25 | `screens/SettingsScreen.test.tsx` |
 | ST.28 | `screens/SettingsScreen.test.tsx` |
+| ST.31 | `screens/SettingsScreen.test.tsx` |
 | VI.1 | `months_test.go` |
 | VI.2 | `AppRoot.test.tsx` |
 | VI.3 | `AppRoot.test.tsx` |
