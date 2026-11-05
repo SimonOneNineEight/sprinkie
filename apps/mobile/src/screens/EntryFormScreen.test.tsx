@@ -3,10 +3,12 @@
 // safe-area mock let both render in jest, as in PhotoViewer.test.tsx.
 import 'react-native-gesture-handler/jestSetup';
 import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { ActionSheetIOS, Alert, Linking, StyleSheet, TextInput, type TextStyle } from 'react-native';
 
 import { encodeContent } from '../entries/content';
+import { listDrafts } from '../entries/drafts';
 import { cat } from '../testing/fixtures';
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { installMockApi, type MockApi } from '../testing/mockApi';
@@ -49,6 +51,20 @@ const categoryPosts = () =>
     .calls()
     .filter(([u, init]) => String(u).includes('/categories') && init?.method === 'POST')
     .map((call) => lastBody(call));
+
+// The original the viewer opened on: the pager starts at the tapped index.
+// Read from the pager's props, a departure from #45's testing rule like
+// expectSingleLineField's: jest renders no image to look at.
+const openedOn = () => {
+  const pager = screen.getByTestId('photo-viewer-pager');
+  return pager.props.data[pager.props.initialScrollIndex].uri;
+};
+
+// Moves fake time on, and lets whatever it sets off render.
+const wait = (ms: number) =>
+  act(async () => {
+    jest.advanceTimersByTime(ms);
+  });
 
 function renderForm(overrides: Partial<React.ComponentProps<typeof EntryFormScreen>> = {}) {
   return render(
@@ -477,15 +493,18 @@ describe('photos (#44)', () => {
       jest.mocked(ImagePicker.launchImageLibraryAsync).mockReset();
     });
 
-    const pressAddFromLibrary = async () => {
+    const pressAddTile = async () => {
       jest
         .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
         .mockImplementation((_options, choose) => choose(1));
-      // A new Entry opens on its category step; the photo grid follows it.
-      fireEvent.press(screen.getByText('運動'));
       await act(async () => {
         fireEvent.press(screen.getByTestId('grid-item-__add__'));
       });
+    };
+    const pressAddFromLibrary = async () => {
+      // A new Entry opens on its category step; the photo grid follows it.
+      fireEvent.press(screen.getByText('運動'));
+      await pressAddTile();
     };
     const pickFromLibrary = async (uris: string[]) => {
       jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
@@ -545,12 +564,8 @@ describe('photos (#44)', () => {
             act(async () => pending.get(uri)!.reject(new Error('ImageContextLostException'))),
         };
       };
-      const viewerOpenOn = () => {
-        const pager = screen.getByTestId('photo-viewer-pager');
-        return pager.props.data[pager.props.initialScrollIndex].uri;
-      };
 
-      it('shows a processing tile per picked photo, each filling in when its photo is ready', async () => {
+      it('shows a processing tile per picked photo, each filling in, in its place, when its photo is ready', async () => {
         const photos = processByHand();
         renderForm();
 
@@ -562,9 +577,12 @@ describe('photos (#44)', () => {
 
         await photos.finish('file:///b.heic');
 
+        // b was picked second, so it fills the second tile, with a still
+        // processing before it.
         expect(screen.getAllByLabelText('處理中')).toHaveLength(2);
-        fireEvent.press(screen.getByTestId('grid-item-staged:0'));
-        expect(viewerOpenOn()).toBe('file:///b.heic.full');
+        expect(within(screen.getByTestId('grid-item-staged:0')).getByLabelText('處理中')).toBeTruthy();
+        fireEvent.press(screen.getByTestId('grid-item-staged:1'));
+        expect(openedOn()).toBe('file:///b.heic.full');
       });
 
       it('ignores a tap on a processing tile, which has no ✕ to remove it', async () => {
@@ -573,7 +591,7 @@ describe('photos (#44)', () => {
         renderForm();
 
         await pickFromLibrary(['file:///a.heic']);
-        const tile = screen.getByTestId('grid-item-processing:0');
+        const tile = screen.getByTestId('grid-item-staged:0');
         fireEvent.press(tile);
 
         expect(screen.queryByTestId('photo-viewer-pager')).toBeNull();
@@ -607,11 +625,12 @@ describe('photos (#44)', () => {
           act(async () => {
             fireEvent.press(screen.getByText('儲存'));
           });
-        const wait = (ms: number) =>
-          act(async () => {
-            jest.advanceTimersByTime(ms);
-          });
         const presignedCount = () => lastBody(api.find('POST', '/photos/presign'))?.count;
+        // The Photos the Entry was given, as registered against it.
+        const registered = () =>
+          lastBody(
+            api.calls().find(([u, init]) => String(u).endsWith('/photos') && init?.method === 'POST'),
+          )?.photos;
 
         it('waits for them under the overlay, then saves every one', async () => {
           const onDone = jest.fn();
@@ -630,6 +649,8 @@ describe('photos (#44)', () => {
           await photos.finish('file:///b.heic');
 
           expect(presignedCount()).toBe(2);
+          expect(registered()).toHaveLength(2);
+          expect(screen.queryByLabelText('儲存中')).toBeNull();
           expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
         });
 
@@ -651,6 +672,62 @@ describe('photos (#44)', () => {
           expect(screen.getByText('儲存失敗，請再試一次')).toBeTruthy();
           expect(screen.getAllByLabelText('移除')).toHaveLength(2);
         });
+      });
+
+      it('keeps in a failed save\'s Draft only the photos that made it', async () => {
+        // Earlier saves here leave their Drafts behind.
+        await AsyncStorage.clear();
+        api.failures.entryWrites = true;
+        const photos = processByHand();
+        renderForm();
+
+        await pickFromLibrary(['file:///a.heic', 'file:///b.heic']);
+        fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+        await act(async () => {
+          fireEvent.press(screen.getByText('儲存'));
+        });
+        await photos.finish('file:///a.heic');
+        await photos.fail('file:///b.heic');
+
+        expect(screen.getByText('儲存失敗，請再試一次')).toBeTruthy();
+        const [draft] = await listDrafts('2026-08-17');
+        expect(draft.photos).toEqual([{ fullUri: 'file:///a.heic.full', thumbUri: 'file:///a.heic.thumb' }]);
+      });
+
+      it('keeps a photo that finishes while another is dragged', async () => {
+        const photos = processByHand();
+        renderForm({ draft: draftWith(1) });
+
+        // A Draft opens on its chosen Category, so the add tile is already up.
+        jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
+          canceled: false,
+          assets: [{ uri: 'file:///a.heic', width: 6048, height: 8064 }],
+        } as ImagePicker.ImagePickerResult);
+        await pressAddTile();
+        const grid = (globalThis as { __mockGridState?: { onDragRelease?: (data: { key: string }[]) => void } })
+          .__mockGridState!;
+        // The drag picked up only the photo that was ready when it began.
+        await photos.finish('file:///a.heic');
+        await act(async () => {
+          grid.onDragRelease!([{ key: 'staged:0' }]);
+        });
+
+        expect(screen.getAllByLabelText('移除')).toHaveLength(2);
+        fireEvent.press(screen.getByTestId('grid-item-staged:1'));
+        expect(openedOn()).toBe('file:///a.heic.full');
+      });
+
+      it('says nothing of a photo that fails after the form is left', async () => {
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        const photos = processByHand();
+        const { unmount } = renderForm();
+
+        await pickFromLibrary(['file:///a.heic']);
+        fireEvent.press(screen.getByText('取消'));
+        unmount();
+        await photos.fail('file:///a.heic');
+
+        expect(alert).not.toHaveBeenCalled();
       });
 
       it('throws away the photos still processing on 取消', async () => {
@@ -703,10 +780,6 @@ describe('photos (#44)', () => {
     beforeEach(() => jest.useFakeTimers());
     afterEach(() => jest.useRealTimers());
 
-    const wait = (ms: number) =>
-      act(async () => {
-        jest.advanceTimersByTime(ms);
-      });
 
     it('never shows for a save that is done within 300ms', async () => {
       const onDone = jest.fn();
@@ -847,11 +920,6 @@ describe('photos (#44)', () => {
       content: encodeContent({ title: '拍照', note: '' }),
       photos: savedPhotos(count),
     });
-    // The original the viewer opened on: the pager starts at the tapped index.
-    const openedOn = () => {
-      const pager = screen.getByTestId('photo-viewer-pager');
-      return pager.props.data[pager.props.initialScrollIndex].uri;
-    };
 
     it('opens the viewer on a tapped saved photo and removes nothing', () => {
       const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -887,7 +955,7 @@ describe('photos (#44)', () => {
         grid.onDragRelease!([{ key: 'staged:2' }, { key: 'staged:0' }, { key: 'staged:1' }]);
       });
       // file:///0.jpg now sits second.
-      fireEvent.press(screen.getByTestId('grid-item-staged:1'));
+      fireEvent.press(screen.getByTestId('grid-item-staged:0'));
 
       expect(screen.getByText('2 / 3')).toBeTruthy();
       expect(openedOn()).toBe('file:///0.jpg');
@@ -921,7 +989,7 @@ describe('photos (#44)', () => {
       expect(screen.queryByLabelText('關閉')).toBeNull();
       expect(screen.getByText('1/3')).toBeTruthy();
       // The one left is the second photo.
-      fireEvent.press(screen.getByTestId('grid-item-staged:0'));
+      fireEvent.press(screen.getByTestId('grid-item-staged:1'));
       expect(openedOn()).toBe('file:///1.jpg');
     });
 

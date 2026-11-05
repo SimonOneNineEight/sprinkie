@@ -34,6 +34,9 @@ import { Pressable } from '../theme/press';
 import { createStyles, singleLineField, theme } from '../theme';
 import type { Theme } from '../theme';
 
+/** A photo attached in this form: its grid key, and the photo once processed (#92). */
+type StagedSlot = { key: string; photo: ProcessedPhoto | null };
+
 /**
  * How the form was left. A save carries the date the Entry was saved onto,
  * which the date row may have moved from the opened-for date (#113).
@@ -125,20 +128,34 @@ export function EntryFormScreen({
   const [failed, setFailed] = useState(false);
   const [photosFailed, setPhotosFailed] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<Photo[]>(entry?.photos ?? []);
-  const [stagedPhotos, setStagedPhotos] = useState<ProcessedPhoto[]>(draft?.photos ?? []);
+  // Photos attached here but not yet uploaded, in the grid's order. A
+  // picked photo holds its slot from the moment the picker closes and fills
+  // it once processed; until then its photo is null (#92). Keys are the
+  // slots' own, so a photo that finishes late lands in its place, wherever
+  // the others have moved.
+  const [staged, setStaged] = useState<StagedSlot[]>(() =>
+    (draft?.photos ?? []).map((photo, i) => ({ key: `staged:${i}`, photo })),
+  );
+  const nextStagedKey = useRef(draft?.photos.length ?? 0);
   // Mirrored where a save that waited on processing can read what finished
-  // meanwhile (#92), kept in step by updateStaged rather than an effect,
-  // which would run only after the next render.
-  const stagedRef = useRef(stagedPhotos);
-  const updateStaged = (next: (prev: ProcessedPhoto[]) => ProcessedPhoto[]) => {
+  // meanwhile, kept in step by updateStaged rather than an effect, which
+  // would run only after the next render.
+  const stagedRef = useRef(staged);
+  const updateStaged = (next: (prev: StagedSlot[]) => StagedSlot[]) => {
     stagedRef.current = next(stagedRef.current);
-    setStagedPhotos(stagedRef.current);
+    setStaged(stagedRef.current);
   };
-  // The grid keys of picked photos still processing, each a placeholder
-  // tile until it is ready, and the work a save waits on (#92).
-  const [processing, setProcessing] = useState<string[]>([]);
-  const nextProcessingKey = useRef(0);
+  // The processing a save waits on.
   const processingJobs = useRef(new Set<Promise<void>>());
+  // Once the form is left, a photo that fails afterwards says nothing: the
+  // User has moved on, and the alert would land on another screen.
+  const open = useRef(false);
+  useEffect(() => {
+    open.current = true;
+    return () => {
+      open.current = false;
+    };
+  }, []);
   // The OS may purge the cache files a draft's photo URIs point at; prune the
   // unreadable ones on restore so a retry saves what survives instead of
   // failing forever, and say so.
@@ -171,7 +188,7 @@ export function EntryFormScreen({
         draft.photos.filter((_, index) => !readable[index]).map((photo) => photo.fullUri),
       );
       setPhotosMissing(true);
-      updateStaged((prev) => prev.filter((photo) => !unreadable.has(photo.fullUri)));
+      updateStaged((prev) => prev.filter((slot) => slot.photo === null || !unreadable.has(slot.photo.fullUri)));
     });
     return () => {
       active = false;
@@ -223,7 +240,7 @@ export function EntryFormScreen({
       ...(subcategory !== null ? { subcategoryId: subcategory.id } : {}),
       ...(pendingName !== '' ? { pendingSubcategoryName: pendingName } : {}),
       content: encodeContent({ title: title.trim(), note }),
-      photos: stagedRef.current,
+      photos: stagedRef.current.flatMap((slot) => (slot.photo ? [slot.photo] : [])),
       draftId,
       existingEntryId: entry?.id ?? draft?.entryId ?? savedEntryId,
     });
@@ -259,12 +276,17 @@ export function EntryFormScreen({
     }
   };
 
-  const photoCount = existingPhotos.length + stagedPhotos.length + processing.length;
+  const photoCount = existingPhotos.length + staged.length;
   // One list in the grid's order, saved then staged, feeds both the grid and
-  // the viewer, so a key always opens the photo on its tile (#118).
+  // the viewer, so a key always opens the photo on its tile (#118). A slot
+  // still processing is in the grid only: there is nothing yet to view.
   const formPhotos = [
     ...existingPhotos.map((p) => ({ key: `photo:${p.id}`, thumbUri: p.thumbUrl, uri: p.url })),
-    ...stagedPhotos.map((p, i) => ({ key: `staged:${i}`, thumbUri: p.thumbUri, uri: p.fullUri })),
+    ...staged.flatMap(({ key, photo }) => (photo ? [{ key, thumbUri: photo.thumbUri, uri: photo.fullUri }] : [])),
+  ];
+  const gridPhotos = [
+    ...existingPhotos.map((p) => ({ key: `photo:${p.id}`, uri: p.thumbUrl })),
+    ...staged.map(({ key, photo }) => (photo ? { key, uri: photo.thumbUri } : { key, uri: '', processing: true })),
   ];
   const viewingIndex = formPhotos.findIndex((p) => p.key === viewingKey);
 
@@ -324,28 +346,30 @@ export function EntryFormScreen({
       // moment the picker closes, and it attaches as soon as it is ready
       // (#92). One that fails just goes, and the batch says so once.
       const jobs = result.assets.slice(0, remaining).map((asset) => {
-        const key = `processing:${nextProcessingKey.current++}`;
-        setProcessing((prev) => [...prev, key]);
+        const key = `staged:${nextStagedKey.current++}`;
+        updateStaged((prev) => [...prev, { key, photo: null }]);
         const job = processPhoto(asset)
-          .then((photo) => updateStaged((prev) => [...prev, photo]))
-          .finally(() => {
-            processingJobs.current.delete(job);
-            setProcessing((prev) => prev.filter((k) => k !== key));
-          });
+          .then(
+            (photo) => updateStaged((prev) => prev.map((slot) => (slot.key === key ? { key, photo } : slot))),
+            (error: unknown) => {
+              updateStaged((prev) => prev.filter((slot) => slot.key !== key));
+              throw error;
+            },
+          )
+          .finally(() => processingJobs.current.delete(job));
         processingJobs.current.add(job);
         return job;
       });
       const settled = await Promise.allSettled(jobs);
-      if (settled.some((s) => s.status === 'rejected')) Alert.alert(strings.photos.attachFailed);
+      if (settled.some((s) => s.status === 'rejected') && open.current) Alert.alert(strings.photos.attachFailed);
     } catch {
-      Alert.alert(strings.photos.attachFailed);
+      if (open.current) Alert.alert(strings.photos.attachFailed);
     }
   };
 
   const removeGridPhoto = (key: string) => {
     if (key.startsWith('staged:')) {
-      const index = Number(key.slice('staged:'.length));
-      updateStaged((prev) => prev.filter((_, i) => i !== index));
+      updateStaged((prev) => prev.filter((slot) => slot.key !== key));
       return;
     }
     const id = key.slice('photo:'.length);
@@ -365,11 +389,19 @@ export function EntryFormScreen({
 
   // Drag order: existing photos persist through the API; staged photos hold
   // their block after the existing ones until upload, so a cross-block drag
-  // snaps back on the next render (registration appends).
+  // snaps back on the next render (registration appends). A slot the drag
+  // did not carry, still processing or done since the drag began, keeps
+  // its place.
   const reorderGridPhotos = (keys: string[]) => {
     const existingIds = keys.filter((k) => k.startsWith('photo:')).map((k) => k.slice('photo:'.length));
-    const stagedIndexes = keys.filter((k) => k.startsWith('staged:')).map((k) => Number(k.slice('staged:'.length)));
-    updateStaged((prev) => stagedIndexes.map((i) => prev[i]));
+    const moved = keys.filter((k) => k.startsWith('staged:'));
+    updateStaged((prev) => {
+      const byKey = new Map(prev.map((slot) => [slot.key, slot]));
+      const order = moved.filter((k) => byKey.has(k));
+      const carried = new Set(order);
+      let next = 0;
+      return prev.map((slot) => (carried.has(slot.key) ? byKey.get(order[next++])! : slot));
+    });
     const currentIds = existingPhotos.map((p) => p.id);
     if (existingIds.length === currentIds.length && existingIds.some((id, i) => id !== currentIds[i])) {
       const previous = existingPhotos;
@@ -562,10 +594,7 @@ export function EntryFormScreen({
                 onChangeText={setNote}
               />
               <PhotoGrid
-                photos={[
-                  ...formPhotos.map((p) => ({ key: p.key, uri: p.thumbUri })),
-                  ...processing.map((key) => ({ key, uri: '', processing: true })),
-                ]}
+                photos={gridPhotos}
                 editable={{
                   onAdd: addPhotos,
                   onOpen: setViewingKey,

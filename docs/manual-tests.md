@@ -354,7 +354,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.55 | Attach three photos at once | A tile with a spinner holds each one's place as soon as the picker closes, and each fills in with its photo when that one is ready **[auto]** |
 | EF.56 | Tap a tile while its spinner still turns | Nothing happens, and it has no ✕ **[auto]** |
 | EF.57 | Attach photos, then tap 儲存 before every tile has filled in | 儲存中 covers the screen until they are ready and the save is done; the Entry has every photo **[API]** **[auto]** |
-| EF.58 | Save an Entry with no photos | The form closes with no 儲存中 flashing on the way **[auto]** |
+| EF.58 | Save an Entry with no photos | The form closes with no 儲存中 flashing on the way |
 | EF.59 | Attach photos, then tap 取消 while a spinner still turns | The form closes at once, and nothing is saved **[auto]** |
 
 **EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
@@ -773,7 +773,6 @@ the tag.
 | EF.55 | `screens/EntryFormScreen.test.tsx` |
 | EF.56 | `screens/EntryFormScreen.test.tsx` |
 | EF.57 | `screens/EntryFormScreen.test.tsx` |
-| EF.58 | `screens/EntryFormScreen.test.tsx` |
 | EF.59 | `screens/EntryFormScreen.test.tsx` |
 | YR.2 | `screens/YearScreen.test.tsx`, `years_test.go` |
 | YR.4 | `screens/YearScreen.test.tsx`, `calendar/ribbon.test.ts` |
