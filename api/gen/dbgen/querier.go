@@ -37,7 +37,9 @@ type Querier interface {
 	GetJournal(ctx context.Context, userID string) (string, error)
 	// The Entry, if it belongs to the signed-in User's Journal.
 	GetOwnedEntry(ctx context.Context, arg GetOwnedEntryParams) (string, error)
-	GetSchemaVersion(ctx context.Context) (int32, error)
+	// The newest migration applied, by its version prefix: what the Supabase CLI
+	// recorded, so it moves with every migration without anyone bumping it.
+	GetSchemaVersion(ctx context.Context) (int64, error)
 	InsertAccountAudit(ctx context.Context, arg InsertAccountAuditParams) error
 	// Position lands after existing siblings (same parent level). Name
 	// uniqueness per (user, parent) is enforced by the table's UNIQUE NULLS NOT

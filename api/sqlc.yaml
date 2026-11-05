@@ -2,7 +2,11 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "queries"
-    schema: "../supabase/migrations"
+    # The second entry declares the Supabase CLI's own migration history,
+    # which no migration of ours creates, so sqlc can type the health query.
+    schema:
+      - "../supabase/migrations"
+      - "schema/supabase_migrations.sql"
     gen:
       go:
         package: "dbgen"

@@ -10,12 +10,14 @@ import (
 )
 
 const getSchemaVersion = `-- name: GetSchemaVersion :one
-select schema_version from app_info
+select coalesce(max(version), '0')::bigint from supabase_migrations.schema_migrations
 `
 
-func (q *Queries) GetSchemaVersion(ctx context.Context) (int32, error) {
+// The newest migration applied, by its version prefix: what the Supabase CLI
+// recorded, so it moves with every migration without anyone bumping it.
+func (q *Queries) GetSchemaVersion(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, getSchemaVersion)
-	var schema_version int32
-	err := row.Scan(&schema_version)
-	return schema_version, err
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
