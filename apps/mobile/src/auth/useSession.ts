@@ -18,7 +18,10 @@ export function useSession(): Session | null | undefined {
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, next) => {
+    } = supabase.auth.onAuthStateChange((event, next) => {
+      // A verified 忘記密碼 code signs the client in before the new password
+      // is set (#21); the User stays on sign-in until it is (USER_UPDATED).
+      if (event === 'PASSWORD_RECOVERY') return;
       setSession(next);
     });
     return () => {
