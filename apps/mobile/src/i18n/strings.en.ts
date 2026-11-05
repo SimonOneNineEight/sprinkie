@@ -66,6 +66,8 @@ export const en: StringCatalog = {
     newPasswordTitle: 'Set a new password',
     newPasswordPlaceholder: 'New password',
     updateAndSignIn: 'Update and sign in',
+    wrongCode: 'Wrong or expired code',
+    shortPassword: 'Use at least 6 characters',
     confirmEmail: 'Tap the confirmation link in your inbox first, then come back and sign in',
     devLogin: 'Sign in with the test account (dev)',
     error: 'Sign-in failed. Please try again',

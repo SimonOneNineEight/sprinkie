@@ -91,3 +91,30 @@ it('resets a forgotten password by a typed code and signs the User in', async ()
   ]);
   expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
 });
+
+it('says a wrong or expired code is wrong, and stays on the code step', async () => {
+  // GoTrue answers a wrong code and an expired one alike: 403 otp_expired.
+  mockResults.verifyOtp = [{ data: {}, error: { code: 'otp_expired', status: 403 } }];
+  await requestResetCode();
+
+  type('驗證碼', '000000');
+  await press('下一步');
+
+  expect(screen.getByText('驗證碼錯誤或已過期')).toBeTruthy();
+  expect(screen.getByText('輸入驗證碼')).toBeTruthy();
+  expect(screen.getByPlaceholderText('驗證碼')).toBeTruthy();
+  expect(screen.queryByPlaceholderText('新密碼')).toBeNull();
+});
+
+it('asks for at least 6 characters before saving a new password', async () => {
+  await requestResetCode();
+  type('驗證碼', '123456');
+  await press('下一步');
+
+  type('新密碼', '12345');
+  await press('更新並登入');
+
+  expect(screen.getByText('密碼至少需要 6 個字元')).toBeTruthy();
+  expect(screen.getByText('設定新密碼')).toBeTruthy();
+  expect(mockCalls.map(([name]) => name)).not.toContain('updateUser');
+});

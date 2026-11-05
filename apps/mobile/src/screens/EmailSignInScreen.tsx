@@ -13,6 +13,9 @@ type Props = {
   onBack: () => void;
 };
 
+// Supabase Auth's minimum password length, the project's setting.
+const MIN_PASSWORD_LENGTH = 6;
+
 // Where the page is: the sign-in form, or a step of 忘記密碼.
 type Step = 'form' | 'resetEmail' | 'resetCode' | 'resetPassword';
 
@@ -30,25 +33,27 @@ export function EmailSignInScreen({ onBack }: Props) {
   const [newPassword, setNewPassword] = useState('');
   const [registering, setRegistering] = useState(false);
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // One request at a time; a thrown error becomes the flat error line.
+  // One request at a time; a thrown error becomes the error line. GoTrue
+  // answers a wrong code and an expired one alike, with otp_expired.
   const run = async (work: () => Promise<void>) => {
     if (busy) return;
-    setFailed(false);
+    setError(null);
     setBusy(true);
     try {
       await work();
-    } catch {
-      setFailed(true);
+    } catch (thrown) {
+      const wrongCode = (thrown as { code?: string }).code === 'otp_expired';
+      setError(wrongCode ? strings.signIn.wrongCode : strings.signIn.error);
     } finally {
       setBusy(false);
     }
   };
 
   const go = (next: Step) => {
-    setFailed(false);
+    setError(null);
     setStep(next);
   };
 
@@ -102,6 +107,10 @@ export function EmailSignInScreen({ onBack }: Props) {
   // The verified code already signed the client in; the new password is
   // what lets the app past the sign-in gate (useSession).
   const saveNewPassword = () => {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setError(strings.signIn.shortPassword);
+      return;
+    }
     void run(async () => {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
@@ -135,7 +144,7 @@ export function EmailSignInScreen({ onBack }: Props) {
       autoFocus
     />
   );
-  const errorLine = failed ? <Text style={styles.error}>{strings.signIn.error}</Text> : null;
+  const errorLine = error ? <Text style={styles.error}>{error}</Text> : null;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -195,9 +204,7 @@ export function EmailSignInScreen({ onBack }: Props) {
             {awaitingConfirm ? (
               <Text style={styles.notice}>{strings.signIn.confirmEmail}</Text>
             ) : null}
-            {failed ? (
-              <Text style={[styles.error, styles.centered]}>{strings.signIn.error}</Text>
-            ) : null}
+            {error ? <Text style={[styles.error, styles.centered]}>{error}</Text> : null}
           </>
         ) : null}
         {step === 'resetEmail' ? (

@@ -33,6 +33,8 @@ const zhTW = {
     newPasswordTitle: '設定新密碼',
     newPasswordPlaceholder: '新密碼',
     updateAndSignIn: '更新並登入',
+    wrongCode: '驗證碼錯誤或已過期',
+    shortPassword: '密碼至少需要 6 個字元',
     confirmEmail: '請先到信箱點擊確認連結，再回來登入',
     devLogin: '以測試帳號登入（開發用）',
     error: '登入失敗，請再試一次',
