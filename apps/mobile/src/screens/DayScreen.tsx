@@ -121,7 +121,8 @@ export function DayScreen({
   // went (hidden, moved, deleted elsewhere): back means the day view (#119),
   // so a later reload must not reopen it, nor a later save follow it. Set
   // during render, React's adjust-state-on-change pattern, so no frame
-  // renders with the stale id.
+  // renders with the stale id. Not an effect: that renders the stale id once
+  // first, and lint's set-state-in-effect rule rejects it.
   if (
     viewingId !== null &&
     entries !== null &&
