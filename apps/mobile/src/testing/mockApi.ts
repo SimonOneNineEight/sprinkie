@@ -26,7 +26,11 @@ export type MockEntry = {
 };
 
 export type MockWorld = {
-  /** The day lists GET /entries?date= serves; POST appends position = length + 1. */
+  /**
+   * The day lists GET /entries?date= serves, as copies; POST appends
+   * position = length + 1, PATCH edits a row in place and moves it to the
+   * end of its new date's list when the date changes, DELETE removes it.
+   */
   entries: Record<string, MockEntry[]>;
   /** Per-month day payloads keyed YYYY-MM; an unseeded month serves none. */
   monthDays: Record<string, object[]>;
@@ -100,6 +104,9 @@ export function installMockApi(
   // grid paints while the month it is looking at has no answer yet.
   let monthHold: { month?: string; promise: Promise<void>; release: () => void } | null = null;
   let yearHold: { year?: string; promise: Promise<void>; release: () => void } | null = null;
+  // Day lists too, so a suite can see what a screen shows while the day it
+  // moved to has no answer yet (#119).
+  let entriesHold: { date?: string; promise: Promise<void>; release: () => void } | null = null;
   // Storage uploads can be held the same way (#44), which is how a suite
   // sees which transfers are already in the air while none has answered,
   // and what the form shows while a save is still running.
@@ -260,8 +267,13 @@ export function installMockApi(
     }
     if (u.includes('/entries')) {
       const date = u.includes('date=') ? u.split('date=')[1] : undefined;
+      if (entriesHold && (entriesHold.date === undefined || entriesHold.date === date)) {
+        await entriesHold.promise;
+      }
       const listed = date !== undefined ? (world.entries[date] ?? []) : [];
-      return ok({ entries: listed });
+      // Copies, as off the wire: a later PATCH edits the world's rows in
+      // place, which must not reach into a list the app already holds.
+      return ok({ entries: listed.map((entry) => ({ ...entry })) });
     }
     throw new Error(`unexpected fetch ${u}`);
   };
@@ -310,6 +322,21 @@ export function installMockApi(
       return release;
     },
     /**
+     * Hold day-list responses (GET /entries?date=) in flight until the
+     * returned release() is called; one date when named, otherwise all.
+     */
+    holdEntries(date?: string) {
+      let release = () => {};
+      const promise = new Promise<void>((resolve) => {
+        release = () => {
+          entriesHold = null;
+          resolve();
+        };
+      });
+      entriesHold = { ...(date !== undefined ? { date } : {}), promise, release };
+      return release;
+    },
+    /**
      * Hold every storage upload in flight until the returned release() is
      * called. restore() releases too, so a suite that fails before
      * releasing cannot leave the handler pending.
@@ -333,6 +360,7 @@ export function installMockApi(
     restore() {
       monthHold?.release();
       yearHold?.release();
+      entriesHold?.release();
       uploadHold?.release();
       globalThis.fetch = realFetch;
     },

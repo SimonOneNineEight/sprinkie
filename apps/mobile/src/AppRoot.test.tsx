@@ -5,13 +5,15 @@
 import 'react-native-gesture-handler/jestSetup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { ActionSheetIOS, Alert } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 import { saveHidden } from './calendar/hidden';
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
+import { processPhoto } from './photos/processPhoto';
 import { saveDraft } from './entries/drafts';
 import { cat } from './testing/fixtures';
 import { installMockApi, type MockApi } from './testing/mockApi';
@@ -45,6 +47,14 @@ jest.mock('./auth/supabase', () => ({
 jest.mock('react-native-safe-area-context', () =>
   jest.requireActual('react-native-safe-area-context/jest/mock').default,
 );
+
+// The Entry view's half-saved edit (#119) attaches a photo in the form.
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
+  requestCameraPermissionsAsync: jest.fn(),
+}));
+jest.mock('./photos/processPhoto', () => ({ processPhoto: jest.fn() }));
 
 jest.mock('@sentry/react-native', () => ({
   captureException: jest.fn(),
@@ -729,5 +739,133 @@ describe('the Entry view (#119)', () => {
     });
     expect(screen.queryByTestId('photo-viewer-pager')).toBeNull();
     expect(screen.getByText('編輯')).toBeTruthy();
+  });
+
+  /** From the open Entry view: 編輯, move the Entry to 工作 (hidden), 儲存. */
+  const editIntoHidden = async () => {
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.press(screen.getByText('工作'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+  };
+
+  it('stays on the day view once the viewed Entry is hidden, even when it shows again', async () => {
+    await saveHidden({ categoryIds: [cat.work.id], subcategoryIds: [] });
+    await openToday([entry('e1', 1, 'c-sport', '晨跑'), entry('e2', 2, 'c-food', '午餐')]);
+    await openCard('晨跑');
+
+    await editIntoHidden();
+    expect(await screen.findByText('午餐')).toBeTruthy();
+    expect(screen.queryByText('編輯')).toBeNull();
+
+    // Unhiding 工作 brings the card back, not the Entry view.
+    fireEvent.press(screen.getByLabelText('類別'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('工作'));
+    });
+    expect(screen.queryByText('編輯')).toBeNull();
+    fireEvent.press(screen.getByText('完成'));
+    expect(screen.getByText('晨跑')).toBeTruthy();
+  });
+
+  it("does not follow a new Entry the day view's + saved onto another date", async () => {
+    const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() === 15 ? 16 : 15);
+    await saveHidden({ categoryIds: [cat.work.id], subcategoryIds: [] });
+    await openToday([entry('e1', 1, 'c-sport', '晨跑'), entry('e2', 2, 'c-food', '午餐')]);
+    await openCard('晨跑');
+    // Back on the day view the way the view lets go of an Entry it can no
+    // longer show, rather than by ‹.
+    await editIntoHidden();
+    await screen.findByText('午餐');
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('日期'));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText(String(target.getDate())));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    // Still today's day view: a new Entry is not one the view was showing.
+    expect(await screen.findByText('午餐')).toBeTruthy();
+    expect(screen.getByText(panelLabel(today))).toBeTruthy();
+  });
+
+  it('shows what a half-finished save already wrote when the form is cancelled', async () => {
+    const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() === 15 ? 16 : 15);
+    await openToday([entry('e1', 1, 'c-sport', '晨跑')]);
+    await openCard('晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    fireEvent.press(screen.getByText('日期'));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText(String(target.getDate())));
+    });
+    jest.mocked(processPhoto).mockResolvedValue({ fullUri: 'file:///a.jpg', thumbUri: 'file:///a_t.jpg' });
+    jest.mocked(ImagePicker.launchImageLibraryAsync).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: 'file:///IMG_1.HEIC', width: 4032, height: 3024 }],
+    } as ImagePicker.ImagePickerResult);
+    const sheet = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_options, choose) => choose(1));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('grid-item-__add__'));
+    });
+    sheet.mockRestore();
+
+    // The words and the new date land; the photo upload does not.
+    api.failures.presign = true;
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    expect(screen.getByText('照片上傳失敗，請再試一次')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+
+    // The view shows the Entry as the server now holds it.
+    expect(await screen.findByText('夜跑')).toBeTruthy();
+    expect(screen.getByText(panelLabel(target))).toBeTruthy();
+    expect(screen.getByText('編輯')).toBeTruthy();
+  });
+
+  it("never shows the Entry from the day it left while its new day's list is on its way", async () => {
+    const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() === 15 ? 16 : 15);
+    await openToday([entry('e1', 1, 'c-sport', '晨跑'), entry('e2', 2, 'c-food', '午餐')]);
+    await openCard('晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('編輯'));
+    });
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    fireEvent.press(screen.getByText('日期'));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText(String(target.getDate())));
+    });
+
+    const release = api.holdEntries(localDateString(target));
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    // Today's list answers today, not the new date: nothing from it shows.
+    expect(screen.queryByText('晨跑')).toBeNull();
+    expect(screen.queryByText('1 / 2')).toBeNull();
+
+    await act(async () => {
+      release();
+    });
+    expect(await screen.findByText('夜跑')).toBeTruthy();
+    expect(screen.getByText('1 / 1')).toBeTruthy();
   });
 });

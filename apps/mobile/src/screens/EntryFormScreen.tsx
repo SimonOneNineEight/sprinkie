@@ -123,6 +123,9 @@ export function EntryFormScreen({
   // Set when photos fail after the Entry landed, so the in-session retry
   // updates that Entry instead of creating a duplicate.
   const [savedEntryId, setSavedEntryId] = useState<string | undefined>(undefined);
+  // The date those words landed on. 取消 after them is not a cancel: the
+  // server already holds the edit, so the form reports a save (#119).
+  const [wordsSavedOn, setWordsSavedOn] = useState<string | null>(null);
 
   useEffect(() => {
     if (!draft || draft.photos.length === 0) return;
@@ -210,6 +213,7 @@ export function EntryFormScreen({
       case 'photosFailed':
         // The Entry's words reached the server; retrying updates it.
         setSavedEntryId(result.entryId);
+        setWordsSavedOn(date);
         setPhotosFailed(true);
         setSaving(false);
         return;
@@ -323,6 +327,9 @@ export function EntryFormScreen({
     }
   };
 
+  const cancel = () =>
+    onDone(wordsSavedOn !== null ? { kind: 'saved', date: wordsSavedOn } : { kind: 'cancelled' });
+
   const confirmDelete = () => {
     if (!entry) return;
     Alert.alert(strings.entryForm.deleteConfirmTitle, undefined, [
@@ -359,7 +366,7 @@ export function EntryFormScreen({
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" style={styles.headerSide} onPress={() => onDone({ kind: 'cancelled' })}>
+        <Pressable accessibilityRole="button" style={styles.headerSide} onPress={cancel}>
           <Text style={styles.cancelLabel}>{strings.entryForm.cancel}</Text>
         </Pressable>
         <View style={styles.headerCenter}>

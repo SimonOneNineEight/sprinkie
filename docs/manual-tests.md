@@ -285,6 +285,9 @@ lines and three photos.
 | EV.10 | Tap the second of three photos, then ✕ | The viewer opens on that photo and reads 2 / 3; ✕ returns to the Entry view **[auto]** |
 | EV.11 | In the viewer, swipe between photos | The photos page; the Entry behind does not change |
 | EV.12 | ‹, then ‹ again | The day view, then the month view on that day |
+| EV.13 | Open an Entry saved before #44 with more than three photos | Every photo shows, wrapping onto further rows of three equal squares; nothing scrolls sideways |
+| EV.14 | 編輯, move the Entry to a hidden Category, 儲存; then show that Category again from the day view's 類別 sheet | The day view, and it stays there: the card comes back, the Entry view does not reopen by itself **[auto]** |
+| EV.15 | 編輯, change the title and the date, attach a photo; airplane mode on just as 儲存 sends the photo, then 取消 | The Entry view shows the new title on the new date, as the server holds it **[API]** **[auto]** |
 
 **EV.4 never crosses days** on purpose: a swipe past the day's last Entry
 would make the Entry view a fourth surface applying Hidden, which is ADR
@@ -709,6 +712,8 @@ the tag.
 | EV.8 | `AppRoot.test.tsx` |
 | EV.9 | `AppRoot.test.tsx` |
 | EV.10 | `AppRoot.test.tsx` |
+| EV.14 | `AppRoot.test.tsx` |
+| EV.15 | `AppRoot.test.tsx` |
 | EF.1 | `screens/EntryFormScreen.test.tsx` |
 | EF.7 | `screens/DayScreen.test.tsx` |
 | EF.10 | `screens/DayScreen.test.tsx`, `screens/EntryFormScreen.test.tsx` |

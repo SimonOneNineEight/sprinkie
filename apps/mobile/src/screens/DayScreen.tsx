@@ -68,7 +68,12 @@ export function DayScreen({
   onChangeHidden,
 }: Props) {
   const strings = useStrings();
-  const [entries, setEntries] = useState<Entry[] | null>(null);
+  // A loaded list carries the date it answers, as the month's dots carry
+  // their request (#40): after a swipe or a move (#119) the last day's list
+  // must not stand in for this one, so until this date answers, nothing is
+  // loaded.
+  const [loaded, setLoaded] = useState<{ date: string; entries: Entry[] } | null>(null);
+  const entries = loaded?.date === date ? loaded.entries : null;
   const [failed, setFailed] = useState(false);
   const [reorderFailed, setReorderFailed] = useState(false);
   const [composing, setComposing] = useState(false);
@@ -90,7 +95,7 @@ export function DayScreen({
     listEntries(accessToken, date)
       .then((result) => {
         if (active) {
-          setEntries(result.entries);
+          setLoaded({ date, entries: result.entries });
           setFailed(false);
         }
       })
@@ -111,6 +116,19 @@ export function DayScreen({
       active = false;
     };
   }, [date, refresh]);
+
+  // The Entry view lets go of an Entry this day no longer shows, however it
+  // went (hidden, moved, deleted elsewhere): back means the day view (#119),
+  // so a later reload must not reopen it, nor a later save follow it. Set
+  // during render, React's adjust-state-on-change pattern, so no frame
+  // renders with the stale id.
+  if (
+    viewingId !== null &&
+    entries !== null &&
+    !entries.some((entry) => entry.id === viewingId && entryIsVisible(entry, hidden))
+  ) {
+    setViewingId(null);
+  }
 
   const changed = () => {
     setRefresh((n) => n + 1);
@@ -138,14 +156,21 @@ export function DayScreen({
           // A failed attempt in the form may have kept a draft; success
           // cleared one. Either way this date's rows need a fresh read.
           void listDrafts(date).then(setDrafts);
-          if (outcome.kind !== 'cancelled') changed();
-          // From the Entry view (#119), a delete lands on the day view; a
-          // save or a cancel returns to the view, which a save to a new date
-          // follows: this screen moves there, so the view finds the Entry
-          // again and back lands on the day it lives on now.
-          if (outcome.kind === 'deleted') setViewingId(null);
-          if (viewingId !== null && outcome.kind === 'saved' && outcome.date !== date) {
-            onChangeDate?.(outcome.date);
+          // From the Entry view (#119), a save or a cancel returns to the
+          // view and a delete lands on the day view.
+          switch (outcome.kind) {
+            case 'saved':
+              changed();
+              // A save to a new date moves this screen there, so the view
+              // finds the Entry again and back lands on the day it lives on now.
+              if (viewingId !== null && outcome.date !== date) onChangeDate?.(outcome.date);
+              return;
+            case 'deleted':
+              changed();
+              setViewingId(null);
+              return;
+            case 'cancelled':
+              return;
           }
         }}
       />
@@ -155,7 +180,7 @@ export function DayScreen({
   const persistOrder = async (ordered: Entry[]) => {
     try {
       const result = await reorderDay(accessToken, date, ordered.map((e) => e.id));
-      setEntries(result.entries);
+      setLoaded({ date, entries: result.entries });
       setReorderFailed(false);
       onEntrySaved?.();
     } catch {
@@ -293,7 +318,7 @@ export function DayScreen({
               renderItem={renderCard}
               onDragEnd={({ data }) => {
                 if (partialDay) return; // a partial list can't define the order
-                setEntries(data);
+                setLoaded({ date, entries: data });
                 void persistOrder(data);
               }}
               containerStyle={styles.listContainer}
