@@ -122,7 +122,7 @@ func TestHealthzReportsOKWithSchemaVersion(t *testing.T) {
 	}
 	var health struct {
 		Status        string `json:"status"`
-		SchemaVersion int    `json:"schemaVersion"`
+		SchemaVersion int64  `json:"schemaVersion"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&health); err != nil {
 		t.Fatalf("decode body: %v", err)
@@ -137,14 +137,14 @@ func TestHealthzReportsOKWithSchemaVersion(t *testing.T) {
 	}
 }
 
-func newestMigrationVersion(t *testing.T) int {
+func newestMigrationVersion(t *testing.T) int64 {
 	t.Helper()
 	files, err := filepath.Glob("../../../supabase/migrations/*.sql")
 	if err != nil || len(files) == 0 {
 		t.Fatalf("no migrations found: %v", err)
 	}
 	slices.Sort(files)
-	version, err := strconv.Atoi(strings.SplitN(filepath.Base(files[len(files)-1]), "_", 2)[0])
+	version, err := strconv.ParseInt(strings.SplitN(filepath.Base(files[len(files)-1]), "_", 2)[0], 10, 64)
 	if err != nil {
 		t.Fatalf("newest migration has no version prefix: %v", err)
 	}

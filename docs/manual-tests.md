@@ -65,7 +65,7 @@ Update: <EAS update group id, or "embedded" if none has been published>
 Bundler root: <dev client only: the checkout Metro served from>
 Revision: <Cloud Run revision serving traffic, e.g. daily-wlog-api-00006-lwq>
 Device: <model>, iOS <version>
-Scope: full | [API] only
+Scope: full | Part 1 + <the sections walked>
 
 Failures: <case ids, or "none">
 ```
@@ -76,14 +76,15 @@ ever tested against the current server" has no answer.
 ## Legend
 
 **[API]** — the case crosses the network to `daily-wlog-api` or Supabase
-Storage, so a deploy can break it with the app untouched. The post-deploy pass
-is exactly these.
+Storage, so a deploy can break it with the app untouched. After a deploy,
+`pnpm smoke:api` stands in for them; they are walked by hand only in the full
+pass before a build.
 
 **[auto]** — a jest or Go test asserts the whole expected result, named in
 [Automated coverage](#automated-coverage). Only the pass before a TestFlight
-build walks these, since a native build is what the suites cannot see. An
-**[auto]** case that is also **[API]** still runs after a deploy: the suites
-never meet the deployed revision.
+build walks these, since a native build is what the suites cannot see. The
+suites never meet the deployed revision, so after a deploy an **[auto]** case
+that is also **[API]** is covered by `pnpm smoke:api`, not by its suite.
 
 **[#NN]** — a known open defect. The case states the behavior we want, it
 fails today, and ticket #NN closes it. A first run is expected to list these,

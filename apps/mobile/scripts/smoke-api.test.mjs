@@ -6,11 +6,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { SMOKE_COLORS, SMOKE_YEAR, run, smokeContent } from './smoke-api.mjs';
+import { CHECKS, SMOKE_COLORS, SMOKE_YEAR, run, smokeContent } from './smoke-api.mjs';
 
 // Just enough of the API for run() itself: the routes its guard and sweep
 // use, plus creates for the stand-in checks below.
-function fakeApi({ entries = [], categories = [], colors = [] } = {}) {
+function fakeApi({ entries = [], categories = [], colors = [], health = { status: 200, body: { status: 'ok', schemaVersion: 1, revision: 'fake-00001' } } } = {}) {
   const state = { entries: [...entries], categories: [...categories], colors: [...colors], calls: [] };
   let next = 1;
   const reply = (status, body) => ({ status, body });
@@ -18,7 +18,7 @@ function fakeApi({ entries = [], categories = [], colors = [] } = {}) {
     state.calls.push(`${method} ${path}`);
     const [route, query = ''] = path.split('?');
     let m;
-    if (method === 'GET' && route === '/health') return reply(200, { status: 'ok', schemaVersion: 1, revision: 'fake-00001' });
+    if (method === 'GET' && route === '/health') return reply(health.status, health.body);
     if (method === 'POST' && route === '/me') return reply(200, { categories: state.categories });
     if (method === 'GET' && (m = route.match(/^\/years\/(\d{4})$/))) {
       const held = state.entries.filter((e) => e.date.startsWith(m[1]));
@@ -59,6 +59,9 @@ function fakeApi({ entries = [], categories = [], colors = [] } = {}) {
   return state;
 }
 
+// Every run signs in as a smoke account unless a test says otherwise.
+const smoke = (options) => run({ email: 'simon+smoke@example.test', ...options });
+
 const starter = { id: 's1', name: '工作', color: '#4A90D9', icon: 'briefcase', position: 1 };
 
 function capture() {
@@ -81,7 +84,7 @@ test('refuses an account holding an Entry it did not make, and touches nothing',
   const fake = fakeApi({ categories: [starter], entries: [{ id: 'mine', date: '2026-10-01', categoryId: 's1', content: '{"v":1,"title":"週會"}' }] });
   const { lines, log } = capture();
   let ran = false;
-  const code = await run({ api: fake.api, log, checks: [{ name: 'x', run: async () => (ran = true) }] });
+  const code = await smoke({ api: fake.api, log, checks: [{ name: 'x', run: async () => (ran = true) }] });
   assert.equal(code, 2);
   assert.equal(ran, false);
   assert.match(lines.join('\n'), /Refusing.*1 Entry it did not make.*2026/);
@@ -92,7 +95,7 @@ test('refuses an account holding an Entry it did not make, and touches nothing',
 test('refuses an unmarked Entry even inside the smoke year', async () => {
   const fake = fakeApi({ entries: [{ id: 'mine', date: `${SMOKE_YEAR}-05-05`, categoryId: 's1', content: '{"v":1,"title":"x"}' }] });
   const { lines, log } = capture();
-  assert.equal(await run({ api: fake.api, log, checks: [] }), 2);
+  assert.equal(await smoke({ api: fake.api, log, checks: [] }), 2);
   assert.match(lines.join('\n'), /Refusing/);
   assert.equal(fake.entries.length, 1);
 });
@@ -110,7 +113,7 @@ test('sweeps what a run that died halfway left behind, before checking', async (
   const { lines, log } = capture();
   let seen;
   const look = { name: 'look', run: async () => (seen = { entries: fake.entries.length, categories: fake.categories.length }) && 'looked' };
-  assert.equal(await run({ api: fake.api, log, checks: [look] }), 0);
+  assert.equal(await smoke({ api: fake.api, log, checks: [look] }), 0);
   assert.deepEqual(seen, { entries: 0, categories: 1 });
   assert.match(lines.join('\n'), /Swept 1 Entry, 2 Categories and 1 saved colour/);
   // A saved colour the smoke run did not use is not its to forget.
@@ -127,7 +130,7 @@ test('names a failing check, still runs the rest, and cleans up after both', asy
       throw new Error('PATCH /entries/e9 answered 200 but the Entry is still on 2000-04-10');
     },
   };
-  const code = await run({ api: fake.api, log, checks: [broken, makesThings] });
+  const code = await smoke({ api: fake.api, log, checks: [broken, makesThings] });
   assert.equal(code, 1);
   const out = lines.join('\n');
   assert.match(out, /^FAIL {2}an Entry moves to another date \(EF\.33\) — PATCH \/entries\/e9 answered 200/m);
@@ -140,8 +143,38 @@ test('names a failing check, still runs the rest, and cleans up after both', asy
 test('passes with one line per check and the revision that answered', async () => {
   const fake = fakeApi({ categories: [starter] });
   const { lines, log } = capture();
-  assert.equal(await run({ api: fake.api, log, checks: [makesThings] }), 0);
+  assert.equal(await smoke({ api: fake.api, log, checks: [makesThings] }), 0);
   assert.match(lines[0], /Revision: fake-00001/);
   assert.equal(lines.filter((l) => /^(PASS|FAIL) /.test(l)).length, 2);
   assert.match(lines.join('\n'), /^PASS {2}leaves the smoke User as it found it/m);
+});
+
+test('refuses an account whose email does not say smoke, before writing anything', async () => {
+  const fake = fakeApi({ categories: [starter, { id: 'p', name: 'smoke parent', color: SMOKE_COLORS[0], position: 6 }], colors: [SMOKE_COLORS[0]] });
+  const { lines, log } = capture();
+  let ran = false;
+  const code = await run({ api: fake.api, log, email: 'pm@example.test', checks: [{ name: 'x', run: async () => (ran = true) }] });
+  assert.equal(code, 2);
+  assert.equal(ran, false);
+  assert.match(lines.join('\n'), /Refusing: pm@example\.test is not a smoke account.*contains "smoke".*you\+smoke@/);
+  assert.deepEqual(fake.calls, ['GET /health']);
+  assert.equal(fake.categories.length, 2);
+  assert.deepEqual(fake.colors, [SMOKE_COLORS[0]]);
+});
+
+test('accepts SMOKE in any case', async () => {
+  const fake = fakeApi({ categories: [starter] });
+  const { log } = capture();
+  assert.equal(await run({ api: fake.api, log, email: 'Simon+SMOKE@example.test', checks: [] }), 0);
+});
+
+test('a /health that fails is reported as a failure naming its status, not as an old revision', async () => {
+  const fake = fakeApi({ categories: [starter], health: { status: 503, body: { message: 'database unreachable' } } });
+  const { lines, log } = capture();
+  const code = await smoke({ api: fake.api, log, checks: [CHECKS[0]] });
+  assert.equal(code, 1);
+  const out = lines.join('\n');
+  assert.doesNotMatch(out, /predates/);
+  assert.match(lines[0], /Revision: unknown — \/health answered 503 \{"message":"database unreachable"\}/);
+  assert.match(out, /^FAIL {2}\/health reports the newest migration — GET \/health answered 503 \{"message":"database unreachable"\}/m);
 });
