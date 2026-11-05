@@ -177,7 +177,7 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.1 | The screen at rest | The Sprinkie wordmark, the promise 每天五分鐘，留下你的生活, provider buttons. Nothing else |
 | SI.2 | Sign in with Apple | Completes and lands on the month view **[API]** |
 | SI.3 | Cancel the Apple sheet | Returns to sign-in with **no** error message — a cancelled sheet is a decision |
-| SI.5 | Cancel the Google sheet | Returns to sign-in; an error here is acceptable, a crash is not |
+| SI.5 | Cancel the Google sheet | Returns to sign-in with **no** error message, as SI.3 does for Apple **[auto]** |
 | SI.6 | 使用電子郵件登入 | The email page opens on its own **[auto]** |
 | SI.7 | Email page, back chevron | Returns to the provider screen **[auto]** |
 | SI.8 | Email + password, 登入 | Signs in **[API]** **[auto]** |
@@ -728,6 +728,7 @@ the tag.
 | --- | --- |
 | J5.3 | `screens/DayScreen.drafts.test.tsx`, `AppRoot.test.tsx` |
 | J6.1 | `AppRoot.test.tsx` |
+| SI.5 | `screens/SignInScreen.test.tsx` |
 | SI.6 | `screens/SignInScreen.test.tsx` |
 | SI.7 | `screens/SignInScreen.test.tsx` |
 | SI.8 | `screens/SignInScreen.test.tsx` |

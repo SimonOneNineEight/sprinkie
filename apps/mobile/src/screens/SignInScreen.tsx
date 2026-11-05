@@ -56,11 +56,8 @@ export function SignInScreen() {
     setFailed(false);
     try {
       const token = await googleIdToken();
-      // A closed Google sheet still reads as a failure here, as it did
-      // before the token code moved out (#20); only Apple's is a decision.
-      if (!token) {
-        throw new Error('Google returned no id token');
-      }
+      // A closed sheet is a decision, not a failure (#130).
+      if (!token) return;
       const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token });
       if (error) throw error;
     } catch {
