@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { SignInScreen } from './SignInScreen';
@@ -354,6 +355,31 @@ describe('the back chevron steps back one step', () => {
     expect(screen.getByText('電子郵件登入')).toBeTruthy();
     expect(screen.getByText('建立帳戶')).toBeTruthy();
     expect(screen.getByDisplayValue('pm@wlog.local')).toBeTruthy();
+  });
+});
+
+// Reads the resolved style, a departure from #45's testing rule like
+// expectSingleLineField's: alignment has no text to read. The form's error
+// line was centred before #21, and every step's line matches it.
+describe('the error line is centred on every step', () => {
+  const expectCentred = (text: string) =>
+    expect(StyleSheet.flatten(screen.getByText(text).props.style).textAlign).toBe('center');
+
+  it('on the sign-in form', async () => {
+    mockResults.signInWithPassword = [{ error: { status: 400 } }];
+    openEmailPage();
+    type('電子郵件', 'pm@wlog.local');
+    type('密碼', 'wrong');
+    await press('登入');
+
+    expectCentred('登入失敗，請再試一次');
+  });
+
+  it('on a reset step', async () => {
+    mockResults.resetPasswordForEmail = [{ data: {}, error: { status: 0 } }];
+    await requestResetCode();
+
+    expectCentred('寄送失敗，請再試一次');
   });
 });
 

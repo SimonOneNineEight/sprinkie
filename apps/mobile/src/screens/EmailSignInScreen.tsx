@@ -478,5 +478,6 @@ const styles = createStyles((t) => ({
   error: {
     ...t.typography.meta,
     color: t.colors.textDestructive,
+    textAlign: 'center',
   },
 }));
