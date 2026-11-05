@@ -12,3 +12,12 @@ rules stay in one home; routing multi-megabyte media through the API would
 double bandwidth without adding a rule it needs to enforce. Swappability is
 preserved: clients only ever see URLs the API handed them, never storage
 credentials or bucket layout.
+
+## Amendment (2026-11, issue #108): /health reads the CLI's migration history
+
+`/health` reports its schema version from `supabase_migrations.schema_migrations`,
+a table owned by the Supabase CLI, not by our migrations: the one deliberate
+dependency on Supabase internals. It is the only record of which migrations
+`supabase db push` actually applied, so it moves with every migration on its
+own, where a version we kept ourselves sat at 1 and could not tell a skipped
+push from a done one. Leaving Supabase means replacing this one query.

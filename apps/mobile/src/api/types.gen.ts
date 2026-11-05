@@ -471,8 +471,13 @@ export interface components {
         Health: {
             /** @enum {string} */
             status: "ok";
-            /** @description Version read from the app_info migration baseline. */
+            /**
+             * Format: int64
+             * @description The newest migration applied to the database: the version prefix of its file in supabase/migrations/ (e.g. 20260826000000). The post-deploy smoke run (#108) compares it with the repo's newest.
+             */
             schemaVersion: number;
+            /** @description The Cloud Run revision that answered (its K_REVISION). Absent off Cloud Run. */
+            revision?: string;
         };
         SaveColorRecent: {
             /** @description Hex color (#RRGGBB) the User committed from the color drawer. Fully free per the ratified color decision; preset picks are not saved (the presets row is always visible anyway). */

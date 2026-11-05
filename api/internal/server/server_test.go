@@ -9,6 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -119,7 +122,7 @@ func TestHealthzReportsOKWithSchemaVersion(t *testing.T) {
 	}
 	var health struct {
 		Status        string `json:"status"`
-		SchemaVersion int    `json:"schemaVersion"`
+		SchemaVersion int64  `json:"schemaVersion"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&health); err != nil {
 		t.Fatalf("decode body: %v", err)
@@ -127,7 +130,51 @@ func TestHealthzReportsOKWithSchemaVersion(t *testing.T) {
 	if health.Status != "ok" {
 		t.Errorf("status = %q, want %q", health.Status, "ok")
 	}
-	if health.SchemaVersion != 1 {
-		t.Errorf("schemaVersion = %d, want 1", health.SchemaVersion)
+	// The smoke run (#108) compares against the same thing: the version
+	// prefix of the newest file in supabase/migrations/.
+	if want := newestMigrationVersion(t); health.SchemaVersion != want {
+		t.Errorf("schemaVersion = %d, want %d (the newest migration)", health.SchemaVersion, want)
+	}
+}
+
+func newestMigrationVersion(t *testing.T) int64 {
+	t.Helper()
+	files, err := filepath.Glob("../../../supabase/migrations/*.sql")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no migrations found: %v", err)
+	}
+	slices.Sort(files)
+	version, err := strconv.ParseInt(strings.SplitN(filepath.Base(files[len(files)-1]), "_", 2)[0], 10, 64)
+	if err != nil {
+		t.Fatalf("newest migration has no version prefix: %v", err)
+	}
+	return version
+}
+
+func TestHealthNamesTheRevisionServingIt(t *testing.T) {
+	health := func() map[string]any {
+		ts := httptest.NewServer(server.New(discardLogger(), testPool(t, testDatabaseURL()), auth.NewVerifier(testJWKSURL()), testStore()))
+		defer ts.Close()
+		resp, err := http.Get(ts.URL + "/health")
+		if err != nil {
+			t.Fatalf("GET /health: %v", err)
+		}
+		defer resp.Body.Close()
+		var body map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		return body
+	}
+
+	// Cloud Run sets K_REVISION on every instance; the smoke run prints it.
+	t.Setenv("K_REVISION", "daily-wlog-api-00042-abc")
+	if got := health()["revision"]; got != "daily-wlog-api-00042-abc" {
+		t.Errorf("revision = %v, want daily-wlog-api-00042-abc", got)
+	}
+	// Off Cloud Run there is no revision, and the field is absent, not "".
+	t.Setenv("K_REVISION", "")
+	if got, present := health()["revision"]; present {
+		t.Errorf("revision = %v off Cloud Run, want it absent", got)
 	}
 }

@@ -27,6 +27,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm --filter mobile test:scripts
 
   api:
     runs-on: ubuntu-latest

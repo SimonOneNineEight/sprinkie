@@ -66,7 +66,7 @@ type failingQuerier struct {
 	auditErr          error
 }
 
-func (f failingQuerier) GetSchemaVersion(context.Context) (int32, error) { return 1, nil }
+func (f failingQuerier) GetSchemaVersion(context.Context) (int64, error) { return 1, nil }
 func (f failingQuerier) GetAccountStatus(context.Context, string) (pgtype.Timestamptz, error) {
 	if f.statusDeleted {
 		return pgtype.Timestamptz{Time: time.Now(), Valid: true}, nil
