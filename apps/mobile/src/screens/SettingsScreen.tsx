@@ -1,10 +1,11 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { deactivateMe } from '../api/client';
+import { providerIdToken, type Provider } from '../auth/providerTokens';
 import { supabase } from '../auth/supabase';
 import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
@@ -152,7 +153,6 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
   );
 }
 
-type Provider = 'apple' | 'google';
 const providers: Provider[] = ['apple', 'google'];
 
 // 連結帳戶 (#20), variant A of the device prototype (ratified 2026-11-05): a
@@ -162,6 +162,7 @@ const providers: Provider[] = ['apple', 'google'];
 function LinkedAccounts() {
   const strings = useStrings();
   const [linked, setLinked] = useState<Provider[] | null>(null);
+  const [busy, setBusy] = useState<Provider | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -173,6 +174,21 @@ function LinkedAccounts() {
     };
   }, []);
 
+  // The provider's own sheet first, then Supabase links its ID token to the
+  // signed-in account.
+  const link = async (provider: Provider) => {
+    setBusy(provider);
+    try {
+      const token = await providerIdToken(provider);
+      if (!token) return;
+      const { data, error } = await supabase.auth.linkIdentity({ provider, token });
+      if (error) throw error;
+      setLinked(providersOf(data.user?.identities));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <View>
       <Text style={styles.sectionHeader}>{strings.settings.linkHeader}</Text>
@@ -183,11 +199,14 @@ function LinkedAccounts() {
             <Pressable
               key={provider}
               accessibilityRole="button"
-              disabled={linked === null || isLinked}
+              disabled={linked === null || isLinked || busy !== null}
               style={[styles.row, index < providers.length - 1 && styles.rowDivided]}
+              onPress={() => void link(provider)}
             >
               <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings[provider]}</Text>
-              {linked === null ? null : isLinked ? (
+              {busy === provider ? (
+                <ActivityIndicator size="small" color={theme.colors.iconMuted} />
+              ) : linked === null ? null : isLinked ? (
                 <Text style={styles.rowValue}>{strings.settings.linked}</Text>
               ) : (
                 <Text style={styles.rowAction}>{strings.settings.link}</Text>

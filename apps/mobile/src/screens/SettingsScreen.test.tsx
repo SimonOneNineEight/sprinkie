@@ -12,8 +12,30 @@ jest.mock('../auth/supabase', () => ({
     auth: {
       signOut: () => mockSignOut(),
       getUserIdentities: async () => ({ data: { identities: mockIdentities }, error: null }),
+      linkIdentity: (args: { provider: string; token: string }) => mockLinkIdentity(args),
     },
   },
+}));
+// Supabase links the provider's ID token to the signed-in account and hands
+// back the account with its identities.
+const mockLinkIdentity = jest.fn(async ({ provider }: { provider: string; token: string }) => {
+  mockIdentities = [...mockIdentities, { provider }];
+  return { data: { user: { identities: mockIdentities }, session: {} }, error: null as unknown };
+});
+// The two native sign-in sheets, each answering with its ID token.
+const mockAppleSignIn = jest.fn(async (_options: unknown) => ({
+  identityToken: 'apple-id-token' as string | null,
+}));
+jest.mock('expo-apple-authentication', () => ({
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  signInAsync: (options: unknown) => mockAppleSignIn(options),
+}));
+const mockGoogleSignIn = jest.fn(async () => ({
+  type: 'success',
+  data: { idToken: 'google-id-token' as string | null },
+}));
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: { configure: jest.fn(), signIn: () => mockGoogleSignIn() },
 }));
 const mockOpenBrowser = jest.fn(async (_url: string) => ({ type: 'cancel' as const }));
 jest.mock('expo-web-browser', () => ({
@@ -28,6 +50,9 @@ let api: MockApi;
 beforeEach(() => {
   mockSignOut.mockClear();
   mockIdentities = [{ provider: 'email' }];
+  mockLinkIdentity.mockClear();
+  mockAppleSignIn.mockClear();
+  mockGoogleSignIn.mockClear();
   mockOpenBrowser.mockClear();
   api = installMockApi();
 });
@@ -139,5 +164,21 @@ describe('連結帳戶 (#20)', () => {
     const google = await row('Google');
     expect(within(google).getByText('連結')).toBeTruthy();
     expect(google).toBeEnabled();
+  });
+
+  it.each([
+    ['Apple', 'apple', 'apple-id-token'],
+    ['Google', 'google', 'google-id-token'],
+  ])('links %s through its own sign-in, then shows it linked', async (name, provider, token) => {
+    await renderSettings();
+
+    await act(async () => {
+      fireEvent.press(await row(name));
+    });
+
+    expect(mockLinkIdentity).toHaveBeenCalledWith({ provider, token });
+    const linked = await row(name);
+    expect(within(linked).getByText('已連結')).toBeTruthy();
+    expect(linked).toBeDisabled();
   });
 });

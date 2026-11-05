@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { appleIdToken, googleIdToken } from '../auth/providerTokens';
 import { supabase } from '../auth/supabase';
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
@@ -41,42 +42,26 @@ export function SignInScreen() {
   const signInWithApple = async () => {
     setFailed(false);
     try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-      });
-      if (!credential.identityToken) {
-        throw new Error('Apple returned no identity token');
-      }
-      const { error } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
-      });
-      if (error) throw error;
-    } catch (error) {
+      const token = await appleIdToken();
       // A cancelled sheet is a decision, not a failure.
-      if ((error as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
-        setFailed(true);
-      }
+      if (!token) return;
+      const { error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token });
+      if (error) throw error;
+    } catch {
+      setFailed(true);
     }
   };
 
   const signInWithGoogle = async () => {
     setFailed(false);
     try {
-      const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
-      GoogleSignin.configure({
-        webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-        iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-      });
-      const result = await GoogleSignin.signIn();
-      const idToken = result.data?.idToken;
-      if (!idToken) {
+      const token = await googleIdToken();
+      // A closed Google sheet still reads as a failure here, as it did
+      // before the token code moved out (#20); only Apple's is a decision.
+      if (!token) {
         throw new Error('Google returned no id token');
       }
-      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token });
       if (error) throw error;
     } catch {
       setFailed(true);
