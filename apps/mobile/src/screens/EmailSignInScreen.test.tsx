@@ -153,3 +153,33 @@ it('asks for no code when sign-up comes back signed in, as with confirmations of
   expect(screen.queryByPlaceholderText('驗證碼')).toBeNull();
   expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
 });
+
+describe('重新寄送', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it.each([
+    ['sign-up', submitSignUp, ['resend', { type: 'signup', email: 'pm@wlog.local' }]],
+    ['reset', requestResetCode, ['resetPasswordForEmail', 'pm@wlog.local']],
+  ])('resends the %s code, then waits 30 seconds, counting down', async (_flow, reachCodeStep, resent) => {
+    await reachCodeStep();
+    const sent = mockCalls.length;
+
+    // The first email has just gone, so the wait starts at once.
+    expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
+    await press('重新寄送（30 秒）');
+    expect(mockCalls).toHaveLength(sent);
+
+    // A second at a time, with a render between, as on a device.
+    const waitASecond = () => act(() => jest.advanceTimersByTime(1000));
+    waitASecond();
+    expect(screen.getByText('重新寄送（29 秒）')).toBeTruthy();
+    for (let s = 29; s > 1; s--) waitASecond();
+    expect(screen.getByText('重新寄送（1 秒）')).toBeTruthy();
+    waitASecond();
+    await press('重新寄送');
+
+    expect(mockCalls.slice(sent)).toEqual([resent]);
+    expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
+  });
+});

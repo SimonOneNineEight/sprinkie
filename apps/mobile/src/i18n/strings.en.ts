@@ -71,6 +71,8 @@ export const en: StringCatalog = {
     confirmTitle: 'Confirm your email',
     confirmBody: (email: string) => `We sent a 6-digit code to ${email}. Enter it to finish signing up.`,
     finishSignUp: 'Finish sign-up',
+    resend: 'Resend',
+    resendIn: (seconds: number) => `Resend (${seconds}s)`,
     devLogin: 'Sign in with the test account (dev)',
     error: 'Sign-in failed. Please try again',
   },

@@ -1,5 +1,5 @@
 import { Check, ChevronLeft } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,9 @@ type Props = {
 
 // Supabase Auth's minimum password length, the project's setting.
 const MIN_PASSWORD_LENGTH = 6;
+// The wait between emailed codes, so a tap that seems to do nothing is not
+// repeated into the mailer's rate limit.
+const RESEND_COOLDOWN_SECONDS = 30;
 
 // Where the page is: the sign-in form, a step of 忘記密碼, or a sign-up
 // waiting on its emailed code.
@@ -36,6 +39,14 @@ export function EmailSignInScreen({ onBack }: Props) {
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Seconds until 重新寄送 is available again.
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const tick = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(tick);
+  }, [cooldown]);
 
   // One request at a time; a thrown error becomes the error line. GoTrue
   // answers a wrong code and an expired one alike, with otp_expired.
@@ -72,6 +83,7 @@ export function EmailSignInScreen({ onBack }: Props) {
         // session is already here and the app opens.
         if (!data.session) {
           setCode('');
+          setCooldown(RESEND_COOLDOWN_SECONDS);
           go('signUpCode');
         }
       } else {
@@ -90,7 +102,20 @@ export function EmailSignInScreen({ onBack }: Props) {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (error) throw error;
       setCode('');
+      setCooldown(RESEND_COOLDOWN_SECONDS);
       go('resetCode');
+    });
+  };
+
+  // A reset code is resent by asking for the reset again.
+  const resend = () => {
+    void run(async () => {
+      const { error } =
+        step === 'signUpCode'
+          ? await supabase.auth.resend({ type: 'signup', email: email.trim() })
+          : await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) throw error;
+      setCooldown(RESEND_COOLDOWN_SECONDS);
     });
   };
 
@@ -248,6 +273,16 @@ export function EmailSignInScreen({ onBack }: Props) {
                 {step === 'signUpCode' ? strings.signIn.finishSignUp : strings.signIn.next}
               </Text>
             </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={cooldown > 0}
+              style={[styles.link, styles.linkCentered]}
+              onPress={resend}
+            >
+              <Text style={cooldown > 0 ? styles.linkWaiting : styles.linkLabel}>
+                {cooldown > 0 ? strings.signIn.resendIn(cooldown) : strings.signIn.resend}
+              </Text>
+            </Pressable>
           </>
         ) : null}
         {step === 'resetPassword' ? (
@@ -349,10 +384,17 @@ const styles = createStyles((t) => ({
   linkEnd: {
     alignSelf: 'flex-end',
   },
+  linkCentered: {
+    alignSelf: 'center',
+  },
   linkLabel: {
     ...t.typography.meta,
     color: t.colors.textSecondary,
     textDecorationLine: 'underline',
+  },
+  linkWaiting: {
+    ...t.typography.meta,
+    color: t.colors.textQuaternary,
   },
   explain: {
     ...t.typography.note,

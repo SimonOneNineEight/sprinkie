@@ -39,6 +39,8 @@ const zhTW = {
     confirmTitle: '確認電子郵件',
     confirmBody: (email: string) => `已寄送 6 位數驗證碼至 ${email}，輸入後即完成註冊。`,
     finishSignUp: '完成註冊',
+    resend: '重新寄送',
+    resendIn: (seconds: number) => `重新寄送（${seconds} 秒）`,
     devLogin: '以測試帳號登入（開發用）',
     error: '登入失敗，請再試一次',
   },
