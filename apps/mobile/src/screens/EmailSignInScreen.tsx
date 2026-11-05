@@ -22,6 +22,8 @@ const RESEND_COOLDOWN_SECONDS = 30;
 // Where the page is: the sign-in form, a step of 忘記密碼, or a sign-up
 // waiting on its emailed code.
 type Step = 'form' | 'resetEmail' | 'resetCode' | 'resetPassword' | 'signUpCode';
+// The two kinds of emailed code, each with its own wait.
+type CodeFlow = 'reset' | 'signUp';
 
 // The email door (#20's fallback forever): its own quiet page behind the
 // sign-in screen's 使用電子郵件登入 button. One form, two modes — the toggle
@@ -39,14 +41,25 @@ export function EmailSignInScreen({ onBack }: Props) {
   const [registering, setRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // When each kind of code last went out, and to which address: the wait
+  // outlasts backing out of the step, and one flow's never holds the other.
+  const [sent, setSent] = useState<Partial<Record<CodeFlow, { email: string; at: number }>>>({});
+  const [now, setNow] = useState(() => Date.now());
+
+  const waitLeft = (flow: CodeFlow) => {
+    const last = sent[flow];
+    if (!last || last.email !== email.trim()) return 0;
+    return Math.max(0, Math.ceil((last.at + RESEND_COOLDOWN_SECONDS * 1000 - now) / 1000));
+  };
+  const codeFlow: CodeFlow = step === 'signUpCode' ? 'signUp' : 'reset';
   // Seconds until 重新寄送 is available again.
-  const [cooldown, setCooldown] = useState(0);
+  const cooldown = waitLeft(codeFlow);
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const tick = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    const tick = setTimeout(() => setNow(Date.now()), 1000);
     return () => clearTimeout(tick);
-  }, [cooldown]);
+  }, [cooldown, now]);
 
   // One request at a time; a thrown error becomes the error line, which
   // says what failed. GoTrue answers a wrong code and an expired one alike,
@@ -70,6 +83,15 @@ export function EmailSignInScreen({ onBack }: Props) {
     setStep(next);
   };
 
+  // A code just went out: start its wait and ask for it, from empty.
+  const codeSent = (flow: CodeFlow, next: Step) => {
+    const at = Date.now();
+    setSent((last) => ({ ...last, [flow]: { email: email.trim(), at } }));
+    setNow(at);
+    setCode('');
+    go(next);
+  };
+
   const submit = async () => {
     if (email.trim() === '' || password === '') return;
     await run(strings.signIn.error, async () => {
@@ -88,11 +110,7 @@ export function EmailSignInScreen({ onBack }: Props) {
         // Confirmation-required projects return a user but no session: the
         // emailed code finishes the sign-up. With confirmations off the
         // session is already here and the app opens.
-        if (!signedUp.data.session) {
-          setCode('');
-          setCooldown(RESEND_COOLDOWN_SECONDS);
-          go('signUpCode');
-        }
+        if (!signedUp.data.session) codeSent('signUp', 'signUpCode');
       } else {
         const signedIn = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (signedIn.error) throw signedIn.error;
@@ -100,26 +118,29 @@ export function EmailSignInScreen({ onBack }: Props) {
     });
   };
 
+  // Asking again inside the wait returns to the code already on its way.
   const sendResetCode = () => {
     if (email.trim() === '') return;
-    void run(strings.signIn.sendFailed, async () => {
-      const sent = await supabase.auth.resetPasswordForEmail(email.trim());
-      if (sent.error) throw sent.error;
-      setCode('');
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+    if (waitLeft('reset') > 0) {
       go('resetCode');
+      return;
+    }
+    void run(strings.signIn.sendFailed, async () => {
+      const requested = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (requested.error) throw requested.error;
+      codeSent('reset', 'resetCode');
     });
   };
 
   // A reset code is resent by asking for the reset again.
   const resend = () => {
     void run(strings.signIn.sendFailed, async () => {
-      const sent =
+      const resent =
         step === 'signUpCode'
           ? await supabase.auth.resend({ type: 'signup', email: email.trim() })
           : await supabase.auth.resetPasswordForEmail(email.trim());
-      if (sent.error) throw sent.error;
-      setCooldown(RESEND_COOLDOWN_SECONDS);
+      if (resent.error) throw resent.error;
+      codeSent(codeFlow, step);
     });
   };
 

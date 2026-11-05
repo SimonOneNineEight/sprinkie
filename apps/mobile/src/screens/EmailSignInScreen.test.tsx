@@ -233,6 +233,51 @@ describe('重新寄送', () => {
     expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
   });
 
+  const waitSeconds = (seconds: number) => {
+    for (let s = 0; s < seconds; s++) act(() => jest.advanceTimersByTime(1000));
+  };
+  const back = () => fireEvent.press(screen.getByLabelText('返回'));
+  const resetCalls = () => mockCalls.filter(([name]) => name === 'resetPasswordForEmail');
+
+  it('holds the wait when the User backs out and asks again for the same address', async () => {
+    await requestResetCode();
+    waitSeconds(10);
+    back();
+
+    await press('寄送驗證碼');
+
+    expect(resetCalls()).toHaveLength(1);
+    expect(screen.getByPlaceholderText('驗證碼')).toBeTruthy();
+    expect(screen.getByText('重新寄送（20 秒）')).toBeTruthy();
+  });
+
+  it('sends at once for another address', async () => {
+    await requestResetCode();
+    back();
+
+    type('電子郵件', 'yunchi@wlog.local');
+    await press('寄送驗證碼');
+
+    expect(resetCalls()).toEqual([
+      ['resetPasswordForEmail', 'pm@wlog.local'],
+      ['resetPasswordForEmail', 'yunchi@wlog.local'],
+    ]);
+    expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
+  });
+
+  it("does not hold a reset to a sign-up's wait", async () => {
+    await submitSignUp();
+    waitSeconds(10);
+    back();
+    fireEvent.press(screen.getByText('已有帳戶？登入'));
+    await press('忘記密碼？');
+
+    await press('寄送驗證碼');
+
+    expect(resetCalls()).toHaveLength(1);
+    expect(screen.getByText('重新寄送（30 秒）')).toBeTruthy();
+  });
+
   it('says a resend that failed to send failed to send', async () => {
     mockResults.resend = [{ data: {}, error: { status: 0 } }];
     await submitSignUp();
