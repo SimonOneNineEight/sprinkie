@@ -142,8 +142,34 @@ it('signs the verified code back out when the new password fails to save', async
     ['updateUser', { password: 'old-secret' }],
     ['signOut', { scope: 'local' }],
   ]);
+  // The verified code is spent: back to the code step, empty, and a new
+  // code can be had at once rather than after the wait.
+  expect(screen.getByText('更新密碼失敗，請再試一次')).toBeTruthy();
+  expect(screen.getByPlaceholderText('驗證碼')).toBeTruthy();
+  expect(screen.queryByDisplayValue('123456')).toBeNull();
+  expect(screen.queryByPlaceholderText('新密碼')).toBeNull();
+  await press('重新寄送');
+  expect(mockCalls.at(-1)).toEqual(['resetPasswordForEmail', 'pm@wlog.local']);
+});
+
+it('keeps an unspent code when checking it fails for another reason, so a retry reuses it', async () => {
+  // A network failure, not GoTrue's otp_expired: the code was never checked.
+  mockResults.verifyOtp = [{ data: {}, error: { status: 0 } }];
+  await reachNewPassword();
+  type('新密碼', 'new-secret');
+
+  await press('更新並登入');
+
   expect(screen.getByText('更新密碼失敗，請再試一次')).toBeTruthy();
   expect(screen.getByPlaceholderText('新密碼')).toBeTruthy();
+  expect(mockCalls.map(([name]) => name)).toEqual(['resetPasswordForEmail', 'verifyOtp']);
+
+  await press('更新並登入');
+
+  expect(mockCalls.slice(2)).toEqual([
+    ['verifyOtp', { email: 'pm@wlog.local', token: '123456', type: 'recovery' }],
+    ['updateUser', { password: 'new-secret' }],
+  ]);
 });
 
 async function submitSignUp() {

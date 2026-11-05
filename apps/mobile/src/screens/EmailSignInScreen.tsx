@@ -168,8 +168,11 @@ export function EmailSignInScreen({ onBack }: Props) {
   };
 
   // The verified code signs the client in, but useSession holds the app back
-  // until the password is saved (USER_UPDATED). A save that fails signs the
-  // code's session out again, so the old password is never left signed in.
+  // until the password is saved (USER_UPDATED). A wrong code goes back to be
+  // typed again; a check that failed otherwise never spent the code, so the
+  // step stays for a retry. A save that fails after the check signs the
+  // code's session out, so the old password is never left signed in, and
+  // the spent code is asked for anew, with no wait before the next one.
   const saveNewPassword = () => {
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setError(strings.signIn.shortPassword);
@@ -182,12 +185,15 @@ export function EmailSignInScreen({ onBack }: Props) {
         type: 'recovery',
       });
       if (verified.error) {
-        go('resetCode');
+        if (verified.error.code === 'otp_expired') go('resetCode');
         throw verified.error;
       }
       const updated = await supabase.auth.updateUser({ password: newPassword });
       if (updated.error) {
         await supabase.auth.signOut({ scope: 'local' });
+        setSent(({ reset: _spent, ...others }) => others);
+        setCode('');
+        go('resetCode');
         throw updated.error;
       }
     });
