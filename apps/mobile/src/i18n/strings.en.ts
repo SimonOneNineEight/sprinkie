@@ -82,11 +82,11 @@ export const en: StringCatalog = {
     link: 'Link',
     linkSteer: 'Already have an account? Sign in the way you did before, then link from here.',
     claimed: 'This sign-in method belongs to another account',
+    claimedHint:
+      'To link it, sign in to that account and delete it. Its sign-in methods free up 30 days after deletion.',
     linkFailed: 'Linking failed. Please try again',
     linkLoadFailed: "Couldn't load linked accounts",
     linkRetry: 'Retry',
-    claimedHint:
-      'To link it, sign in to that account and delete it. Its sign-in methods free up 30 days after deletion.',
     // 系統預設 translates with the UI; the endonyms never do.
     generalHeader: 'General',
     aboutHeader: 'About',

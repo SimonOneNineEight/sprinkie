@@ -217,6 +217,26 @@ describe('連結帳戶 (#20)', () => {
     expect(screen.queryByText('連結失敗，請再試一次')).toBeNull();
   });
 
+  it('says linking failed, not another account, when the re-read after that code fails', async () => {
+    await renderSettings();
+    mockLinkIdentity.mockResolvedValueOnce({
+      data: { user: null, session: null } as never,
+      error: new AuthApiError('Identity is already linked', 422, 'identity_already_exists'),
+    });
+    // Which of the two the code meant cannot be told without the read.
+    mockGetUserIdentities.mockRejectedValueOnce(new TypeError('Network request failed'));
+
+    await act(async () => {
+      fireEvent.press(await row('Google'));
+    });
+
+    expect(screen.getByText('連結失敗，請再試一次')).toBeTruthy();
+    expect(screen.queryByText('此登入方式已屬於另一個帳戶')).toBeNull();
+    const google = await row('Google');
+    expect(within(google).getByText('連結')).toBeTruthy();
+    expect(google).toBeEnabled();
+  });
+
   it('says linking failed when Supabase refuses for any other reason', async () => {
     mockLinkIdentity.mockResolvedValueOnce({
       data: { user: null, session: null } as never,

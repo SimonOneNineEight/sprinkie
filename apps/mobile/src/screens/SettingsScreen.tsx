@@ -163,7 +163,7 @@ function LinkedAccounts() {
   const strings = useStrings();
   const [linked, setLinked] = useState<Provider[] | null>(null);
   const [busy, setBusy] = useState<Provider | null>(null);
-  const [failure, setFailure] = useState<'claimed' | 'other' | null>(null);
+  const [failure, setFailure] = useState<'claimed' | 'failed' | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   // Bumped by 重試 to read the identities again.
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -196,7 +196,7 @@ function LinkedAccounts() {
       setLinked(providersOf(data.user?.identities));
     } catch (error) {
       if ((error as { code?: string }).code !== 'identity_already_exists') {
-        setFailure('other');
+        setFailure('failed');
         return;
       }
       // Supabase Auth gives that code both for a method on another account
@@ -207,7 +207,7 @@ function LinkedAccounts() {
         setLinked(fresh);
         if (!fresh.includes(provider)) setFailure('claimed');
       } catch {
-        setFailure('other');
+        setFailure('failed');
       }
     } finally {
       setBusy(null);
@@ -261,7 +261,7 @@ function LinkedAccounts() {
           <Text style={styles.linkError}>{strings.settings.claimed}</Text>
           <Text style={styles.linkHint}>{strings.settings.claimedHint}</Text>
         </View>
-      ) : failure === 'other' ? (
+      ) : failure === 'failed' ? (
         <View style={styles.linkNote}>
           <Text style={styles.linkError}>{strings.settings.linkFailed}</Text>
         </View>
