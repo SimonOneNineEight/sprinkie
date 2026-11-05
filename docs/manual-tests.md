@@ -21,7 +21,7 @@ Hence this document, and hence the rule about writing down the revision.
 | Trigger | Run |
 | --- | --- |
 | Before a TestFlight build | Everything |
-| After an API deploy | Every case marked **[API]**, **[auto]** ones included |
+| After an API deploy | `pnpm smoke:api` from `apps/mobile` (`docs/release.md`, Per-release). The hand-walked **[API]** cases run only in the full pass before a build |
 | After an OTA update | Part 1, then the sections the update touches, skipping **[auto]** |
 | Chasing a bug | Its section first, before touching code |
 
