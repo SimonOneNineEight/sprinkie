@@ -2,9 +2,8 @@
 // arm the app calls is implemented here once, stateful where the server is
 // (entries per date, the idempotency-key replay of #17, category creation,
 // category delete), with per-arm failure switches for the airplane-mode
-// stories. Suites
-// declare a world in installMockApi() and assert through the returned
-// helpers; nobody hand-rolls globalThis.fetch anymore.
+// stories. Suites declare a world in installMockApi() and assert through the
+// returned helpers; nobody hand-rolls globalThis.fetch anymore.
 //
 // Failure semantics mirror what the screens actually meet: entry writes,
 // presign, category writes and the month, year and day reads fail as

@@ -294,7 +294,6 @@ describe('searching the sheet (#48)', () => {
 
 // The manual pass's cases that need no device (#109).
 describe('the manual pass, without a device (#109)', () => {
-
   // CS.14
   it('shows only 新增類別 with every Category deleted, and no error', () => {
     renderSheet({ categories: [] });
