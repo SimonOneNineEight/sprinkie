@@ -11,6 +11,7 @@ import { cat } from '../testing/fixtures';
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { installMockApi, type MockApi } from '../testing/mockApi';
 import { processPhoto } from '../photos/processPhoto';
+import { theme } from '../theme';
 import { EntryFormScreen } from './EntryFormScreen';
 
 jest.mock('expo-image-picker', () => ({
@@ -209,14 +210,19 @@ describe('category step (#28)', () => {
     fireEvent.press(screen.getByLabelText('新增子類別'));
     fireEvent.changeText(screen.getByPlaceholderText('子類別'), '夜跑');
     fireEvent(screen.getByPlaceholderText('子類別'), 'blur');
-    expect(screen.getByText('夜跑')).toBeTruthy();
+    // EF.46: the typed pill takes the selection; 健身房 is only offered now.
+    const selectedPill = { borderColor: theme.colors.focusRing };
+    expect(screen.getByRole('button', { name: '夜跑' })).toHaveStyle(selectedPill);
+    expect(screen.getByRole('button', { name: '健身房' })).not.toHaveStyle(selectedPill);
 
     fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
     await act(async () => {
       fireEvent.press(screen.getByText('儲存'));
     });
-    expect(categoryPosts()).toHaveLength(1);
-    expect(postedEntry()?.subcategoryId).not.toBe('c-gym');
+    expect(categoryPosts()).toEqual([{ name: '夜跑', color: '#73B062', parentId: 'c-sport' }]);
+    // The id the Subcategory POST returned, not merely "not 健身房": an
+    // Entry saved with no Subcategory at all passed the old assertion.
+    expect(postedEntry()?.subcategoryId).toBe('c-new-1');
   });
 
   it('creates nothing when the subcategory field is whitespace or cleared', async () => {
@@ -715,5 +721,71 @@ describe('title length (#90)', () => {
     const long = '今天晚餐做了泡菜炒飯，原本都覺得很好吃，但最後吃一吃覺得荷包蛋好像臭掉了…可惡';
     fireEvent.changeText(title, long);
     expect(title.props.maxLength).toBeGreaterThanOrEqual(long.length);
+  });
+});
+
+describe('the manual pass, without a device (#109)', () => {
+  // EF.5
+  it('closes the date sheet on a scrim tap without changing the date', async () => {
+    renderForm();
+
+    fireEvent.press(screen.getByText('日期'));
+    // Browsing another month is not picking a day in it.
+    fireEvent.press(screen.getByLabelText('下個月'));
+    fireEvent.press(screen.getByLabelText('取消'));
+
+    expect(screen.queryByTestId('date-picker-sheet')).toBeNull();
+    expect(screen.getAllByText('8月17日 星期一').length).toBeGreaterThan(0);
+    await fillAndSave();
+    expect(postedEntry()?.date).toBe('2026-08-17');
+  });
+
+  // EF.12
+  it('deselects on a tap of the collapsed Category row, back to the list', () => {
+    renderForm({ categories: [...categories, { ...cat.food, position: 2 }] });
+    fireEvent.press(screen.getByText('運動'));
+    expect(screen.getByPlaceholderText('標題')).toBeTruthy();
+    expect(screen.queryByText('美食')).toBeNull();
+
+    fireEvent.press(screen.getByText('運動'));
+
+    // The list, as before any Category was chosen: no title, note or photos.
+    expect(screen.getByPlaceholderText('類別')).toBeTruthy();
+    expect(screen.getByText('運動')).toBeTruthy();
+    expect(screen.getByText('美食')).toBeTruthy();
+    expect(screen.getByText('新增類別')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('標題')).toBeNull();
+    expect(screen.queryByPlaceholderText('備註（選填）')).toBeNull();
+    expect(screen.getByRole('button', { name: '儲存' })).toBeDisabled();
+  });
+
+  // EF.40
+  it('offers only 新增類別 with every Category deleted, and 儲存 waits for one', async () => {
+    renderForm({ categories: [] });
+
+    // Beside the header's two and the date row, the one pinned row: no
+    // Category rows, and nothing that reads as an empty or failed list.
+    expect(screen.getByRole('button', { name: '取消' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /日期/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '新增類別' })).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(4);
+    const save = () => screen.getByRole('button', { name: '儲存' });
+    expect(save()).toBeDisabled();
+
+    fireEvent.press(screen.getByText('新增類別'));
+    const sheet = within(screen.getByTestId('category-editor-sheet'));
+    fireEvent.changeText(sheet.getByPlaceholderText('名稱'), '閱讀');
+    await act(async () => {
+      fireEvent.press(sheet.getByText('儲存'));
+    });
+    // One exists now, chosen into the form; 儲存 waits only for the title.
+    expect(screen.getByText('閱讀')).toBeTruthy();
+    expect(save()).toBeDisabled();
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '讀完一本書');
+    expect(save()).toBeEnabled();
+    await act(async () => {
+      fireEvent.press(save());
+    });
+    expect(postedEntry()?.categoryId).toBe('c-new-1');
   });
 });

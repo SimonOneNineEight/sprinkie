@@ -6,13 +6,14 @@ import 'react-native-gesture-handler/jestSetup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActionSheetIOS, Alert } from 'react-native';
+import { ActionSheetIOS, Alert, StyleSheet } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
 import { saveHidden } from './calendar/hidden';
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
+import { AppLanguageProvider } from './i18n/AppLanguageProvider';
 import { processPhoto } from './photos/processPhoto';
 import { saveDraft } from './entries/drafts';
 import { cat } from './testing/fixtures';
@@ -867,5 +868,141 @@ describe('the Entry view (#119)', () => {
     });
     expect(await screen.findByText('夜跑')).toBeTruthy();
     expect(screen.getByText('1 / 1')).toBeTruthy();
+  });
+});
+
+// The manual pass's cases that need no device (#109), where the state they
+// are about lives above any one screen.
+describe('the manual pass, without a device (#109)', () => {
+  const today = new Date();
+  const date = localDateString(today);
+  const entry = (id: string, position: number, categoryId: string, title: string) => ({
+    id, date, position, categoryId, authorId: 'u1', content: encodeContent({ title, note: '' }),
+  });
+
+  /** Signs in on a world whose today holds 寫程式 (工作) and 晨跑 (運動), on the month view. */
+  const signIn = async (tree: React.ReactElement = <AppRoot />) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    api = installMockApi({
+      me: {
+        userId: 'u1',
+        journalId: 'j1',
+        categories: [
+          { ...cat.work, inUse: true, hasChildren: false },
+          { ...cat.sport, inUse: true, hasChildren: false },
+          { ...cat.food, inUse: false, hasChildren: false },
+        ],
+      },
+      entries: { [date]: [entry('e1', 1, 'c-work', '寫程式'), entry('e2', 2, 'c-sport', '晨跑')] },
+    });
+    render(tree);
+    expect(await screen.findByText('寫程式')).toBeTruthy();
+  };
+
+  /** Whether a 類別 sheet row's icon is drawn hollow, as its hidden family is. */
+  const isHollow = (name: string) => {
+    let row = screen.getByText(name);
+    while (row.props.accessibilityRole !== 'button') row = row.parent!;
+    return (
+      row.findAll(
+        (node) =>
+          typeof node.type === 'string' &&
+          (StyleSheet.flatten(node.props.style) as { borderWidth?: number } | undefined)?.borderWidth === 1.5,
+      ).length > 0
+    );
+  };
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    // The language override and the hidden-set persist; neither may leak.
+    await AsyncStorage.clear();
+  });
+
+  // CS.13
+  it('reopens the 類別 sheet in the visibility state it was closed in', async () => {
+    await signIn();
+
+    fireEvent.press(screen.getByLabelText('類別'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('運動'));
+    });
+    fireEvent.press(screen.getByText('完成'));
+    expect(screen.queryByText('全部隱藏')).toBeNull();
+
+    fireEvent.press(screen.getByLabelText('類別'));
+    expect(isHollow('運動')).toBe(true);
+    expect(isHollow('工作')).toBe(false);
+    expect(isHollow('美食')).toBe(false);
+    expect(screen.getByText('全部隱藏')).toBeTruthy();
+  });
+
+  // VI.12
+  it('deletes a hidden Category without anything breaking', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    await signIn();
+
+    // Hide 美食, then delete it from its editor while it is hidden.
+    fireEvent.press(screen.getByLabelText('類別'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('美食'));
+    });
+    expect(isHollow('美食')).toBe(true);
+    const editButtons = screen.getAllByLabelText('編輯類別');
+    fireEvent.press(editButtons[editButtons.length - 1]);
+    fireEvent.press(screen.getByText('刪除類別'));
+    const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+    await act(async () => {
+      destructive?.onPress?.();
+    });
+    alertSpy.mockRestore();
+    await waitFor(() => expect(screen.queryByText('美食')).toBeNull());
+
+    // The id left behind in the hidden-set touches nothing still here: the
+    // sheet reads the rest as all visible, and its switches still work.
+    expect(isHollow('工作')).toBe(false);
+    expect(isHollow('運動')).toBe(false);
+    expect(screen.getByText('全部隱藏')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('全部隱藏'));
+    });
+    expect(screen.getByText('全部顯示')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('全部顯示'));
+    });
+    fireEvent.press(screen.getByText('完成'));
+
+    // And the month view still shows the day's Entries.
+    expect(await screen.findByText('寫程式')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+  });
+
+  // ST.7
+  it('leaves Entry titles and Category names untouched when the App Language switches', async () => {
+    await signIn(
+      <AppLanguageProvider>
+        <AppRoot />
+      </AppLanguageProvider>,
+    );
+
+    fireEvent.press(screen.getByLabelText('設定'));
+    fireEvent.press(await screen.findByText('語言'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('English'));
+    });
+    expect(await screen.findByText('Settings')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Back'));
+    });
+
+    // The app speaks English; what the User wrote and named does not change.
+    expect(await screen.findByText('寫程式')).toBeTruthy();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('Categories'));
+    expect(screen.getByText('Hide all')).toBeTruthy();
+    for (const name of ['工作', '運動', '美食']) expect(screen.getByText(name)).toBeTruthy();
   });
 });

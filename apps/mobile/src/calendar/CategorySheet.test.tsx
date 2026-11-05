@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { Alert, StyleSheet } from 'react-native';
 
 import { cat } from '../testing/fixtures';
@@ -288,5 +288,135 @@ describe('searching the sheet (#48)', () => {
 
     // The editor's own name field, not the search field still holding it.
     expect(screen.getByPlaceholderText('名稱').props.value).toBe('游泳');
+  });
+});
+
+// The manual pass's cases that need no device (#109).
+describe('the manual pass, without a device (#109)', () => {
+  /** Whether a Category row's icon is drawn hollow, as its hidden family is. */
+  const isHollow = (name: string) => {
+    let row = screen.getByText(name);
+    while (row.props.accessibilityRole !== 'button') row = row.parent!;
+    const outlined = row.findAll(
+      (node) =>
+        typeof node.type === 'string' &&
+        (StyleSheet.flatten(node.props.style) as { borderWidth?: number } | undefined)?.borderWidth === 1.5,
+    );
+    return outlined.length > 0;
+  };
+
+  // CS.14
+  it('shows only 新增類別 with every Category deleted, and no error', () => {
+    renderSheet({ categories: [] });
+
+    expect(screen.getByText('新增類別')).toBeTruthy();
+    expect(screen.queryAllByLabelText('編輯類別')).toHaveLength(0);
+    expect(screen.queryByText('儲存失敗，請再試一次')).toBeNull();
+    // The card holds the one row, not an empty tree above it.
+    const card = screen.getByText('新增類別').parent!.parent!;
+    expect(within(card).getAllByRole('button')).toHaveLength(1);
+  });
+
+  // CS.17
+  it('brings the whole tree back when the field is cleared, visibility unchanged', () => {
+    const { onChange } = renderSheet({ hidden: { categoryIds: ['c-work'], subcategoryIds: [] } });
+    expect(isHollow('工作')).toBe(true);
+
+    fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '美食');
+    expect(screen.queryByText('工作')).toBeNull();
+    fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '');
+
+    for (const name of ['工作', '運動', '健身房', '美食', '新增類別']) {
+      expect(screen.getByText(name)).toBeTruthy();
+    }
+    expect(screen.getAllByLabelText('編輯類別')).toHaveLength(4);
+    expect(isHollow('工作')).toBe(true);
+    expect(isHollow('運動')).toBe(false);
+    expect(isHollow('美食')).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // CS.18
+  it('leaves only the pinned 新增類別 row when nothing matches', () => {
+    renderSheet();
+
+    fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '天文');
+
+    expect(screen.getByText('新增類別')).toBeTruthy();
+    for (const name of ['工作', '運動', '健身房', '美食']) expect(screen.queryByText(name)).toBeNull();
+    expect(screen.queryAllByLabelText('編輯類別')).toHaveLength(0);
+  });
+
+  // CS.20
+  it('hides every Category from 全部隱藏 while filtered, not just the matches', () => {
+    const { onChange } = renderSheet();
+
+    fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '美食');
+    fireEvent.press(screen.getByText('全部隱藏'));
+
+    expect(onChange).toHaveBeenCalledWith({
+      categoryIds: ['c-work', 'c-sport', 'c-food'],
+      subcategoryIds: ['c-gym'],
+    });
+  });
+
+  // CE.20
+  describe('a save in airplane mode', () => {
+    it('keeps a new Category in the editor, says so, and saves it on retry', async () => {
+      const { onCategoriesChanged } = renderSheet();
+      api.failures.categoryWrites = true;
+
+      fireEvent.press(screen.getByText('新增類別'));
+      fireEvent.changeText(screen.getByPlaceholderText('名稱'), '園藝');
+      fireEvent.press(screen.getByLabelText('violet'));
+      fireEvent.press(screen.getByLabelText('bike'));
+      await act(async () => {
+        fireEvent.press(screen.getByText('儲存'));
+      });
+
+      expect(screen.getByText('儲存失敗，請再試一次')).toBeTruthy();
+      expect(screen.getByTestId('category-editor-sheet')).toBeTruthy();
+      expect(screen.getByPlaceholderText('名稱').props.value).toBe('園藝');
+      expect(screen.getByLabelText('bike')).toHaveStyle({ backgroundColor: '#A26FBD' });
+      expect(onCategoriesChanged).not.toHaveBeenCalled();
+
+      api.failures.categoryWrites = false;
+      await act(async () => {
+        fireEvent.press(screen.getByText('儲存'));
+      });
+      const posts = api
+        .calls()
+        .filter(([u, init]) => String(u).includes('/categories') && init?.method === 'POST');
+      expect(JSON.parse(posts.at(-1)?.[1]?.body ?? '{}')).toEqual({
+        name: '園藝',
+        color: '#A26FBD',
+        icon: 'bike',
+      });
+      expect(screen.queryByTestId('category-editor-sheet')).toBeNull();
+    });
+
+    it('keeps an edit in the editor, says so, and saves it on retry', async () => {
+      const { onCategoriesChanged } = renderSheet();
+      api.failures.categoryWrites = true;
+
+      const editButtons = screen.getAllByLabelText('編輯類別');
+      fireEvent.press(editButtons[editButtons.length - 1]); // 美食
+      fireEvent.changeText(screen.getByDisplayValue('美食'), '吃吃喝喝');
+      await act(async () => {
+        fireEvent.press(screen.getByText('儲存'));
+      });
+
+      expect(screen.getByText('儲存失敗，請再試一次')).toBeTruthy();
+      expect(screen.getByPlaceholderText('名稱').props.value).toBe('吃吃喝喝');
+      expect(onCategoriesChanged).not.toHaveBeenCalled();
+
+      api.failures.categoryWrites = false;
+      await act(async () => {
+        fireEvent.press(screen.getByText('儲存'));
+      });
+      const patch = api.find('PATCH', '/categories/c-food');
+      expect(JSON.parse(patch?.[1]?.body ?? '{}')).toEqual({ name: '吃吃喝喝' });
+      expect(screen.queryByTestId('category-editor-sheet')).toBeNull();
+    });
   });
 });

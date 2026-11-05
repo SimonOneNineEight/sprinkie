@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Keyboard } from 'react-native';
 
 import { expectSingleLineField } from '../testing/expectSingleLineField';
+import { installMockApi, type MockApi } from '../testing/mockApi';
 import { theme } from '../theme';
 
 import { CategoryEditorSheet } from './CategoryEditorSheet';
@@ -110,5 +111,91 @@ describe('the chosen icon (#46)', () => {
     // appearance block still has to say which glyph that is.
     expect(screen.getByText('子類別沿用上層分類的圖示與顏色。')).toBeTruthy();
     expect(screen.getByLabelText('dumbbell')).toHaveStyle({ backgroundColor: '#73B062' });
+  });
+});
+
+// The manual pass's cases that need no device (#109).
+describe('the manual pass, without a device (#109)', () => {
+  let api: MockApi;
+  beforeEach(() => {
+    api = installMockApi();
+  });
+  afterEach(() => {
+    api.restore();
+  });
+
+  const save = () => screen.getByRole('button', { name: '儲存' });
+  const categoryPosts = () =>
+    api.calls().filter(([u, init]) => String(u).includes('/categories') && init?.method === 'POST');
+
+  // CE.3
+  it('disables 儲存 while the name is empty', async () => {
+    renderEditor();
+
+    expect(save()).toBeDisabled();
+    fireEvent.changeText(screen.getByPlaceholderText('名稱'), '   ');
+    expect(save()).toBeDisabled();
+    await act(async () => {
+      fireEvent.press(save());
+    });
+    expect(categoryPosts()).toEqual([]);
+
+    fireEvent.changeText(screen.getByPlaceholderText('名稱'), '園藝');
+    expect(save()).toBeEnabled();
+  });
+
+  // CE.6
+  it('collapses back to an independent Category when 無 is picked', async () => {
+    renderEditor([sport]);
+    fireEvent.changeText(screen.getByPlaceholderText('名稱'), '園藝');
+    fireEvent.press(screen.getByText('無'));
+    fireEvent.press(screen.getByText('運動'));
+    expect(screen.getByText('子類別沿用上層分類的圖示與顏色。')).toBeTruthy();
+
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.press(screen.getByText('無'));
+
+    // Collapsed to the summary row, which reads as a top-level Category again.
+    expect(screen.getByText('無')).toBeTruthy();
+    expect(screen.getByText('獨立類別')).toBeTruthy();
+    expect(screen.queryByText('運動')).toBeNull();
+    expect(screen.queryByText('子類別沿用上層分類的圖示與顏色。')).toBeNull();
+    await act(async () => {
+      fireEvent.press(save());
+    });
+    const body = JSON.parse(categoryPosts()[0]?.[1]?.body ?? '{}');
+    expect(body.parentId).toBeUndefined();
+    expect(body.icon).toBe('tag');
+  });
+
+  // CE.8
+  it.each([
+    ['a top-level Category', { ...sport }, undefined, '無'],
+    [
+      'a Subcategory',
+      { id: 'c-gym', name: '健身房', color: '#73B062', icon: 'tag', position: 1, parentId: 'c-sport' },
+      sport,
+      '運動',
+    ],
+  ])('keeps the parent row untappable while editing %s', (_, target, parent, shown) => {
+    render(
+      <CategoryEditorSheet
+        accessToken="tok"
+        target={target}
+        parent={parent}
+        parentChoices={[sport, { id: 'c-food', name: '美食', color: '#D3AE40', icon: 'utensils', position: 2 }]}
+        childrenOfTarget={[]}
+        onOpen={jest.fn()}
+        onClose={jest.fn()}
+        onCategoriesChanged={jest.fn()}
+      />,
+    );
+
+    const row = screen.getByRole('button', { name: new RegExp(`^${shown}`) });
+    expect(row).toBeDisabled();
+    fireEvent.press(row);
+    // No option list: 美食 is offered only when the list opens.
+    expect(screen.queryByText('美食')).toBeNull();
+    expect(screen.getByText(shown)).toBeTruthy();
   });
 });

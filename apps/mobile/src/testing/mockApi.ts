@@ -5,9 +5,10 @@
 // declare a world in installMockApi() and assert through the returned
 // helpers; nobody hand-rolls globalThis.fetch anymore.
 //
-// Failure semantics mirror what the screens actually meet: entry writes and
-// presign fail as network throws (TypeError), category creation fails as a
-// 500 response, health fails either way.
+// Failure semantics mirror what the screens actually meet: entry writes,
+// presign, category writes and the month, year and day reads fail as
+// network throws (TypeError), categoryPost fails creation as a 500
+// response, health fails either way.
 
 type FetchInit = { method?: string; headers?: Record<string, string>; body?: unknown };
 // The recorded view types body as string — the JSON wire case every suite
@@ -53,7 +54,15 @@ export type MockFailures = {
   entryWrites: boolean;
   presign: boolean;
   categoryPost: boolean;
+  /** Category create and edit, as airplane mode fails them (#109). */
+  categoryWrites: boolean;
   colorRecentDelete: boolean;
+  /** GET /months/{YYYY-MM}, as airplane mode fails it (#109). */
+  monthReads: boolean;
+  /** GET /years/{YYYY}. */
+  yearReads: boolean;
+  /** A day's Entries, GET /entries?date=. */
+  dayReads: boolean;
   health?: 'reject' | 'unhealthy';
 };
 
@@ -86,7 +95,11 @@ export function installMockApi(
     entryWrites: false,
     presign: false,
     categoryPost: false,
+    categoryWrites: false,
     colorRecentDelete: false,
+    monthReads: false,
+    yearReads: false,
+    dayReads: false,
     ...setup.failures,
   };
   // The server's idempotency memory (#17): the first 201 per key replays
@@ -161,6 +174,7 @@ export function installMockApi(
     }
     if (u.includes('/photos/') && method === 'DELETE') return ok({}, 204);
     if (u.includes('/categories') && method === 'POST') {
+      if (failures.categoryWrites) network();
       if (failures.categoryPost) {
         return { ok: false, status: 500, json: async () => ({ message: 'nope' }) };
       }
@@ -178,9 +192,16 @@ export function installMockApi(
       });
     }
     if (u.includes('/categories/') && method === 'PATCH') {
+      if (failures.categoryWrites) network();
       return ok({ id: u.split('/').pop(), ...body() });
     }
-    if (u.includes('/categories/') && method === 'DELETE') return ok({}, 204);
+    if (u.includes('/categories/') && method === 'DELETE') {
+      // Gone from the next /me, as on the server (#109).
+      const id = u.split('/').pop();
+      const me = world.me as { categories?: { id: string }[] };
+      if (me.categories) me.categories = me.categories.filter((c) => c.id !== id);
+      return ok({}, 204);
+    }
     if (u.includes('/color-recents') && method === 'PUT') {
       return ok({ colors: [body().color, ...world.colorRecents] });
     }
@@ -198,6 +219,7 @@ export function installMockApi(
     if (u.includes('/months/')) {
       // The hidden-set rides as query params; the month key is the path.
       const month = u.split('/months/')[1].split('?')[0];
+      if (failures.monthReads) network();
       if (monthHold && (monthHold.month === undefined || monthHold.month === month)) {
         await monthHold.promise;
       }
@@ -205,6 +227,7 @@ export function installMockApi(
     }
     if (u.includes('/years/')) {
       const year = u.split('/years/')[1].split('?')[0];
+      if (failures.yearReads) network();
       if (yearHold && (yearHold.year === undefined || yearHold.year === year)) {
         await yearHold.promise;
       }
@@ -267,6 +290,7 @@ export function installMockApi(
     }
     if (u.includes('/entries')) {
       const date = u.includes('date=') ? u.split('date=')[1] : undefined;
+      if (failures.dayReads) network();
       if (entriesHold && (entriesHold.date === undefined || entriesHold.date === date)) {
         await entriesHold.promise;
       }
