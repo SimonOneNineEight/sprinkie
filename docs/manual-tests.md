@@ -322,7 +322,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.23 | Tap the photo tile | Camera / library / cancel offered |
 | EF.24 | Choose from the library | Multi-select allowed, capped at the slots still free of the three |
 | EF.25 | Take a photo | Appears in the grid |
-| EF.26 | Deny the camera permission | Nothing happens; no crash, no empty tile |
+| EF.26 | Deny the camera permission when iOS asks | Nothing happens; no crash, no empty tile **[auto]** |
 | EF.27 | Add Photos up to the cap | The tile counts n/3 and disappears at the third **[auto]** |
 | EF.28 | Tap the ✕ on a photo just attached in this form | It goes at once, with no confirmation (it was never saved) **[auto]** |
 | EF.29 | Long-press and drag photos | Order changes and persists after save **[API]** |
@@ -334,7 +334,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.36 | 取消 with unsaved edits | Returns without saving |
 | EF.37 | Airplane mode, 儲存 | 儲存失敗，請再試一次; the form keeps everything |
 | EF.38 | A restored Draft whose photo files the OS purged | 部分照片已無法讀取, and a retry saves what survives **[auto]** |
-| EF.39 | Deny the photo-library permission | Nothing happens; no crash, no empty tile |
+| EF.39 | Choose 從相簿選擇 on a fresh install | The photo picker opens straight away, with no permission prompt: iOS's picker needs none |
 | EF.40 | Open the form with every Category deleted | Only the pinned 新增類別 row; 儲存 stays disabled until one exists |
 | EF.41 | Open an Entry saved with more than three Photos | Every Photo is still there; no add tile, and nothing is deleted **[API]** **[auto]** |
 | EF.42 | Attach three 48MP photos taken a while ago, at once | All three tiles appear together within ~2s, and the app survives |
@@ -349,6 +349,7 @@ would make the Entry view a fourth surface applying Hidden, which is ADR
 | EF.51 | Paste text with line breaks into the title | It reads, and saves, with a space where each line break was **[auto]** |
 | EF.52 | Type a long title, past three lines | One line while empty; it wraps, grows to three lines, then stays three tall and scrolls inside itself |
 | EF.53 | Type a title in 注音, then 拼音; press Return on a candidate, then again | The first Return confirms the candidate and focus stays in the title; only the second moves to the note |
+| EF.54 | After EF.26, tap 拍照 again | 無法使用相機 asks you to turn the camera on in Settings, with 取消 and 開啟設定; 開啟設定 opens Sprinkie's page in Settings, and turning the camera on there makes the next 拍照 open the camera |
 
 **EF.46 belongs with EF.15–EF.19** and sits last only to keep the other
 case ids stable. Before #102's follow-up the typed name vanished and the old
@@ -735,6 +736,7 @@ the tag.
 | EF.19 | `screens/EntryFormScreen.test.tsx` |
 | EF.20 | `screens/EntryFormScreen.test.tsx` |
 | EF.21 | `screens/DayScreen.test.tsx` |
+| EF.26 | `screens/EntryFormScreen.test.tsx` |
 | EF.27 | `screens/EntryFormScreen.test.tsx` |
 | EF.28 | `screens/EntryFormScreen.test.tsx` |
 | EF.30 | `screens/EntryFormScreen.test.tsx` |
