@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Modal,
   Platform,
   Text,
   TextInput,
@@ -117,15 +118,27 @@ export function EntryFormScreen({
   // not caught up yet, so the in-flight flag is also held where the handler
   // can read it now (#44): 儲存 pressed twice is one Entry, not two.
   const inFlight = useRef(false);
+  // The full-screen 儲存中 overlay (#92), up only once a save has run past
+  // SLOW_SAVE_MS, so a quick text-only save never flashes it.
+  const [slowSave, setSlowSave] = useState(false);
   const noteRef = useRef<TextInput>(null);
   const [failed, setFailed] = useState(false);
   const [photosFailed, setPhotosFailed] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<Photo[]>(entry?.photos ?? []);
   const [stagedPhotos, setStagedPhotos] = useState<ProcessedPhoto[]>(draft?.photos ?? []);
+  // Mirrored where a save that waited on processing can read what finished
+  // meanwhile (#92), kept in step by updateStaged rather than an effect,
+  // which would run only after the next render.
+  const stagedRef = useRef(stagedPhotos);
+  const updateStaged = (next: (prev: ProcessedPhoto[]) => ProcessedPhoto[]) => {
+    stagedRef.current = next(stagedRef.current);
+    setStagedPhotos(stagedRef.current);
+  };
   // The grid keys of picked photos still processing, each a placeholder
-  // tile until it is ready (#92).
+  // tile until it is ready, and the work a save waits on (#92).
   const [processing, setProcessing] = useState<string[]>([]);
   const nextProcessingKey = useRef(0);
+  const processingJobs = useRef(new Set<Promise<void>>());
   // The OS may purge the cache files a draft's photo URIs point at; prune the
   // unreadable ones on restore so a retry saves what survives instead of
   // failing forever, and say so.
@@ -158,7 +171,7 @@ export function EntryFormScreen({
         draft.photos.filter((_, index) => !readable[index]).map((photo) => photo.fullUri),
       );
       setPhotosMissing(true);
-      setStagedPhotos((prev) => prev.filter((photo) => !unreadable.has(photo.fullUri)));
+      updateStaged((prev) => prev.filter((photo) => !unreadable.has(photo.fullUri)));
     });
     return () => {
       active = false;
@@ -181,8 +194,8 @@ export function EntryFormScreen({
   const pendingSubName = subcategory === null && !addingSub ? subName.trim() : '';
 
   const canSave = !saving && category !== null && title.trim() !== '';
-  // Saving wears the primary pill with a spinner in it; greying it out is
-  // what the round-2 tester read as a hang.
+  // 儲存 keeps the primary pill while it saves; greying it out is what the
+  // round-2 tester read as a hang.
   const saveLooksDisabled = !canSave && !saving;
 
   const dateLabel = dateHeading(strings, date);
@@ -195,6 +208,10 @@ export function EntryFormScreen({
     setSaving(true);
     setFailed(false);
     setPhotosFailed(false);
+    const slowTimer = setTimeout(() => setSlowSave(true), SLOW_SAVE_MS);
+    // 儲存 works while photos still process: the save waits for them under
+    // the overlay, then takes every one that made it (#92).
+    await Promise.allSettled(processingJobs.current);
     // Read without the render path's !addingSub guard on purpose — pressing
     // 儲存 while the field is still open must not lose the typed name (#28).
     const pendingName = subcategory === null ? subName.trim() : '';
@@ -206,13 +223,15 @@ export function EntryFormScreen({
       ...(subcategory !== null ? { subcategoryId: subcategory.id } : {}),
       ...(pendingName !== '' ? { pendingSubcategoryName: pendingName } : {}),
       content: encodeContent({ title: title.trim(), note }),
-      photos: stagedPhotos,
+      photos: stagedRef.current,
       draftId,
       existingEntryId: entry?.id ?? draft?.entryId ?? savedEntryId,
     });
     // No finally needed: saveEntry never throws, by the contract documented
      // in entries/save.ts. If that totality ever goes, this needs one.
     inFlight.current = false;
+    clearTimeout(slowTimer);
+    setSlowSave(false);
     if ('createdSubcategory' in result && result.createdSubcategory !== undefined) {
       const made = result.createdSubcategory;
       setCreated((prev) => [...prev, made]);
@@ -307,9 +326,14 @@ export function EntryFormScreen({
       const jobs = result.assets.slice(0, remaining).map((asset) => {
         const key = `processing:${nextProcessingKey.current++}`;
         setProcessing((prev) => [...prev, key]);
-        return processPhoto(asset)
-          .then((photo) => setStagedPhotos((prev) => [...prev, photo]))
-          .finally(() => setProcessing((prev) => prev.filter((k) => k !== key)));
+        const job = processPhoto(asset)
+          .then((photo) => updateStaged((prev) => [...prev, photo]))
+          .finally(() => {
+            processingJobs.current.delete(job);
+            setProcessing((prev) => prev.filter((k) => k !== key));
+          });
+        processingJobs.current.add(job);
+        return job;
       });
       const settled = await Promise.allSettled(jobs);
       if (settled.some((s) => s.status === 'rejected')) Alert.alert(strings.photos.attachFailed);
@@ -321,7 +345,7 @@ export function EntryFormScreen({
   const removeGridPhoto = (key: string) => {
     if (key.startsWith('staged:')) {
       const index = Number(key.slice('staged:'.length));
-      setStagedPhotos((prev) => prev.filter((_, i) => i !== index));
+      updateStaged((prev) => prev.filter((_, i) => i !== index));
       return;
     }
     const id = key.slice('photo:'.length);
@@ -345,7 +369,7 @@ export function EntryFormScreen({
   const reorderGridPhotos = (keys: string[]) => {
     const existingIds = keys.filter((k) => k.startsWith('photo:')).map((k) => k.slice('photo:'.length));
     const stagedIndexes = keys.filter((k) => k.startsWith('staged:')).map((k) => Number(k.slice('staged:'.length)));
-    setStagedPhotos((prev) => stagedIndexes.map((i) => prev[i]));
+    updateStaged((prev) => stagedIndexes.map((i) => prev[i]));
     const currentIds = existingPhotos.map((p) => p.id);
     if (existingIds.length === currentIds.length && existingIds.some((id, i) => id !== currentIds[i])) {
       const previous = existingPhotos;
@@ -413,19 +437,9 @@ export function EntryFormScreen({
             style={[styles.saveButton, saveLooksDisabled && styles.saveButtonDisabled]}
             onPress={() => void save()}
           >
-            {saving ? (
-              // The spinner stands in the label's place so the pill keeps
-              // its size and the header does not jump mid-save.
-              <ActivityIndicator
-                accessibilityLabel={strings.entryForm.saving}
-                color={theme.colors.controlPrimaryFg}
-                style={styles.savingSpinner}
-              />
-            ) : (
-              <Text style={[styles.saveLabel, saveLooksDisabled && styles.saveLabelDisabled]}>
-                {strings.entryForm.save}
-              </Text>
-            )}
+            <Text style={[styles.saveLabel, saveLooksDisabled && styles.saveLabelDisabled]}>
+              {strings.entryForm.save}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -435,9 +449,9 @@ export function EntryFormScreen({
         bottomOffset={theme.spacing.space6}
       >
         {/* The body is its own view rather than the scroll view's content
-            container so it can go inert under the spinner (#44): a save in
+            container so it can go inert while saving (#44): a save in
             flight is not a moment to retype the title or reorder the
-            photos, and an untouchable, dimmed form says so. */}
+            photos. */}
         <View style={[styles.body, saving && styles.bodySaving]}>
           <Pressable
             accessibilityRole="button"
@@ -680,9 +694,22 @@ export function EntryFormScreen({
           onClose={() => setViewingKey(null)}
         />
       ) : null}
+      {/* Its own window, so nothing on the form, 取消 included, takes a tap
+          beneath it. Variant A of the device prototype (#92, 2026-11-04). */}
+      <Modal transparent visible={slowSave} animationType="fade">
+        <View style={styles.savingScrim}>
+          <View style={styles.savingCard} accessible accessibilityLabel={strings.entryForm.saving}>
+            <ActivityIndicator size="large" color={theme.colors.textSecondary} />
+            <Text style={styles.savingLabel}>{strings.entryForm.saving}</Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
+
+// How long a save runs before the 儲存中 overlay covers it (#92).
+const SLOW_SAVE_MS = 300;
 
 // Each grow field's padding above and below its lines (#115), so its
 // heights read as so many lines plus this twice. The title's centers one
@@ -748,13 +775,28 @@ const styles = createStyles((t) => ({
     paddingTop: t.spacing.space6,
     paddingBottom: t.spacing.space10,
   },
+  // Inert but not dimmed: past SLOW_SAVE_MS the overlay says it is saving
+  // (#92), and a quick save should not flash.
   bodySaving: {
-    opacity: 0.4,
     pointerEvents: 'none',
   },
-  savingSpinner: {
-    // Matched to the label it replaces, so the pill keeps its height.
-    height: t.typography.meta.lineHeight,
+  savingScrim: {
+    flex: 1,
+    backgroundColor: t.colors.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  savingCard: {
+    backgroundColor: t.colors.surface,
+    borderRadius: t.radius.card,
+    paddingHorizontal: t.spacing.space8,
+    paddingVertical: t.spacing.space6,
+    alignItems: 'center',
+    gap: t.spacing.space3,
+  },
+  savingLabel: {
+    ...t.typography.meta,
+    color: t.colors.textSecondary,
   },
   searchField: {
     flexDirection: 'row',

@@ -598,6 +598,75 @@ describe('photos (#44)', () => {
         expect(alert).toHaveBeenCalledTimes(1);
         expect(alert).toHaveBeenCalledWith('無法加入照片');
       });
+
+      describe('saving before they are ready', () => {
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        const pressSave = () =>
+          act(async () => {
+            fireEvent.press(screen.getByText('儲存'));
+          });
+        const wait = (ms: number) =>
+          act(async () => {
+            jest.advanceTimersByTime(ms);
+          });
+        const presignedCount = () => lastBody(api.find('POST', '/photos/presign'))?.count;
+
+        it('waits for them under the overlay, then saves every one', async () => {
+          const onDone = jest.fn();
+          const photos = processByHand();
+          renderForm({ onDone });
+
+          await pickFromLibrary(['file:///a.heic', 'file:///b.heic']);
+          fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+          await pressSave();
+          await wait(300);
+
+          expect(screen.getByLabelText('儲存中')).toBeTruthy();
+          expect(api.entryPosts()).toHaveLength(0);
+
+          await photos.finish('file:///a.heic');
+          await photos.finish('file:///b.heic');
+
+          expect(presignedCount()).toBe(2);
+          expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
+        });
+
+        it('closes the overlay on a failed save and keeps the photos that finished', async () => {
+          api.failures.entryWrites = true;
+          const photos = processByHand();
+          renderForm();
+
+          await pickFromLibrary(['file:///a.heic', 'file:///b.heic']);
+          fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+          await photos.finish('file:///a.heic');
+          await pressSave();
+          await wait(300);
+          expect(screen.getByLabelText('儲存中')).toBeTruthy();
+
+          await photos.finish('file:///b.heic');
+
+          expect(screen.queryByLabelText('儲存中')).toBeNull();
+          expect(screen.getByText('儲存失敗，請再試一次')).toBeTruthy();
+          expect(screen.getAllByLabelText('移除')).toHaveLength(2);
+        });
+      });
+
+      it('throws away the photos still processing on 取消', async () => {
+        const onDone = jest.fn();
+        const photos = processByHand();
+        renderForm({ onDone });
+
+        await pickFromLibrary(['file:///a.heic']);
+        fireEvent.press(screen.getByText('取消'));
+        expect(onDone).toHaveBeenCalledWith({ kind: 'cancelled' });
+
+        await photos.finish('file:///a.heic');
+
+        expect(onDone).toHaveBeenCalledTimes(1);
+        expect(api.calls()).toHaveLength(0);
+      });
     });
   });
 
@@ -630,29 +699,52 @@ describe('photos (#44)', () => {
     expect(screen.queryByTestId('grid-item-__add__')).toBeNull();
   });
 
-  it('shows a spinner for the whole save and holds the form inert beneath it', async () => {
-    const onDone = jest.fn();
-    // Storage answers nothing until released: the save stays in flight and
-    // the form can be asked what it looks like mid-save.
-    const release = api.holdUploads();
-    renderForm({ draft: draftWith(1), onDone });
+  describe('the saving overlay (#92)', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
 
-    await act(async () => {
-      fireEvent.press(screen.getByText('儲存'));
+    const wait = (ms: number) =>
+      act(async () => {
+        jest.advanceTimersByTime(ms);
+      });
+
+    it('never shows for a save that is done within 300ms', async () => {
+      const onDone = jest.fn();
+      renderForm({ onDone });
+
+      await fillAndSave();
+      await wait(1000);
+
+      expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
+      expect(screen.queryByLabelText('儲存中')).toBeNull();
     });
 
-    expect(screen.getByLabelText('儲存中')).toBeTruthy();
-    expect(screen.queryByText('儲存')).toBeNull();
-    // Inert beneath it: tapping the chosen category, which normally
-    // reopens the picker, changes nothing.
-    fireEvent.press(screen.getByText('運動'));
-    expect(screen.getByPlaceholderText('標題')).toBeTruthy();
-    expect(onDone).not.toHaveBeenCalled();
+    it('covers a save still running at 300ms, the form inert beneath it, until it is done', async () => {
+      const onDone = jest.fn();
+      // Storage answers nothing until released: the save stays in flight and
+      // the form can be asked what it looks like mid-save.
+      const release = api.holdUploads();
+      renderForm({ draft: draftWith(1), onDone });
 
-    await act(async () => {
-      release();
+      await act(async () => {
+        fireEvent.press(screen.getByText('儲存'));
+      });
+      await wait(299);
+      expect(screen.queryByLabelText('儲存中')).toBeNull();
+      await wait(1);
+      expect(screen.getByLabelText('儲存中')).toBeTruthy();
+      // Inert beneath it: tapping the chosen category, which normally
+      // reopens the picker, changes nothing.
+      fireEvent.press(screen.getByText('運動'));
+      expect(screen.getByPlaceholderText('標題')).toBeTruthy();
+      expect(onDone).not.toHaveBeenCalled();
+
+      await act(async () => {
+        release();
+      });
+      expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
+      expect(screen.queryByLabelText('儲存中')).toBeNull();
     });
-    expect(onDone).toHaveBeenCalledWith({ kind: 'saved', date: '2026-08-17' });
   });
 
   it('saves once when 儲存 is pressed twice inside one render pass', async () => {
