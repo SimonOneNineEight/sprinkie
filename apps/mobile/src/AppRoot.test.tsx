@@ -42,6 +42,13 @@ jest.mock('./auth/supabase', () => ({
         mockAuthState.session = null;
         mockAuthState.listeners.forEach((listener) => listener('SIGNED_OUT', null));
       }),
+      // Confirm email off: a sign-up comes back signed in.
+      signUp: jest.fn(async () => {
+        const session = { access_token: 'token-new', user: { id: 'u-new' } };
+        mockAuthState.session = session;
+        mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session));
+        return { data: { session, user: { identities: [{}] } }, error: null };
+      }),
     },
   },
 }));
@@ -116,6 +123,37 @@ it('returns to the sign-in screen on sign-out through settings', async () => {
   });
 
   expect(await screen.findByText('每天五分鐘，留下你的生活')).toBeTruthy();
+});
+
+// SI.9: with Confirm email off, a sign-up opens the app at once.
+it('opens the app straight after an email sign-up that comes back signed in', async () => {
+  render(<AppRoot />);
+  fireEvent.press(await screen.findByText('使用電子郵件登入'));
+  fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
+  fireEvent.changeText(screen.getByPlaceholderText('電子郵件'), 'new@wlog.local');
+  fireEvent.changeText(screen.getByPlaceholderText('密碼'), 'secret-123');
+
+  await act(async () => {
+    fireEvent.press(screen.getByText('建立帳戶'));
+  });
+
+  expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+  expect(screen.queryByText('確認電子郵件')).toBeNull();
+});
+
+// A verified reset code signs the client in before the new password is set
+// (#21): the app waits for the password, or 設定新密碼 would vanish under it.
+it('stays on sign-in through a password reset until the new password is saved', async () => {
+  render(<AppRoot />);
+  expect(await screen.findByText('每天五分鐘，留下你的生活')).toBeTruthy();
+
+  const session = { access_token: 'token-1', user: { id: 'u1' } };
+  act(() => mockAuthState.listeners.forEach((listener) => listener('PASSWORD_RECOVERY', session)));
+  expect(screen.getByText('每天五分鐘，留下你的生活')).toBeTruthy();
+  expect(screen.queryByLabelText('新增紀錄')).toBeNull();
+
+  act(() => mockAuthState.listeners.forEach((listener) => listener('USER_UPDATED', session)));
+  expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
 });
 
 it('gates a deactivated account and restores only on the deliberate tap', async () => {

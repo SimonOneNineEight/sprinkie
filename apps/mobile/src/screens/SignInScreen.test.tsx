@@ -46,23 +46,6 @@ it('signs in with email and password from its own page', async () => {
   });
 });
 
-it('registers through the toggle and shows the confirm-email notice', async () => {
-  render(<SignInScreen />);
-
-  fireEvent.press(screen.getByText('使用電子郵件登入'));
-
-  fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
-  fireEvent.changeText(screen.getByPlaceholderText('電子郵件'), 'pm@wlog.local');
-  fireEvent.changeText(screen.getByPlaceholderText('密碼'), 'secret-123');
-  await act(async () => {
-    fireEvent.press(screen.getByText('建立帳戶'));
-  });
-
-  expect(mockSignUp).toHaveBeenCalledWith({ email: 'pm@wlog.local', password: 'secret-123' });
-  // No session back means the project requires email confirmation.
-  expect(screen.getByText('請先到信箱點擊確認連結，再回來登入')).toBeTruthy();
-});
-
 it('shows the flat error line when sign-in fails', async () => {
   mockSignInWithPassword.mockResolvedValueOnce({ error: new Error('nope') } as never);
   render(<SignInScreen />);
@@ -118,7 +101,7 @@ describe('submitting with an empty email or password does nothing', () => {
     expect(screen.getByPlaceholderText('電子郵件').props.value).toBe(email);
     expect(screen.getByPlaceholderText('密碼').props.value).toBe(password);
     expect(screen.queryByText('登入失敗，請再試一次')).toBeNull();
-    expect(screen.queryByText('請先到信箱點擊確認連結，再回來登入')).toBeNull();
+    expect(screen.queryByText('確認電子郵件')).toBeNull();
   });
 });
 
