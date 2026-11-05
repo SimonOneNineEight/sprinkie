@@ -30,6 +30,7 @@ import { saveEntry } from '../entries/save';
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, singleLineField, theme } from '../theme';
+import type { Theme } from '../theme';
 
 type Props = {
   accessToken: string;
@@ -646,9 +647,10 @@ export function EntryFormScreen({
 
 // Each grow field's padding above and below its lines (#115), so its
 // heights read as so many lines plus this twice. The title's centers one
-// line inside the 44pt hit target.
-const titlePadding = (theme.spacing.rowHeight - theme.typography.entryTitle.lineHeight) / 2;
-const notePadding = theme.spacing.space5;
+// line inside the 44pt hit target. Read from the factory's theme, like
+// every other value in the styles below.
+const titlePadding = (t: Theme) => (t.spacing.rowHeight - t.typography.entryTitle.lineHeight) / 2;
+const notePadding = (t: Theme) => t.spacing.space5;
 
 const styles = createStyles((t) => ({
   screen: {
@@ -850,10 +852,10 @@ const styles = createStyles((t) => ({
     backgroundColor: t.colors.surface,
     borderRadius: t.radius.r3,
     paddingHorizontal: t.spacing.cardPadding,
-    paddingTop: titlePadding,
-    paddingBottom: titlePadding,
+    paddingTop: titlePadding(t),
+    paddingBottom: titlePadding(t),
     minHeight: t.spacing.rowHeight,
-    maxHeight: t.typography.entryTitle.lineHeight * 3 + titlePadding * 2,
+    maxHeight: t.typography.entryTitle.lineHeight * 3 + titlePadding(t) * 2,
     textAlignVertical: 'top',
   },
   // Five lines tall from the start, and it scrolls inside itself past that
@@ -864,10 +866,10 @@ const styles = createStyles((t) => ({
     backgroundColor: t.colors.surface,
     borderRadius: t.radius.r3,
     paddingHorizontal: t.spacing.cardPadding,
-    paddingTop: notePadding,
-    paddingBottom: notePadding,
-    minHeight: t.typography.note.lineHeight * 5 + notePadding * 2,
-    maxHeight: t.typography.note.lineHeight * 5 + notePadding * 2,
+    paddingTop: notePadding(t),
+    paddingBottom: notePadding(t),
+    minHeight: t.typography.note.lineHeight * 5 + notePadding(t) * 2,
+    maxHeight: t.typography.note.lineHeight * 5 + notePadding(t) * 2,
     textAlignVertical: 'top',
   },
   placeholder: {
