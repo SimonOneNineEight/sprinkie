@@ -83,6 +83,8 @@ own palette, which is tuned for legibility at 6–8px and documented above.
 
 Settings and other long-tail screens (dialogs, errors, empty states, account deletion) are derived from the system during implementation, not designed in the session; any derived moment that feels wrong gets taken back into a design session individually.
 
+One part of Settings was designed rather than derived: **連結帳戶**, right under 帳號, is a plain grouped list with an Apple row and a Google row, each ending in 已連結 (no tap) or 連結 (that provider's own sign-in, then the link). A footer steers someone with an existing account to link from inside it, and a method another account already holds says so, with the hint that the other account must be deleted first; nothing changes (ratified 2026-11-05 from a device prototype, #20).
+
 ## Explicit bans
 
 1. No blinking or pulsing status dots.

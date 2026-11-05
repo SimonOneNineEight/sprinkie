@@ -93,6 +93,18 @@ export const en: StringCatalog = {
       'Your account can be restored within 30 days. After that, all entries, photos, and categories are permanently deleted.',
     restore: 'Restore account',
     restoreFailed: 'Restore failed. Please try again',
+    linkHeader: 'Linked accounts',
+    apple: 'Apple',
+    google: 'Google',
+    linked: 'Linked',
+    link: 'Link',
+    linkSteer: 'Already have an account? Sign in the way you did before, then link from here.',
+    claimed: 'This sign-in method belongs to another account',
+    claimedHint:
+      'To link it, sign in to that account and delete it. Its sign-in methods free up 30 days after deletion.',
+    linkFailed: 'Linking failed. Please try again',
+    linkLoadFailed: "Couldn't load linked accounts",
+    linkRetry: 'Retry',
     // 系統預設 translates with the UI; the endonyms never do.
     generalHeader: 'General',
     aboutHeader: 'About',

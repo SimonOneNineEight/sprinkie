@@ -557,7 +557,7 @@ Keyboard cases are in **KB**.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| ST.1 | Open it | The account's email, the 語言 row, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
+| ST.1 | Open it | The account's email, a 連結帳戶 card under it, the 語言 row, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
 | ST.2 | Tap 語言 | The sheet offers exactly 系統預設 / 繁體中文 / English |
 | ST.3 | The two language names | Shown as endonyms, never translated **[auto]** |
 | ST.4 | Pick 繁體中文 | The UI switches immediately; the row's value updates |
@@ -575,9 +575,28 @@ Keyboard cases are in **KB**.
 | ST.20 | Close the sheet | Back on 設定 where you were; the app was never left for Safari |
 | ST.21 | The contact address on either page | hello.sprinkie.journal@gmail.com, and tapping it opens a mail draft |
 | ST.22 | Both pages on a narrow phone | Text wraps, nothing scrolls sideways, the 關於 links at the foot work |
+| ST.23 | The 連結帳戶 card | An Apple row and a Google row, each ending in 已連結 (takes no tap) or 連結 as the account holds them; under the card, 已有帳戶？請先用原本的方式登入，再從這裡連結。 **[auto]** |
+| ST.24 | Apple row, 連結, finish the Apple sheet | The row turns 已連結 **[auto]** |
+| ST.25 | Google row, 連結, finish the Google sheet | The row turns 已連結 **[auto]** |
+| ST.26 | After linking, leave 設定 and reopen it, then 登出 and sign in with the method just linked | Still 已連結; the same journal opens, its Entries and Categories intact |
+| ST.27 | 連結 a method that already belongs to another account | 此登入方式已屬於另一個帳戶, with 若要連結，請先登入那個帳戶並刪除它；刪除 30 天後，它的登入方式才會釋出。 The row stays 連結, and neither account's journal changes |
+| ST.28 | 連結, then close the Apple or Google sheet | Nothing changes; no error line **[auto]** |
+| ST.29 | Apple row, 連結, choose Hide My Email on the sheet | The row turns 已連結; 登出, then Sign in with Apple opens this journal, though the relay address matches no account's email |
+| ST.30 | Signed out, Sign in with Google using the address of an existing email account whose address is confirmed | Lands in that account's journal, not a new one; its 設定 shows Google 已連結 |
+| ST.31 | Airplane mode, open 設定; then airplane mode off, tap 重試 | Under the 連結帳戶 card, 無法載入連結狀態 and 重試, with neither 已連結 nor 連結 on a row; after 重試, each row shows its state and the line is gone **[auto]** |
 
 **ST.1 after Sign in with Apple** may show an `@privaterelay.appleid.com`
 address: the User chose Hide My Email, and that relay is their account email.
+
+**ST.27 needs a second account** that already holds the method: sign up a
+throwaway with Sign in with Google (or Apple) first, then sign in to the
+account under test another way and link. The second account stays as it
+was; delete it afterwards from its own 設定.
+
+**ST.30 needs a confirmed email account**: sign up with 使用電子郵件登入
+and confirm the address from the inbox before trying Google. Supabase joins
+the two only on a confirmed address, so an unconfirmed one gets a new
+account instead, which is that rule working.
 
 **ST.18 and ST.19 in English** open Chinese pages. The documents are
 Chinese-only until #37 adds English ones (`src/legal.ts`); the row labels
@@ -850,6 +869,11 @@ the tag.
 | ST.16 | `AppRoot.test.tsx`, `account_test.go` |
 | ST.18 | `screens/SettingsScreen.test.tsx` |
 | ST.19 | `screens/SettingsScreen.test.tsx` |
+| ST.23 | `screens/SettingsScreen.test.tsx` |
+| ST.24 | `screens/SettingsScreen.test.tsx` |
+| ST.25 | `screens/SettingsScreen.test.tsx` |
+| ST.28 | `screens/SettingsScreen.test.tsx` |
+| ST.31 | `screens/SettingsScreen.test.tsx` |
 | VI.1 | `months_test.go` |
 | VI.2 | `AppRoot.test.tsx` |
 | VI.3 | `AppRoot.test.tsx` |

@@ -5,7 +5,13 @@ import { AppLanguageProvider } from '../i18n/AppLanguageProvider';
 import { SettingsScreen } from './SettingsScreen';
 
 jest.mock('../auth/supabase', () => ({
-  supabase: { auth: { signOut: jest.fn(async () => ({ error: null })) } },
+  supabase: {
+    auth: {
+      signOut: jest.fn(async () => ({ error: null })),
+      // 連結帳戶 (#20) reads the account's sign-in methods on open.
+      getUserIdentities: jest.fn(async () => ({ data: { identities: [] }, error: null })),
+    },
+  },
 }));
 jest.mock('../auth/useSession', () => ({
   useSession: () => ({ access_token: 'tok', user: { id: 'u1', email: 'simon@wlog.local' } }),

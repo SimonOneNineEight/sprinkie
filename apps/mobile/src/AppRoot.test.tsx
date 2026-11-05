@@ -42,6 +42,8 @@ jest.mock('./auth/supabase', () => ({
         mockAuthState.session = null;
         mockAuthState.listeners.forEach((listener) => listener('SIGNED_OUT', null));
       }),
+      // 設定's 連結帳戶 (#20) reads the account's sign-in methods on open.
+      getUserIdentities: jest.fn(async () => ({ data: { identities: [] }, error: null })),
       // Confirm email off: a sign-up comes back signed in.
       signUp: jest.fn(async () => {
         const session = { access_token: 'token-new', user: { id: 'u-new' } };

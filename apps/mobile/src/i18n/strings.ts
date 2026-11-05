@@ -62,6 +62,23 @@ const zhTW = {
     deactivatedBody: '30天內可復原帳號。之後所有紀錄、照片與類別將永久刪除。',
     restore: '復原帳號',
     restoreFailed: '復原失敗，請再試一次',
+    // The 連結帳戶 section (#20): one row per provider, its state trailing.
+    // Provider names are brands and never translate.
+    linkHeader: '連結帳戶',
+    apple: 'Apple',
+    google: 'Google',
+    linked: '已連結',
+    link: '連結',
+    // The section's footer: linking happens from inside the account you keep.
+    linkSteer: '已有帳戶？請先用原本的方式登入，再從這裡連結。',
+    // Linking never merges (#20): a method another account holds stays
+    // there until that account is deleted and purged.
+    claimed: '此登入方式已屬於另一個帳戶',
+    claimedHint: '若要連結，請先登入那個帳戶並刪除它；刪除 30 天後，它的登入方式才會釋出。',
+    linkFailed: '連結失敗，請再試一次',
+    // The link state could not be read; the rows wait for 重試.
+    linkLoadFailed: '無法載入連結狀態',
+    linkRetry: '重試',
     // The App Language row and picker (#35). 系統預設 translates with the
     // UI; the two language names are fixed endonyms, never translated.
     generalHeader: '一般',

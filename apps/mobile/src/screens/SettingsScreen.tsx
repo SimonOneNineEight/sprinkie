@@ -1,10 +1,11 @@
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
-import { useState } from 'react';
-import { Alert, Modal, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { deactivateMe } from '../api/client';
+import { providerIdToken, type Provider } from '../auth/providerTokens';
 import { supabase } from '../auth/supabase';
 import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
@@ -70,6 +71,8 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
             </View>
           </View>
         </View>
+
+        <LinkedAccounts />
 
         <View>
           <Text style={styles.sectionHeader}>{strings.settings.generalHeader}</Text>
@@ -148,6 +151,135 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
       ) : null}
     </SafeAreaView>
   );
+}
+
+const providers: Provider[] = ['apple', 'google'];
+
+// 連結帳戶 (#20), variant A of the device prototype (ratified 2026-11-05): a
+// plain grouped list, one row per provider, ending in 已連結 or 連結. Link
+// state is the account's identities as Supabase holds them, read fresh on
+// open: another phone may have linked one since this session began.
+function LinkedAccounts() {
+  const strings = useStrings();
+  const [linked, setLinked] = useState<Provider[] | null>(null);
+  const [busy, setBusy] = useState<Provider | null>(null);
+  const [failure, setFailure] = useState<'claimed' | 'failed' | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  // Bumped by 重試 to read the identities again.
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    readLinked().then(
+      (fresh) => {
+        if (active) setLinked(fresh);
+      },
+      () => {
+        if (active) setLoadFailed(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
+  // The provider's own sheet first, then Supabase links its ID token to the
+  // signed-in account.
+  const link = async (provider: Provider) => {
+    setFailure(null);
+    setBusy(provider);
+    try {
+      const token = await providerIdToken(provider);
+      if (!token) return;
+      const { data, error } = await supabase.auth.linkIdentity({ provider, token });
+      if (error) throw error;
+      setLinked(providersOf(data.user?.identities));
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'identity_already_exists') {
+        setFailure('failed');
+        return;
+      }
+      // Supabase Auth gives that code both for a method on another account
+      // and for one already on this account, linked from another phone since
+      // 設定 opened. A fresh read tells them apart; neither changed anything.
+      try {
+        const fresh = await readLinked();
+        setLinked(fresh);
+        if (!fresh.includes(provider)) setFailure('claimed');
+      } catch {
+        setFailure('failed');
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <View>
+      <Text style={styles.sectionHeader}>{strings.settings.linkHeader}</Text>
+      <View style={styles.card}>
+        {providers.map((provider, index) => {
+          const isLinked = linked?.includes(provider) ?? false;
+          return (
+            <Pressable
+              key={provider}
+              accessibilityRole="button"
+              disabled={linked === null || isLinked || busy !== null}
+              style={[styles.row, index < providers.length - 1 && styles.rowDivided]}
+              onPress={() => void link(provider)}
+            >
+              <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings[provider]}</Text>
+              {busy === provider ? (
+                <ActivityIndicator size="small" color={theme.colors.iconMuted} />
+              ) : linked === null ? null : isLinked ? (
+                <Text style={styles.rowValue}>{strings.settings.linked}</Text>
+              ) : (
+                <Text style={styles.rowAction}>{strings.settings.link}</Text>
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+      {loadFailed ? (
+        <View style={[styles.linkNote, styles.linkRetryLine]}>
+          <Text style={styles.linkError}>{strings.settings.linkLoadFailed}</Text>
+          <Pressable
+            accessibilityRole="button"
+            // A short word at meta size: the slop brings it to a fair target.
+            hitSlop={12}
+            onPress={() => {
+              setLoadFailed(false);
+              setLoadAttempt((n) => n + 1);
+            }}
+          >
+            <Text style={styles.linkRetry}>{strings.settings.linkRetry}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {failure === 'claimed' ? (
+        <View style={styles.linkNote}>
+          <Text style={styles.linkError}>{strings.settings.claimed}</Text>
+          <Text style={styles.linkHint}>{strings.settings.claimedHint}</Text>
+        </View>
+      ) : failure === 'failed' ? (
+        <View style={styles.linkNote}>
+          <Text style={styles.linkError}>{strings.settings.linkFailed}</Text>
+        </View>
+      ) : null}
+      <Text style={styles.linkFooter}>{strings.settings.linkSteer}</Text>
+    </View>
+  );
+}
+
+// The providers on the signed-in account, read from Supabase Auth.
+async function readLinked(): Promise<Provider[]> {
+  const { data, error } = await supabase.auth.getUserIdentities();
+  if (error) throw error;
+  return providersOf(data.identities);
+}
+
+function providersOf(identities: { provider: string }[] | undefined): Provider[] {
+  return providers.filter((provider) => identities?.some((i) => i.provider === provider));
 }
 
 // The row readout and the sheet rows share one mapping: 系統預設 translates
@@ -272,6 +404,12 @@ const styles = createStyles((t) => ({
     ...t.typography.entryTitle,
     color: t.colors.textSecondary,
   },
+  rowAction: {
+    // An action reads heavier than a value beside it, as in the prototype.
+    ...t.typography.entryTitle,
+    fontWeight: '600',
+    color: t.colors.textPrimary,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -334,5 +472,35 @@ const styles = createStyles((t) => ({
   error: {
     ...t.typography.meta,
     color: t.colors.textDestructive,
+  },
+  linkNote: {
+    gap: t.spacing.space1,
+    marginTop: t.spacing.space4,
+    marginHorizontal: t.spacing.space1,
+  },
+  linkError: {
+    ...t.typography.meta,
+    fontWeight: '600',
+    color: t.colors.textDestructive,
+  },
+  linkFooter: {
+    ...t.typography.meta,
+    color: t.colors.textTertiary,
+    marginTop: t.spacing.space4,
+    marginHorizontal: t.spacing.space1,
+  },
+  linkRetryLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: t.spacing.space4,
+  },
+  linkRetry: {
+    ...t.typography.meta,
+    fontWeight: '600',
+    color: t.colors.textPrimary,
+  },
+  linkHint: {
+    ...t.typography.meta,
+    color: t.colors.textSecondary,
   },
 }));
