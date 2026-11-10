@@ -729,7 +729,21 @@ build; an over-the-air update cannot bring it.
 **RM.2 at 21:00**: once per release pass, leave the default time and let
 the real 21:00 Reminder arrive on a locked phone.
 
-Tapping a Reminder (#140). Set 提醒時間 a minute ahead for each.
+**A day that already holds an Entry (#137)**: with the Reminder on and
+提醒時間 a few minutes ahead, so each case is seen arriving or not.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.13 | Save an Entry dated today with +, then wait past the time | Nothing arrives today; tomorrow's arrives **[auto]** |
+| RM.14 | Delete today's only Entry before the time | Today's Reminder arrives **[auto]** |
+| RM.15 | Move today's only Entry to another date before the time | Today's Reminder arrives **[auto]** |
+| RM.16 | Hide a Category in 類別, save today's Entry in it | Nothing arrives today **[auto]** |
+| RM.17 | In airplane mode, save an Entry dated today, then wait past the time | The save fails and keeps a Draft; the Reminder arrives. Retrying the Draft before the time silences today **[auto]** |
+| RM.18 | Save an Entry for yesterday only | Today's Reminder arrives **[auto]** |
+| RM.19 | Save today's Entry, force-quit Sprinkie, open it again, wait past the time | Nothing arrives today **[auto]** |
+| RM.20 | Save today's Entry on another phone signed in to the same account | This phone's Reminder still arrives today (accepted, ADR-0002 amendment) |
+
+**Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
 
 | # | Case | Expected |
 | --- | --- | --- |
@@ -943,6 +957,13 @@ the tag.
 | RM.9 | `AppRoot.test.tsx` |
 | RM.10 | `AppRoot.test.tsx` |
 | RM.11 | `AppRoot.test.tsx` |
+| RM.13 | `AppRoot.test.tsx` |
+| RM.14 | `AppRoot.test.tsx` |
+| RM.15 | `AppRoot.test.tsx` |
+| RM.16 | `AppRoot.test.tsx` |
+| RM.17 | `AppRoot.test.tsx` |
+| RM.18 | `AppRoot.test.tsx` |
+| RM.19 | `AppRoot.test.tsx` |
 | RM.40 | `AppRoot.test.tsx` |
 | RM.41 | `AppRoot.test.tsx` |
 | RM.42 | `AppRoot.test.tsx` |

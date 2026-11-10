@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import type { Me } from './api/client';
 import { ApiError, provisionMe, reactivateMe } from './api/client';
 import { supabase } from './auth/supabase';
-import { localDateString } from './calendar/monthMath';
 import { useSession } from './auth/useSession';
+import { localDateString } from './calendar/monthMath';
 import { useAppLanguage } from './i18n/AppLanguageProvider';
 import { clearReminder, watchReminders } from './reminder/reminder';
 import { ReminderProvider } from './reminder/ReminderProvider';
@@ -108,7 +108,7 @@ export function AppRoot() {
     );
   }
   return (
-    <ReminderProvider>
+    <ReminderProvider accessToken={session.access_token}>
       <HomeScreen
         accessToken={session.access_token}
         categories={me?.categories ?? []}

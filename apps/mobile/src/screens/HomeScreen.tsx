@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -5,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Category } from '../api/client';
 import type { HiddenSet } from '../calendar/hidden';
 import { loadHidden, nothingHidden, saveHidden } from '../calendar/hidden';
+import { useReminder } from '../reminder/useReminder';
 import { createStyles } from '../theme';
 
 import { DayScreen } from './DayScreen';
@@ -44,7 +46,13 @@ export function HomeScreen({
   // The hidden-set (#30): one visibility state across every calendar
   // surface, persisted so it survives launches.
   const [hidden, setHidden] = useState<HiddenSet>(nothingHidden);
-  const bumpMonth = () => setMonthRefresh((n) => n + 1);
+  const { resync: resyncReminder } = useReminder();
+  // An Entry was saved, deleted or moved: the month reloads, and today's
+  // Reminder follows whether today now holds an Entry (#137).
+  const bumpMonth = () => {
+    setMonthRefresh((n) => n + 1);
+    resyncReminder().catch(Sentry.captureException);
+  };
 
   useEffect(() => {
     let active = true;
