@@ -742,7 +742,7 @@ the real 21:00 Reminder arrive on a locked phone.
 | RM.17 | In airplane mode, save an Entry dated today, then wait past the time | The save fails and keeps a Draft; the Reminder arrives. Retrying the Draft before the time silences today **[auto]** |
 | RM.18 | Save an Entry for yesterday only | Today's Reminder arrives **[auto]** |
 | RM.19 | Save today's Entry, force-quit Sprinkie, open it again, wait past the time | Nothing arrives today **[auto]** |
-| RM.20 | Save today's Entry on another phone signed in to the same account | This phone's Reminder still arrives today (accepted, ADR-0002 amendment) |
+| RM.20 | Save today's Entry on another phone signed in to the same account, leaving Sprinkie on this phone closed; then repeat, opening Sprinkie on this phone before the Reminder time | Left closed, this phone's Reminder still arrives today; opened, today's Reminder is gone (accepted, ADR-0002 amendment) |
 | RM.35 | Save today's Entry, force-quit Sprinkie, turn on airplane mode, open it again, wait past the time | Nothing arrives today. Still offline the next morning, open it again: that day's Reminder arrives **[auto]** |
 
 **The invite after a first Entry (#138)**: it plays once per phone, so

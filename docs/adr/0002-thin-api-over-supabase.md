@@ -29,7 +29,10 @@ Reminder is a daily local notification the phone schedules itself, its
 time and on/off state kept on that device, so no push tokens, APNs keys
 or scheduled job exist on the server. A fixed daily schedule has nothing
 for a server to decide: the one rule it carries, no Reminder on a day
-that already holds an Entry, the phone answers from its own Entries. The
-cost is that an Entry written on a second phone does not silence the
-first one's Reminder; moving the Reminder behind the API later changes
-nothing the User sees.
+that already holds an Entry, the phone answers by asking the API for
+today's Entries each time it re-syncs (launch, return to the foreground,
+any change to today's Entries), falling back offline to the last answer
+it got. The cost is that an Entry written on a second phone silences the
+first one's Reminder only once that phone next re-syncs, not the moment
+it is written; moving the Reminder behind the API later changes nothing
+the User sees.
