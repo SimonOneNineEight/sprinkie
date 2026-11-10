@@ -68,7 +68,7 @@ type Props = {
 };
 
 /** An open Entry form, as onFormState reports it. */
-export type OpenForm = { date: string; written: boolean };
+export type OpenForm = { date: string; dirty: boolean };
 
 // The entry form per the canvas: category comes first (search field + list),
 // and only a chosen category reveals the title and note fields. The pinned
@@ -184,7 +184,7 @@ export function EntryFormScreen({
 
   // Anything the User did here since the form opened, a save under way or
   // words already on the server included: such a form is never swapped away.
-  const written =
+  const dirty =
     date !== (draft?.date ?? entry?.date ?? openedFor) ||
     categoryId !== (initialCategoryId ?? null) ||
     subcategoryId !== (initialSubcategoryId ?? null) ||
@@ -196,8 +196,8 @@ export function EntryFormScreen({
     saving ||
     wordsSavedOn !== null;
   useEffect(() => {
-    onFormState?.({ date, written });
-  }, [onFormState, date, written]);
+    onFormState?.({ date, dirty });
+  }, [onFormState, date, dirty]);
   useEffect(() => () => onFormState?.(null), [onFormState]);
 
   useEffect(() => {

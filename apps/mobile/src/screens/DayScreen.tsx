@@ -25,6 +25,9 @@ import { createStyles, theme } from '../theme';
 
 import { EntryFormScreen, type OpenForm } from './EntryFormScreen';
 
+/** How an Entry changed on the day view, as onEntrySaved reports it. */
+export type EntryChange = 'saved' | 'deleted' | 'reordered';
+
 type Props = {
   accessToken: string;
   categories: Category[];
@@ -42,7 +45,7 @@ type Props = {
    * Called after an Entry changes here (save, edit, delete, reorder), saying
    * which: only a save can be a first Entry (#138).
    */
-  onEntrySaved?: (change: 'saved' | 'deleted' | 'reordered') => void;
+  onEntrySaved?: (change: EntryChange) => void;
   /** What this screen's Entry form holds while open (#140); see EntryFormScreen. */
   onFormState?: (form: OpenForm | null) => void;
   onCategoriesChanged?: () => void;
@@ -137,7 +140,7 @@ export function DayScreen({
     setViewingId(null);
   }
 
-  const changed = (change: 'saved' | 'deleted') => {
+  const changed = (change: EntryChange) => {
     setRefresh((n) => n + 1);
     onEntrySaved?.(change);
   };

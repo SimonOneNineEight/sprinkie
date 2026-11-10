@@ -86,7 +86,7 @@ export function HomeScreen({
   const [openedTap, setOpenedTap] = useState<Props['reminderTap']>(null);
   if (reminderTap && reminderTap !== openedTap) {
     setOpenedTap(reminderTap);
-    const keep = openForm !== null && (openForm.written || openForm.date === reminderTap.date);
+    const keep = openForm !== null && (openForm.dirty || openForm.date === reminderTap.date);
     if (!keep) setRoute({ name: 'form', date: reminderTap.date });
   }
   useEffect(() => {
