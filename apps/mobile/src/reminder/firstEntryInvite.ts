@@ -5,13 +5,13 @@ import { versionedStore } from '../storage/versionedStore';
 // account's first save. The mark is per device and outlives the session, so
 // a User who later deletes every Entry is not offered it again here.
 
-type Store = { v: 1; shown: boolean };
+type InviteEnvelope = { v: 1; shown: boolean };
 
 const store = versionedStore<boolean>({
   key: 'reminderInvite.v1',
   fallback: false,
   decode: (envelope) => {
-    const parsed = envelope as Store;
+    const parsed = envelope as InviteEnvelope;
     return parsed.v === 1 && typeof parsed.shown === 'boolean' ? parsed.shown : null;
   },
   encode: (shown) => ({ v: 1, shown }),

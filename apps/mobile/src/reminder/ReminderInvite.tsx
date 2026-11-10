@@ -6,32 +6,46 @@ import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
 
+import { claimFirstEntryInvite } from './firstEntryInvite';
+import { dateAsTime, timeAsDate } from './reminder';
 import { useReminder } from './useReminder';
 
-type Phase = 'line' | 'sheet' | 'pointer';
+type Phase = 'claiming' | 'line' | 'sheet' | 'pointer';
 
 // The first-save line, then the Reminder invite (#138), played once over the
 // month view after a zero-Entry account's first save. The look is variant B
 // of the device prototype, ratified by Simon on 2026-11-10 (DESIGN.md): copy
 // left-aligned, an inline wheel at 21:00, 先不用 and 設定提醒 side by side.
 // 設定提醒 turns on the same Reminder 設定 does; notifications already
-// blocked close the sheet with a pointer to 設定 instead of a prompt.
+// blocked close the sheet with a pointer to 設定 instead of a prompt. The
+// once-only mark is claimed as the line plays, not at the save, so Sprinkie
+// closed before the month view does not use it up. A Reminder already on
+// leaves nothing to offer: the line plays alone.
 export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
   const strings = useStrings();
   const reminder = useReminder();
-  const [phase, setPhase] = useState<Phase>('line');
-  const [time, setTime] = useState(() => {
-    const at = new Date();
-    at.setHours(reminder.time.hour, reminder.time.minute, 0, 0);
-    return at;
-  });
+  const alreadyOn = reminder.on;
+  const [phase, setPhase] = useState<Phase>('claiming');
+  const [time, setTime] = useState(() => timeAsDate(reminder.time));
   // useState's initialiser, not a ref: read during render for the style.
   const [opacity] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    let active = true;
+    void claimFirstEntryInvite().then((claimed) => {
+      if (!active) return;
+      if (claimed) setPhase('line');
+      else onFinished();
+    });
+    return () => {
+      active = false;
+    };
+  }, [onFinished]);
 
   // The line, and later the pointer, fade in, hold about two seconds and
   // fade out. The line first lets today's new color be seen.
   useEffect(() => {
-    if (phase === 'sheet') return;
+    if (phase !== 'line' && phase !== 'pointer') return;
     opacity.setValue(0);
     const fade = Animated.sequence([
       Animated.delay(phase === 'line' ? 600 : 0),
@@ -41,18 +55,19 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
     ]);
     fade.start(({ finished }) => {
       if (!finished) return;
-      if (phase === 'line') setPhase('sheet');
+      if (phase === 'line' && !alreadyOn) setPhase('sheet');
       else onFinished();
     });
     return () => fade.stop();
-  }, [phase, opacity, onFinished]);
+  }, [phase, opacity, onFinished, alreadyOn]);
 
   const turnOn = async () => {
-    const result = await reminder.turnOn({ hour: time.getHours(), minute: time.getMinutes() });
+    const result = await reminder.turnOn(dateAsTime(time));
     if (result === 'blocked') setPhase('pointer');
     else onFinished();
   };
 
+  if (phase === 'claiming') return null;
   if (phase !== 'sheet') {
     return (
       <Animated.View pointerEvents="none" style={[styles.lineHolder, { opacity }]}>

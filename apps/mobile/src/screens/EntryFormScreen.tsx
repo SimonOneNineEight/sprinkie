@@ -59,7 +59,16 @@ type Props = {
   onDone: (outcome: FormOutcome) => void;
   /** Fired after an inline category/subcategory creation lands server-side. */
   onCategoriesChanged?: () => void;
+  /**
+   * What the open form holds, and null once it is left: its date, and
+   * whether the User has put anything into it since it opened. A tapped
+   * Reminder (#140) only replaces a form holding nothing.
+   */
+  onFormState?: (form: OpenForm | null) => void;
 };
+
+/** An open Entry form, as onFormState reports it. */
+export type OpenForm = { date: string; written: boolean };
 
 // The entry form per the canvas: category comes first (search field + list),
 // and only a chosen category reveals the title and note fields. The pinned
@@ -86,6 +95,7 @@ export function EntryFormScreen({
   draft,
   onDone,
   onCategoriesChanged,
+  onFormState,
 }: Props) {
   const strings = useStrings();
   // The date the Entry saves onto (#24), editable through the date row's
@@ -171,6 +181,24 @@ export function EntryFormScreen({
   // The date those words landed on. 取消 after them is not a cancel: the
   // server already holds the edit, so the form reports a save (#119).
   const [wordsSavedOn, setWordsSavedOn] = useState<string | null>(null);
+
+  // Anything the User did here since the form opened, a save under way or
+  // words already on the server included: such a form is never swapped away.
+  const written =
+    date !== (draft?.date ?? entry?.date ?? openedFor) ||
+    categoryId !== (initialCategoryId ?? null) ||
+    subcategoryId !== (initialSubcategoryId ?? null) ||
+    query !== '' ||
+    subName !== (draft?.pendingSubcategoryName ?? '') ||
+    title !== oneLine(initialContent?.title ?? '') ||
+    note !== (initialContent?.note ?? '') ||
+    staged.length !== (draft?.photos.length ?? 0) ||
+    saving ||
+    wordsSavedOn !== null;
+  useEffect(() => {
+    onFormState?.({ date, written });
+  }, [onFormState, date, written]);
+  useEffect(() => () => onFormState?.(null), [onFormState]);
 
   useEffect(() => {
     if (!draft || draft.photos.length === 0) return;

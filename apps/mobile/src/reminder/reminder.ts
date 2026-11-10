@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 
+import { localDateString } from '../calendar/monthMath';
 import { versionedStore } from '../storage/versionedStore';
 
 // The Reminder (GLOSSARY.md, spec #135): one daily local notification,
@@ -18,6 +19,18 @@ export type ReminderCopy = { title: string; body: string };
 export type ReminderState = { setting: ReminderSetting; permission: ReminderPermission };
 
 export const defaultSetting: ReminderSetting = { on: false, hour: 21, minute: 0 };
+
+/** Today at `time`, for the time pickers, which hold a Date. */
+export function timeAsDate({ hour, minute }: ReminderTime): Date {
+  const at = new Date();
+  at.setHours(hour, minute, 0, 0);
+  return at;
+}
+
+/** The time of day a picked Date names. */
+export function dateAsTime(date: Date): ReminderTime {
+  return { hour: date.getHours(), minute: date.getMinutes() };
+}
 
 // One Reminder per day, scheduled individually rather than as one repeating
 // notification, so a single day can be left out. 60 stays well inside iOS's
@@ -43,6 +56,34 @@ const store = versionedStore<ReminderSetting>({
   encode: ({ on, hour, minute }) => ({ v: 1, on, hour, minute }),
 });
 
+// The last day this phone read as holding an Entry (#137), so a launch that
+// cannot read today (offline) still leaves a written today without its
+// Reminder. Only ever compared with today, so a past day reads as unwritten.
+type WrittenDayEnvelope = { v: 1; day: string | null };
+
+const writtenDayStore = versionedStore<string | null>({
+  key: 'reminderWrittenDay.v1',
+  fallback: null,
+  decode: (envelope) => {
+    const parsed = envelope as WrittenDayEnvelope;
+    return parsed.v === 1 && (parsed.day === null || typeof parsed.day === 'string')
+      ? parsed.day
+      : null;
+  },
+  encode: (day) => ({ v: 1, day }),
+});
+
+/** Remembers whether `today` (YYYY-MM-DD) holds an Entry, as just read. */
+export async function rememberToday(today: string, written: boolean): Promise<void> {
+  if (written) await writtenDayStore.save(today);
+  else if ((await writtenDayStore.load()) === today) await writtenDayStore.save(null);
+}
+
+/** `today` if it was last known to hold an Entry, for when it cannot be read. */
+export async function lastKnownWritten(today: string): Promise<string | undefined> {
+  return (await writtenDayStore.load()) === today ? today : undefined;
+}
+
 // Every operation rebuilds the pending run from scratch; run one at a time
 // so a launch re-sync and a tap on the switch never interleave into
 // duplicates.
@@ -53,10 +94,13 @@ function serially<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
-async function readPermission(): Promise<ReminderPermission> {
-  const answer = await Notifications.getPermissionsAsync();
+function permissionOf(answer: Notifications.NotificationPermissionsStatus): ReminderPermission {
   if (answer.granted) return 'granted';
   return answer.canAskAgain ? 'askable' : 'blocked';
+}
+
+async function readPermission(): Promise<ReminderPermission> {
+  return permissionOf(await Notifications.getPermissionsAsync());
 }
 
 /** The next `runLength` daily firings strictly after now. */
@@ -71,12 +115,6 @@ function firings({ hour, minute }: ReminderTime): Date[] {
   );
 }
 
-function dayKey(date: Date): string {
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${date.getFullYear()}-${mm}-${dd}`;
-}
-
 /**
  * `writtenDay` (YYYY-MM-DD) is today when today already holds an Entry
  * (#137): that day gets no Reminder. Any other day passed is never a firing.
@@ -89,9 +127,9 @@ async function rebuild(
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (!state.setting.on || state.permission !== 'granted') return;
   for (const date of firings(state.setting)) {
-    if (dayKey(date) === writtenDay) continue;
+    if (localDateString(date) === writtenDay) continue;
     await Notifications.scheduleNotificationAsync({
-      identifier: `reminder-${dayKey(date)}`,
+      identifier: `reminder-${localDateString(date)}`,
       content: { title: copy.title, body: copy.body, data: reminderMarker },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
     });
@@ -120,8 +158,7 @@ export function turnOnReminder(
     const setting = await store.load();
     let permission = await readPermission();
     if (permission === 'askable') {
-      const answer = await Notifications.requestPermissionsAsync();
-      permission = answer.granted ? 'granted' : answer.canAskAgain ? 'askable' : 'blocked';
+      permission = permissionOf(await Notifications.requestPermissionsAsync());
       if (permission !== 'granted') {
         return { result: 'refused' as const, state: { setting, permission } };
       }
@@ -203,5 +240,6 @@ export function clearReminder(): Promise<void> {
   return serially(async () => {
     await Notifications.cancelAllScheduledNotificationsAsync();
     await store.remove();
+    await writtenDayStore.remove();
   });
 }

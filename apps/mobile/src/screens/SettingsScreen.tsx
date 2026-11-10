@@ -21,6 +21,7 @@ import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
 import { useAppLanguage, useStrings } from '../i18n/AppLanguageProvider';
 import { legalUrls } from '../legal';
+import { dateAsTime, timeAsDate } from '../reminder/reminder';
 import { useReminder } from '../reminder/useReminder';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
@@ -40,8 +41,9 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
   const session = useSession();
   const [failed, setFailed] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
-  // A switch-on refused because iOS will not ask again: the note explains.
-  const [reminderBlocked, setReminderBlocked] = useState(false);
+  // A refusal at the prompt just now: nothing is said until 設定 next opens
+  // (#135 story 11), though iOS now reports notifications blocked.
+  const [reminderJustRefused, setReminderJustRefused] = useState(false);
 
   const confirmDelete = () => {
     Alert.alert(strings.settings.deleteConfirmTitle, strings.settings.deleteConfirmBody, [
@@ -99,9 +101,9 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
               <Text style={styles.rowValue}>{languageLabel(strings, override)}</Text>
               <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
             </Pressable>
-            <ReminderRows onBlocked={() => setReminderBlocked(true)} />
+            <ReminderRows onRefused={setReminderJustRefused} />
           </View>
-          <ReminderBlockedNote shown={reminderBlocked} />
+          <ReminderBlockedNote quiet={reminderJustRefused} />
         </View>
 
         <View>
@@ -171,11 +173,9 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
 // 每日提醒 (#136): a switch, and while it is on, 提醒時間 with iOS's compact
 // time button. The first switch-on asks iOS for permission; a refusal there
 // leaves it off with nothing said.
-function ReminderRows({ onBlocked }: { onBlocked: () => void }) {
+function ReminderRows({ onRefused }: { onRefused: (refused: boolean) => void }) {
   const strings = useStrings();
   const reminder = useReminder();
-  const at = new Date();
-  at.setHours(reminder.time.hour, reminder.time.minute, 0, 0);
 
   return (
     <>
@@ -191,7 +191,7 @@ function ReminderRows({ onBlocked }: { onBlocked: () => void }) {
               return;
             }
             void reminder.turnOn().then((result) => {
-              if (result === 'blocked') onBlocked();
+              onRefused(result === 'refused');
             });
           }}
         />
@@ -202,14 +202,14 @@ function ReminderRows({ onBlocked }: { onBlocked: () => void }) {
           <DateTimePicker
             testID="reminder-time"
             accessibilityLabel={strings.settings.reminderTime}
-            value={at}
+            value={timeAsDate(reminder.time)}
             mode="time"
             display="compact"
             themeVariant="light"
             accentColor={theme.colors.ink}
             onChange={(event, date) => {
               if (event.type !== 'set' || !date) return;
-              void reminder.changeTime({ hour: date.getHours(), minute: date.getMinutes() });
+              void reminder.changeTime(dateAsTime(date));
             }}
           />
         </View>
@@ -219,13 +219,13 @@ function ReminderRows({ onBlocked }: { onBlocked: () => void }) {
 }
 
 // Blocked permission never prompts (#136): the line says why the switch
-// stays off and opens the iOS Settings app, as the camera does. Shown after
-// a switch-on meets blocked permission, or while the Reminder is set on but
-// iOS has its notifications off.
-function ReminderBlockedNote({ shown }: { shown: boolean }) {
+// stays off and opens the iOS Settings app, as the camera does. Shown
+// whenever iOS has Sprinkie's notifications blocked and the Reminder is not
+// on (#135 stories 9 and 12), except right after a refusal at the prompt.
+function ReminderBlockedNote({ quiet }: { quiet: boolean }) {
   const strings = useStrings();
   const reminder = useReminder();
-  if (reminder.on || !(shown || reminder.blocked)) return null;
+  if (reminder.on || !reminder.blocked || quiet) return null;
   return (
     <View style={styles.linkNote}>
       <Text style={styles.linkHint}>{strings.settings.reminderBlocked}</Text>

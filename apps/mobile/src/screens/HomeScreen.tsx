@@ -6,13 +6,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Category } from '../api/client';
 import type { HiddenSet } from '../calendar/hidden';
 import { loadHidden, nothingHidden, saveHidden } from '../calendar/hidden';
-import { claimFirstEntryInvite, hasNoEntries } from '../reminder/firstEntryInvite';
+import { hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
 import { useReminder } from '../reminder/useReminder';
 import { createStyles } from '../theme';
 
 import { DayScreen } from './DayScreen';
-import { EntryFormScreen } from './EntryFormScreen';
+import { EntryFormScreen, type OpenForm } from './EntryFormScreen';
 import { MonthScreen } from './MonthScreen';
 import { SettingsScreen } from './SettingsScreen';
 import { YearScreen } from './YearScreen';
@@ -56,14 +56,12 @@ export function HomeScreen({
     resyncReminder().catch(Sentry.captureException);
   };
   // The Reminder invite (#138): due after a zero-Entry account's first save,
-  // wherever it was made, and played once back on the month view.
+  // wherever it was made, and played once back on the month view, which is
+  // where it claims its once-only mark. A delete or a reorder is no save.
   const [inviteDue, setInviteDue] = useState(false);
   const entrySaved = () => {
     bumpMonth();
-    if (!hasNoEntries(categories)) return;
-    void claimFirstEntryInvite().then((claimed) => {
-      if (claimed) setInviteDue(true);
-    });
+    if (hasNoEntries(categories)) setInviteDue(true);
   };
   const inviteFinished = useCallback(() => setInviteDue(false), []);
 
@@ -79,11 +77,17 @@ export function HomeScreen({
 
   // A tapped Reminder lands on the Entry form for its date, on top of the
   // month view as + opens it (#140). Each tap opens it once; AppRoot then
-  // lets go of it, so a later remount never reopens it.
+  // lets go of it, so a later remount never reopens it. An Entry form
+  // already open, here or on the day view, is replaced only while it holds
+  // nothing the User put in: typed text is never thrown away, so such a
+  // form stays as it is, on its own day. One already open for that date
+  // stays too.
+  const [openForm, setOpenForm] = useState<OpenForm | null>(null);
   const [openedTap, setOpenedTap] = useState<Props['reminderTap']>(null);
   if (reminderTap && reminderTap !== openedTap) {
     setOpenedTap(reminderTap);
-    setRoute({ name: 'form', date: reminderTap.date });
+    const keep = openForm !== null && (openForm.written || openForm.date === reminderTap.date);
+    if (!keep) setRoute({ name: 'form', date: reminderTap.date });
   }
   useEffect(() => {
     if (reminderTap) onReminderTapOpened?.();
@@ -104,7 +108,8 @@ export function HomeScreen({
         onChangeHidden={changeHidden}
         onBack={() => setRoute({ name: 'month', focus: focusOn(route.date) })}
         onChangeDate={(date) => setRoute({ name: 'day', date })}
-        onEntrySaved={entrySaved}
+        onEntrySaved={(change) => (change === 'saved' ? entrySaved() : bumpMonth())}
+        onFormState={setOpenForm}
         onCategoriesChanged={onCategoriesChanged}
       />
     );
@@ -134,10 +139,14 @@ export function HomeScreen({
   if (route.name === 'form') {
     return (
       <EntryFormScreen
+        // A new date is a new form: a tap swapping a blank form for another
+        // day's starts afresh.
+        key={route.date}
         accessToken={accessToken}
         date={route.date}
         categories={categories}
         onCategoriesChanged={onCategoriesChanged}
+        onFormState={setOpenForm}
         onDone={(outcome) => {
           if (outcome.kind === 'saved') entrySaved();
           const landing = outcome.kind === 'saved' ? outcome.date : route.date;

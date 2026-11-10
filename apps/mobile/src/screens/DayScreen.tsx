@@ -23,7 +23,7 @@ import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
 
-import { EntryFormScreen } from './EntryFormScreen';
+import { EntryFormScreen, type OpenForm } from './EntryFormScreen';
 
 type Props = {
   accessToken: string;
@@ -38,8 +38,13 @@ type Props = {
    * and an Entry the form moved while the Entry view showed it (#119).
    */
   onChangeDate?: (date: string) => void;
-  /** Called after an Entry changes here (save, edit, delete, reorder). */
-  onEntrySaved?: () => void;
+  /**
+   * Called after an Entry changes here (save, edit, delete, reorder), saying
+   * which: only a save can be a first Entry (#138).
+   */
+  onEntrySaved?: (change: 'saved' | 'deleted' | 'reordered') => void;
+  /** What this screen's Entry form holds while open (#140); see EntryFormScreen. */
+  onFormState?: (form: OpenForm | null) => void;
   onCategoriesChanged?: () => void;
   /**
    * The persistent hidden-set (#30). Hidden cards drop out; drag-reorder
@@ -63,6 +68,7 @@ export function DayScreen({
   onBack,
   onChangeDate,
   onEntrySaved,
+  onFormState,
   onCategoriesChanged,
   hidden = nothingHidden,
   onChangeHidden,
@@ -131,9 +137,9 @@ export function DayScreen({
     setViewingId(null);
   }
 
-  const changed = () => {
+  const changed = (change: 'saved' | 'deleted') => {
     setRefresh((n) => n + 1);
-    onEntrySaved?.();
+    onEntrySaved?.(change);
   };
 
   if (composing || editing || openDraft) {
@@ -150,6 +156,7 @@ export function DayScreen({
         }
         draft={openDraft ?? undefined}
         onCategoriesChanged={onCategoriesChanged}
+        onFormState={onFormState}
         onDone={(outcome) => {
           setComposing(false);
           setEditing(null);
@@ -161,13 +168,13 @@ export function DayScreen({
           // view and a delete lands on the day view.
           switch (outcome.kind) {
             case 'saved':
-              changed();
+              changed('saved');
               // A save to a new date moves this screen there, so the view
               // finds the Entry again and back lands on the day it lives on now.
               if (viewingId !== null && outcome.date !== date) onChangeDate?.(outcome.date);
               return;
             case 'deleted':
-              changed();
+              changed('deleted');
               setViewingId(null);
               return;
             case 'cancelled':
@@ -183,7 +190,7 @@ export function DayScreen({
       const result = await reorderDay(accessToken, date, ordered.map((e) => e.id));
       setLoaded({ date, entries: result.entries });
       setReorderFailed(false);
-      onEntrySaved?.();
+      onEntrySaved?.('reordered');
     } catch {
       // Roll the optimistic order back to server truth and say what failed.
       setReorderFailed(true);

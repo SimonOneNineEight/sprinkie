@@ -1160,11 +1160,32 @@ describe('the Reminder in 設定 (#136)', () => {
     expect(fakeNotifications.scheduled()).toEqual([]);
   });
 
-  it('never prompts once permission is blocked: it explains, and 前往設定 opens the iOS Settings app', async () => {
+  it('explains the refusal the next time 設定 opens, still without prompting', async () => {
+    fakeNotifications.answerPromptWith('deny');
+    await openSettings();
+    await switchOn();
+    expect(screen.queryByText('前往設定')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    fireEvent.press(await screen.findByLabelText('設定'));
+    await screen.findByText('每日提醒');
+
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.getByText('每日提醒需要開啟通知，請到設定允許 Sprinkie 傳送通知。')).toBeTruthy();
+    expect(screen.getByText('前往設定')).toBeTruthy();
+    expect(fakeNotifications.prompts()).toBe(1);
+  });
+
+  it('never prompts once permission is blocked: it explains on opening, and 前往設定 opens the iOS Settings app', async () => {
     const openSettingsApp = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
     fakeNotifications.setPermission('blocked');
     await openSettings();
-    expect(screen.queryByText('前往設定')).toBeNull();
+    // Blocked before the switch is ever tried: 設定 already says why (#135 story 9).
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.getByText('每日提醒需要開啟通知，請到設定允許 Sprinkie 傳送通知。')).toBeTruthy();
+    expect(screen.getByText('前往設定')).toBeTruthy();
 
     await switchOn();
 
@@ -1547,6 +1568,60 @@ describe('no Reminder on a day that already holds an Entry (#137)', () => {
     await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
     expect(reminderDays()).not.toContain(today);
   });
+
+  describe('launching offline, when today cannot be read', () => {
+    /** Closes Sprinkie, then opens it again with day reads failing. */
+    const relaunchOffline = async () => {
+      screen.unmount();
+      api.failures.dayReads = true;
+      render(<AppRoot />);
+      await screen.findByLabelText('新增紀錄');
+      // Let the launch re-sync run its course.
+      await act(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
+    };
+
+    it('still schedules nothing for today once today was known to hold an Entry', async () => {
+      await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+      await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+
+      await relaunchOffline();
+
+      expect(reminderDays()[0]).toBe('2026-11-11');
+      expect(reminderDays()).not.toContain(today);
+    });
+
+    it('schedules the new day once the date has rolled over', async () => {
+      await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+      await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+
+      jest.setSystemTime(new Date(2026, 10, 11, 9, 30));
+      await relaunchOffline();
+
+      expect(reminderDays()[0]).toBe('2026-11-11');
+      expect(reminderDays()).toHaveLength(60);
+    });
+
+    it("schedules today again once today's only Entry was deleted", async () => {
+      await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+      await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+      await openToday();
+      await editCard('晨跑');
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      await act(async () => {
+        fireEvent.press(screen.getByText('刪除紀錄'));
+      });
+      const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+      await act(async () => {
+        destructive?.onPress?.();
+      });
+      alertSpy.mockRestore();
+      await waitFor(() => expect(reminderDays()[0]).toBe(today));
+
+      await relaunchOffline();
+
+      expect(reminderDays()[0]).toBe(today);
+    });
+  });
 });
 
 describe('tapping a Reminder (#140)', () => {
@@ -1669,6 +1744,88 @@ describe('tapping a Reminder (#140)', () => {
     });
 
     expect(screen.getByDisplayValue('還沒寫完')).toBeTruthy();
+  });
+
+  describe('with a form already open for another day', () => {
+    /** Launches on a world with 運動, with yesterday selected on the month view. */
+    const launchOnYesterday = async () => {
+      await setUpTheReminder();
+      api.restore();
+      api = installMockApi({
+        me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] },
+      });
+      render(<AppRoot />);
+      await screen.findByLabelText('新增紀錄');
+      await act(async () => {
+        fireEvent.press(within(screen.getByTestId('month-page-current')).getByTestId('day-holder-9'));
+      });
+    };
+    /** From yesterday's day view, opens its + form. */
+    const openYesterdaysDayForm = async () => {
+      await act(async () => {
+        fireEvent.press(within(screen.getByTestId('month-page-current')).getByTestId('day-holder-9'));
+      });
+      await screen.findByLabelText('返回');
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('新增紀錄'));
+      });
+      expectFormFor('11月9日 星期一');
+    };
+
+    it("swaps a form with nothing written in it for today's", async () => {
+      await launchOnYesterday();
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('新增紀錄'));
+      });
+      expectFormFor('11月9日 星期一');
+
+      await act(async () => {
+        fakeNotifications.tap(tonight);
+      });
+
+      expectFormFor('11月10日 星期二');
+    });
+
+    it('keeps a form with something written in it, on its own day, text and all', async () => {
+      await launchOnYesterday();
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('新增紀錄'));
+      });
+      fireEvent.press(screen.getByText('運動'));
+      fireEvent.changeText(screen.getByPlaceholderText('標題'), '昨天的事');
+
+      await act(async () => {
+        fakeNotifications.tap(tonight);
+      });
+
+      expect(screen.getByDisplayValue('昨天的事')).toBeTruthy();
+      expectFormFor('11月9日 星期一');
+    });
+
+    it("swaps the day view's form with nothing written in it for today's", async () => {
+      await launchOnYesterday();
+      await openYesterdaysDayForm();
+
+      await act(async () => {
+        fakeNotifications.tap(tonight);
+      });
+
+      expectFormFor('11月10日 星期二');
+    });
+
+    it("keeps the day view's form with something written in it, text and all", async () => {
+      await launchOnYesterday();
+      await openYesterdaysDayForm();
+      fireEvent.press(screen.getByText('運動'));
+      fireEvent.changeText(screen.getByPlaceholderText('標題'), '昨天的事');
+
+      await act(async () => {
+        fakeNotifications.tap(tonight);
+      });
+
+      expect(screen.getByDisplayValue('昨天的事')).toBeTruthy();
+      expectFormFor('11月9日 星期一');
+    });
   });
 
   it('shows a Reminder arriving while Sprinkie is open as a banner, and tapping it opens the form', async () => {
@@ -1998,5 +2155,103 @@ describe('the Reminder invite after a first Entry (#138)', () => {
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
     expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+  });
+
+  /** From the month view, opens today's day view. */
+  const openToday = async () => {
+    await act(async () => {
+      fireEvent.press(
+        within(screen.getByTestId('month-page-current')).getByTestId(`day-holder-${new Date().getDate()}`),
+      );
+    });
+    await screen.findByLabelText('返回');
+  };
+
+  it('keeps the invite for later when Sprinkie is closed before the month view comes back', async () => {
+    await signIn();
+    await openToday();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    await screen.findByLabelText('返回');
+    // Closed from the day view: the line never played.
+    screen.unmount();
+
+    // Relaunched on a world /me still reports as without Entries.
+    await signIn();
+    await saveEntry('夜跑');
+
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+  });
+
+  it("never plays after a delete on the day view, which is no first Entry", async () => {
+    // /me still reports no Category in use, as before a first save.
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    const today = localDateString(new Date());
+    api = installMockApi({
+      me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1, inUse: false }] },
+      entries: {
+        [today]: [{
+          id: 'e1', date: today, position: 1, categoryId: cat.sport.id, authorId: 'u1',
+          content: encodeContent({ title: '晨跑', note: '' }),
+        }],
+      },
+    });
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+    await openToday();
+    await act(async () => {
+      fireEvent.press(await screen.findByText('晨跑'));
+    });
+    await act(async () => {
+      fireEvent.press(await screen.findByText('編輯'));
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    await act(async () => {
+      fireEvent.press(screen.getByText('刪除紀錄'));
+    });
+    const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+    await act(async () => {
+      destructive?.onPress?.();
+    });
+    alertSpy.mockRestore();
+    await act(async () => {
+      fireEvent.press(await screen.findByLabelText('返回'));
+    });
+    await screen.findByLabelText('新增紀錄');
+
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+  });
+
+  it('with the Reminder already on, plays the line but offers no sheet, and only once', async () => {
+    await signIn();
+    await openSettings();
+    await act(async () => {
+      fireEvent(reminderSwitch(), 'valueChange', true);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    await screen.findByLabelText('新增紀錄');
+
+    await saveEntry();
+
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText(firstSaveLine)).toBeNull(), sequence);
+    await settle();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+
+    await saveEntry('夜跑');
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
   });
 });

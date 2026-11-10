@@ -8,7 +8,7 @@ import { type ReminderTime, type TurnOnResult, defaultSetting } from './reminder
 export type ReminderValue = {
   /** On only while the User set it on and iOS grants notifications. */
   on: boolean;
-  /** Set on, but iOS will not deliver: the User turned notifications off. */
+  /** iOS will not deliver nor ask again: notifications were refused or turned off. */
   blocked: boolean;
   time: ReminderTime;
   /** Asks iOS only if it still may; `time` defaults to the stored one (21:00). */

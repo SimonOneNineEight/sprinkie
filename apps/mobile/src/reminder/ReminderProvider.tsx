@@ -10,6 +10,8 @@ import {
   type ReminderState,
   changeReminderTime,
   defaultSetting,
+  lastKnownWritten,
+  rememberToday,
   resyncReminder,
   turnOffReminder,
   turnOnReminder,
@@ -35,8 +37,9 @@ export function ReminderProvider({
   const { strings } = useAppLanguage();
   const copy = strings.reminder;
   const [state, setState] = useState<ReminderState | null>(null);
-  // Today's date while today holds an Entry, as last read. Unread or
-  // unreadable (offline), today keeps its Reminder.
+  // Today's date while today holds an Entry, as last read. Unreadable
+  // (offline), it falls back to what this phone last knew of today, kept
+  // across launches.
   const writtenDay = useRef<string | undefined>(undefined);
   // Only the latest read lands, so a slow read from before a save cannot
   // bring today's Reminder back after a newer one silenced it.
@@ -47,9 +50,12 @@ export function ReminderProvider({
     const today = localDateString(new Date());
     try {
       const { entries } = await listEntries(accessToken, today);
-      if (read === reads.current) writtenDay.current = entries.length > 0 ? today : undefined;
+      if (read === reads.current) {
+        writtenDay.current = entries.length > 0 ? today : undefined;
+        await rememberToday(today, entries.length > 0);
+      }
     } catch {
-      // Offline: keep what was last known.
+      if (read === reads.current) writtenDay.current = await lastKnownWritten(today);
     }
     return writtenDay.current;
   }, [accessToken]);
@@ -81,7 +87,7 @@ export function ReminderProvider({
     const permission = state?.permission ?? 'askable';
     return {
       on: setting.on && permission === 'granted',
-      blocked: setting.on && permission === 'blocked',
+      blocked: permission === 'blocked',
       time: { hour: setting.hour, minute: setting.minute },
       turnOn: async (time = { hour: setting.hour, minute: setting.minute }) => {
         const { result, state: next } = await turnOnReminder(time, copy, writtenDay.current);
