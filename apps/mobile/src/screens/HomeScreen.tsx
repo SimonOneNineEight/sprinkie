@@ -6,6 +6,7 @@ import type { Category } from '../api/client';
 import type { HiddenSet } from '../calendar/hidden';
 import { loadHidden, nothingHidden, saveHidden } from '../calendar/hidden';
 import { createStyles } from '../theme';
+import { ReminderInvitePrototype } from '../calendar/ReminderSheetPrototype';
 
 import { DayScreen } from './DayScreen';
 import { EntryFormScreen } from './EntryFormScreen';
@@ -36,6 +37,8 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
   // surface, persisted so it survives launches.
   const [hidden, setHidden] = useState<HiddenSet>(nothingHidden);
   const bumpMonth = () => setMonthRefresh((n) => n + 1);
+  // Reminder prototype: every save from the form replays the invite.
+  const [invitePlay, setInvitePlay] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -98,6 +101,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         onCategoriesChanged={onCategoriesChanged}
         onDone={(outcome) => {
           if (outcome.kind === 'saved') bumpMonth();
+          if (outcome.kind === 'saved') setInvitePlay((n) => n + 1);
           const landing = outcome.kind === 'saved' ? outcome.date : route.date;
           setRoute({ name: 'month', focus: focusOn(landing) });
         }}
@@ -120,6 +124,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
           onCategoriesChanged={onCategoriesChanged}
           onOpenYear={(year, month) => setRoute({ name: 'year', focus: { year, month } })}
         />
+        <ReminderInvitePrototype play={invitePlay} onFinished={() => {}} />
       </View>
     </SafeAreaView>
   );
