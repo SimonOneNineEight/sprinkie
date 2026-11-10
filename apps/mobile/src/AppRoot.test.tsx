@@ -1601,6 +1601,75 @@ describe('no Reminder on a day that already holds an Entry (#137)', () => {
       expect(reminderDays()).toHaveLength(60);
     });
 
+    it("gives the next account today's Reminder, even when the last account's read of today lands after 登出", async () => {
+      // React Native's jest setup mocks AppState; its recorded listeners
+      // stand in for iOS bringing Sprinkie back to the foreground.
+      const addListener = jest.mocked(AppState.addEventListener);
+      addListener.mockClear();
+      await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+      await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+
+      // Back in the foreground, the re-sync's read of today is still in
+      // flight when the session ends.
+      const release = api.holdEntries(today);
+      await act(async () => {
+        addListener.mock.calls.forEach(([type, listener]) => {
+          if (type === 'change') listener('active');
+        });
+      });
+      fireEvent.press(screen.getByLabelText('設定'));
+      await act(async () => {
+        fireEvent.press(await screen.findByText('登出'));
+      });
+      await screen.findByText('每天五分鐘，留下你的生活');
+      await waitFor(() => expect(fakeNotifications.scheduled()).toEqual([]));
+      await act(async () => {
+        release();
+        await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      });
+
+      // Another account signs in on this phone, offline, the same day.
+      api.failures.dayReads = true;
+      const session = { access_token: 'token-2', user: { id: 'u2' } };
+      mockAuthState.session = session;
+      act(() => mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session)));
+      fireEvent.press(await screen.findByLabelText('設定'));
+      await act(async () => {
+        fireEvent(await screen.findByRole('switch', { name: '每日提醒' }), 'valueChange', true);
+      });
+
+      await waitFor(() => expect(reminderDays()).toHaveLength(60));
+      expect(reminderDays()[0]).toBe(today);
+    });
+
+    it('keeps what this session read of today when the phone could not store it', async () => {
+      const addListener = jest.mocked(AppState.addEventListener);
+      addListener.mockClear();
+      // The package's in-memory mock is itself a jest.fn: keep its own
+      // implementation for every other key.
+      const setItem = jest.mocked(AsyncStorage.setItem).getMockImplementation()!;
+      const refused = jest
+        .spyOn(AsyncStorage, 'setItem')
+        .mockImplementation((key, value) =>
+          key === 'reminderWrittenDay.v1' ? Promise.reject(new Error('disk full')) : setItem(key, value),
+        );
+      await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+      await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+
+      // Back in the foreground, offline.
+      api.failures.dayReads = true;
+      await act(async () => {
+        addListener.mock.calls.forEach(([type, listener]) => {
+          if (type === 'change') listener('active');
+        });
+        await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      });
+      refused.mockImplementation(setItem);
+
+      expect(reminderDays()[0]).toBe('2026-11-11');
+      expect(reminderDays()).not.toContain(today);
+    });
+
     it("schedules today again once today's only Entry was deleted", async () => {
       await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
       await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));

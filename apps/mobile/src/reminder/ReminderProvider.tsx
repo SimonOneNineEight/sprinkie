@@ -12,6 +12,7 @@ import {
   defaultSetting,
   lastKnownWritten,
   rememberToday,
+  reminderSession,
   resyncReminder,
   turnOffReminder,
   turnOnReminder,
@@ -38,24 +39,33 @@ export function ReminderProvider({
   const copy = strings.reminder;
   const [state, setState] = useState<ReminderState | null>(null);
   // Today's date while today holds an Entry, as last read. Unreadable
-  // (offline), it falls back to what this phone last knew of today, kept
-  // across launches.
+  // (offline), it stays as this session last read it, or before any read
+  // of today falls back to what this phone last knew of today, kept across
+  // launches. The session's own read wins: the phone may have refused to
+  // keep it.
   const writtenDay = useRef<string | undefined>(undefined);
+  // The day this session last read, to tell whether it knows today.
+  const readDay = useRef<string | undefined>(undefined);
   // Only the latest read lands, so a slow read from before a save cannot
   // bring today's Reminder back after a newer one silenced it.
   const reads = useRef(0);
 
   const readToday = useCallback(async () => {
     const read = ++reads.current;
+    const session = reminderSession();
     const today = localDateString(new Date());
     try {
       const { entries } = await listEntries(accessToken, today);
       if (read === reads.current) {
         writtenDay.current = entries.length > 0 ? today : undefined;
-        await rememberToday(today, entries.length > 0);
+        readDay.current = today;
+        await rememberToday(session, today, entries.length > 0);
       }
     } catch {
-      if (read === reads.current) writtenDay.current = await lastKnownWritten(today);
+      if (readDay.current !== today) {
+        const known = await lastKnownWritten(today);
+        if (read === reads.current && readDay.current !== today) writtenDay.current = known;
+      }
     }
     return writtenDay.current;
   }, [accessToken]);

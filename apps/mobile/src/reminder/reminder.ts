@@ -73,15 +73,31 @@ const writtenDayStore = versionedStore<string | null>({
   encode: (day) => ({ v: 1, day }),
 });
 
-/** Remembers whether `today` (YYYY-MM-DD) holds an Entry, as just read. */
-export async function rememberToday(today: string, written: boolean): Promise<void> {
-  if (written) await writtenDayStore.save(today);
-  else if ((await writtenDayStore.load()) === today) await writtenDayStore.save(null);
+// Bumped the moment a session ends, so a read of today begun in it cannot
+// write its answer back after clearReminder forgot it: the next account on
+// this phone, launching offline that day, would lose today's Reminder.
+let sessionsEnded = 0;
+
+/** Names the session a read of today begins in; see rememberToday. */
+export function reminderSession(): number {
+  return sessionsEnded;
+}
+
+/**
+ * Remembers whether `today` (YYYY-MM-DD) holds an Entry, as read in
+ * `session`. A session that has ended since writes nothing.
+ */
+export function rememberToday(session: number, today: string, written: boolean): Promise<void> {
+  return serially(async () => {
+    if (session !== sessionsEnded) return;
+    if (written) await writtenDayStore.save(today);
+    else if ((await writtenDayStore.load()) === today) await writtenDayStore.save(null);
+  });
 }
 
 /** `today` if it was last known to hold an Entry, for when it cannot be read. */
-export async function lastKnownWritten(today: string): Promise<string | undefined> {
-  return (await writtenDayStore.load()) === today ? today : undefined;
+export function lastKnownWritten(today: string): Promise<string | undefined> {
+  return serially(async () => ((await writtenDayStore.load()) === today ? today : undefined));
 }
 
 // Every operation rebuilds the pending run from scratch; run one at a time
@@ -237,6 +253,7 @@ export function watchReminders(onTap: () => void): () => void {
 
 /** The session ended: cancel every Reminder and forget the setting. */
 export function clearReminder(): Promise<void> {
+  sessionsEnded += 1;
   return serially(async () => {
     await Notifications.cancelAllScheduledNotificationsAsync();
     await store.remove();
