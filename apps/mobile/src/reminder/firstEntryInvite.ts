@@ -26,12 +26,12 @@ export function hasNoEntries(categories: Category[]): boolean {
   return categories.length > 0 && categories.every((category) => category.inUse !== true);
 }
 
-/** Whether the invite has already played through on this phone. */
+/** Whether the invite has already been offered on this phone. */
 export function firstEntryInviteShown(): Promise<boolean> {
   return store.load();
 }
 
-/** Marks the invite played through, once its sequence ends. */
+/** Marks the invite offered, as the sheet appears (or the line ends, with nothing to offer). */
 export function markFirstEntryInviteShown(): Promise<void> {
   return store.save(true);
 }

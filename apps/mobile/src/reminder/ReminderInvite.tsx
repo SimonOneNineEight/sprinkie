@@ -1,5 +1,6 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useCallback, useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react-native';
+import { useEffect, useState } from 'react';
 import { Animated, Modal, Text, View } from 'react-native';
 
 import { useStrings } from '../i18n/AppLanguageProvider';
@@ -12,18 +13,31 @@ import { useReminder } from './useReminder';
 
 type Phase = 'checking' | 'line' | 'sheet' | 'pointer';
 
+// The line, and later the pointer, fade in, hold about two seconds and fade
+// out. The line first waits a moment so today's new color is seen.
+const colorFirst = 600;
+const fadeIn = 220;
+const hold = 1800;
+const fadeOut = 260;
+/** The pointer's whole fade, which starts at once. */
+export const pointerFadeMs = fadeIn + hold + fadeOut;
+/** The line's whole fade, from the moment it is due. */
+export const lineFadeMs = colorFirst + pointerFadeMs;
+
 // The first-save line, then the Reminder invite (#138), played once over the
 // month view after a zero-Entry account's first save. The look is variant B
 // of the device prototype, ratified by Simon on 2026-11-10 (DESIGN.md): copy
 // left-aligned, an inline wheel at 21:00, 先不用 and 設定提醒 side by side.
 // 設定提醒 turns on the same Reminder 設定 does; notifications already
 // blocked close the sheet with a pointer to 設定 instead of a prompt. The
-// once-only mark is claimed only when the sequence ends, so Sprinkie closed
-// before the month view does not use it up, and a User who leaves the month
-// view while the line plays (the line lets touches through) sees it all
-// again on return: HomeScreen keeps the invite due and mounts this anew. A
-// Reminder already on as the sequence starts leaves nothing to offer: the
-// line plays alone.
+// once-only mark is claimed when the offer is made: as the sheet appears,
+// or, with a Reminder already on as the sequence starts (nothing to offer,
+// so the line plays alone), as the line ends. So Sprinkie closed before the
+// month view does not use it up, and a User who leaves the month view while
+// the line plays (the line lets touches through) sees it all again on
+// return: HomeScreen keeps the invite due and mounts this anew. Whatever
+// happens once the sheet has appeared (the pointer tapped through, 登出, a
+// kill), no account on this phone is offered it again.
 export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
   const strings = useStrings();
   const reminder = useReminder();
@@ -32,11 +46,6 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
   const [time, setTime] = useState(() => timeAsDate(reminder.time));
   // useState's initialiser, not a ref: read during render for the style.
   const [opacity] = useState(() => new Animated.Value(0));
-
-  const finish = useCallback(() => {
-    void markFirstEntryInviteShown();
-    onFinished();
-  }, [onFinished]);
 
   useEffect(() => {
     let active = true;
@@ -50,29 +59,32 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
     };
   }, [onFinished]);
 
-  // The line, and later the pointer, fade in, hold about two seconds and
-  // fade out. The line first lets today's new color be seen.
   useEffect(() => {
     if (phase !== 'line' && phase !== 'pointer') return;
     opacity.setValue(0);
     const fade = Animated.sequence([
-      Animated.delay(phase === 'line' ? 600 : 0),
-      Animated.timing(opacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.delay(1800),
-      Animated.timing(opacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+      Animated.delay(phase === 'line' ? colorFirst : 0),
+      Animated.timing(opacity, { toValue: 1, duration: fadeIn, useNativeDriver: true }),
+      Animated.delay(hold),
+      Animated.timing(opacity, { toValue: 0, duration: fadeOut, useNativeDriver: true }),
     ]);
     fade.start(({ finished }) => {
       if (!finished) return;
-      if (phase === 'line' && !alreadyOn) setPhase('sheet');
-      else finish();
+      if (phase === 'pointer') {
+        onFinished();
+        return;
+      }
+      markFirstEntryInviteShown().catch(Sentry.captureException);
+      if (alreadyOn) onFinished();
+      else setPhase('sheet');
     });
     return () => fade.stop();
-  }, [phase, opacity, finish, alreadyOn]);
+  }, [phase, opacity, onFinished, alreadyOn]);
 
   const turnOn = async () => {
     const result = await reminder.turnOn(dateAsTime(time));
     if (result === 'blocked') setPhase('pointer');
-    else finish();
+    else onFinished();
   };
 
   if (phase === 'checking') return null;
@@ -90,7 +102,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
     );
   }
   return (
-    <Modal transparent animationType="slide" onRequestClose={finish}>
+    <Modal transparent animationType="slide" onRequestClose={onFinished}>
       <View style={styles.overlay}>
         <Pressable
           testID="reminder-invite-scrim"
@@ -98,7 +110,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
           accessibilityLabel={strings.reminderInvite.notNow}
           feedback="none"
           style={styles.scrim}
-          onPress={finish}
+          onPress={onFinished}
         />
         <View style={styles.sheet}>
           <Text style={styles.title}>{strings.reminderInvite.title}</Text>
@@ -123,7 +135,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
             <Pressable
               accessibilityRole="button"
               style={[styles.button, styles.secondary]}
-              onPress={finish}
+              onPress={onFinished}
             >
               <Text style={styles.secondaryText}>{strings.reminderInvite.notNow}</Text>
             </Pressable>

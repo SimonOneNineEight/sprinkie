@@ -57,8 +57,8 @@ export function HomeScreen({
   };
   // The Reminder invite (#138): due after a zero-Entry account's first save,
   // wherever it was made, and played back on the month view. It stays due
-  // until it plays through there, which is when it claims its once-only
-  // mark. A delete or a reorder is no save.
+  // until it plays through there; it claims its once-only mark itself, as
+  // the offer is made. A delete or a reorder is no save.
   const [inviteDue, setInviteDue] = useState(false);
   const entrySaved = () => {
     bumpMonth();

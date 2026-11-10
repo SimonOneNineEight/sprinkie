@@ -764,6 +764,9 @@ case says otherwise.
 | RM.38 | Save the first Entry from the day view's +, force-quit Sprinkie before going back, open it and save another Entry with + | RM.21 plays then: closing Sprinkie early did not use up the invite **[auto]** |
 | RM.39 | Switch 每日提醒 on in 設定 first, then save the first Entry | The line plays; no sheet follows **[auto]** |
 | RM.44 | Save the first Entry with +, and while the line shows tap 設定, then 返回 | The tap reaches 設定 through the line; back on the month view RM.21 plays again, line and sheet |
+| RM.45 | As RM.24, and while 之後可以到設定開啟每日提醒。 shows tap 設定, then 返回 | The tap reaches 設定 through the pointer; back on the month view neither the line nor the sheet plays |
+| RM.46 | As RM.24, and while the pointer shows tap 設定 and 登出; sign up a new account and save its first Entry | Neither the line nor the sheet: the sheet already appeared on this phone |
+| RM.47 | Save the first Entry with +, wait for the sheet, force-quit Sprinkie while it shows, open it and save another Entry | Neither the line nor the sheet comes back: the offer was made **[auto]** |
 
 **Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
 
@@ -1006,4 +1009,5 @@ the tag.
 | RM.37 | `AppRoot.test.tsx` |
 | RM.38 | `AppRoot.test.tsx` |
 | RM.39 | `AppRoot.test.tsx` |
+| RM.47 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |

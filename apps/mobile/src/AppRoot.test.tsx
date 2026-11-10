@@ -16,6 +16,7 @@ import { encodeContent } from './entries/content';
 import { AppLanguageProvider } from './i18n/AppLanguageProvider';
 import { processPhoto } from './photos/processPhoto';
 import { saveDraft } from './entries/drafts';
+import { lineFadeMs, pointerFadeMs } from './reminder/ReminderInvite';
 import { fakeNotifications } from './testing/fakeNotifications';
 import { cat } from './testing/fixtures';
 import { isHollowRow } from './testing/isHollowRow';
@@ -1996,10 +1997,6 @@ describe('the Reminder invite after a first Entry (#138)', () => {
   // is faked, not only Date: the line's fade and the pointer's run on the
   // test's clock, moved on by hand, so a slow machine cannot outlast them.
   const morning = new Date(2026, 10, 10, 9, 30);
-  /** The line's whole fade: 600ms of today's color, in, two seconds held, out. */
-  const lineFade = 600 + 220 + 1800 + 260;
-  /** The pointer's fade, which starts at once. */
-  const pointerFade = 220 + 1800 + 260;
   /** Moves fake time on, and lets whatever it sets off render. */
   const elapse = (ms: number) =>
     act(async () => {
@@ -2048,7 +2045,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
     expect(screen.queryByText(inviteTitle)).toBeNull();
-    await elapse(lineFade);
+    await elapse(lineFadeMs);
     expect(screen.getByText(inviteTitle)).toBeTruthy();
     expect(screen.queryByText(firstSaveLine)).toBeNull();
     expect(screen.getByText('選個喜歡的時間，偶爾忙到忘記也沒關係。')).toBeTruthy();
@@ -2065,7 +2062,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await signIn();
     await saveEntry();
     await screen.findByText(firstSaveLine);
-    await elapse(lineFade);
+    await elapse(lineFadeMs);
     screen.getByText(inviteTitle);
   };
   /** When each pending Reminder fires, as local `YYYY-MM-DD HH:MM`. */
@@ -2146,7 +2143,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     expect(screen.getByText('之後可以到設定開啟每日提醒。')).toBeTruthy();
     expect(fakeNotifications.scheduled()).toEqual([]);
     // The pointer fades on its own.
-    await elapse(pointerFade);
+    await elapse(pointerFadeMs);
     expect(screen.queryByText('之後可以到設定開啟每日提醒。')).toBeNull();
   });
 
@@ -2232,7 +2229,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     });
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    await elapse(lineFade);
+    await elapse(lineFadeMs);
     expect(screen.getByText(inviteTitle)).toBeTruthy();
   });
 
@@ -2266,7 +2263,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await saveEntry('夜跑');
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    await elapse(lineFade);
+    await elapse(lineFadeMs);
     expect(screen.getByText(inviteTitle)).toBeTruthy();
   });
 
@@ -2283,8 +2280,71 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await screen.findByLabelText('新增紀錄');
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    await elapse(lineFade);
+    await elapse(lineFadeMs);
     expect(screen.getByText(inviteTitle)).toBeTruthy();
+  });
+
+  /** Reaches the sheet with notifications blocked and taps 設定提醒, so the pointer shows. */
+  const reachPointer = async () => {
+    fakeNotifications.setPermission('blocked');
+    await reachSheet();
+    await act(async () => {
+      fireEvent.press(screen.getByText('設定提醒'));
+    });
+    screen.getByText('之後可以到設定開啟每日提醒。');
+  };
+
+  it('plays neither again when the User opens 設定 while the blocked pointer shows, then comes back', async () => {
+    await reachPointer();
+
+    // The pointer lets touches through, as the line does.
+    await openSettings();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    await screen.findByLabelText('新增紀錄');
+
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+  });
+
+  it('offers nothing to another zero-Entry account on this phone once the sheet has appeared, even after 登出 mid-sequence', async () => {
+    await reachPointer();
+    await openSettings();
+    await act(async () => {
+      fireEvent.press(screen.getByText('登出'));
+    });
+    await screen.findByText('每天五分鐘，留下你的生活');
+
+    // Another account without Entries signs in on this phone.
+    api.restore();
+    api = installMockApi({
+      me: { userId: 'u2', journalId: 'j2', categories: [{ ...cat.sport, position: 1, inUse: false }] },
+    });
+    const session = { access_token: 'token-2', user: { id: 'u2' } };
+    mockAuthState.session = session;
+    act(() => mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session)));
+    await screen.findByLabelText('新增紀錄');
+    await saveEntry('散步');
+
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+  });
+
+  it('never offers it again once the sheet has appeared, even when Sprinkie is closed while it shows', async () => {
+    await reachSheet();
+    // Closed with the sheet still up: the offer was made.
+    screen.unmount();
+
+    // Relaunched on a world /me still reports as without Entries.
+    await signIn();
+    await saveEntry('夜跑');
+
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
   });
 
   it("never plays after a delete on the day view, which is no first Entry", async () => {
@@ -2343,7 +2403,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await saveEntry();
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    await elapse(lineFade);
+    await elapse(lineFadeMs);
     expect(screen.queryByText(firstSaveLine)).toBeNull();
     await settle();
     expect(screen.queryByText(inviteTitle)).toBeNull();
