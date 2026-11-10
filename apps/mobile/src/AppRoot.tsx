@@ -97,7 +97,7 @@ export function AppRoot() {
     );
   }
   return (
-    <ReminderProvider>
+    <ReminderProvider accessToken={session.access_token}>
       <HomeScreen
         accessToken={session.access_token}
         categories={me?.categories ?? []}

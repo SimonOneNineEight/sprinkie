@@ -19,7 +19,7 @@ import { saveDraft } from './entries/drafts';
 import { fakeNotifications } from './testing/fakeNotifications';
 import { cat } from './testing/fixtures';
 import { isHollowRow } from './testing/isHollowRow';
-import { installMockApi, type MockApi } from './testing/mockApi';
+import { installMockApi, type MockApi, type MockEntry } from './testing/mockApi';
 import { ribbonSpan, rowOfMonth } from './calendar/ribbon';
 import { AppRoot } from './AppRoot';
 
@@ -1351,5 +1351,200 @@ describe('the Reminder in 設定 (#136)', () => {
       await signBackIn();
       expect(reminderSwitch().props.value).toBe(false);
     });
+  });
+});
+
+describe('no Reminder on a day that already holds an Entry (#137)', () => {
+  // A Tuesday morning, so today's 21:00 is still ahead. Only Date is faked:
+  // the suite's waits keep real timers.
+  const morning = new Date(2026, 10, 10, 9, 30);
+  const today = '2026-11-10';
+  const allButDate = [
+    'hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame',
+    'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate',
+    'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+  ] as const;
+
+  /** The days the phone holds a Reminder for, soonest first. */
+  const reminderDays = () => fakeNotifications.scheduled().map((n) => localDateString(n.date));
+  const entry = (id: string, date: string, categoryId: string, title: string): MockEntry => ({
+    id, date, position: 1, categoryId, authorId: 'u1', content: encodeContent({ title, note: '' }),
+  });
+  const currentPage = () => within(screen.getByTestId('month-page-current'));
+
+  /** Signs in on a world with these Entries, and lands on the month view. */
+  const launch = async (entries: Record<string, MockEntry[]> = {}) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    api = installMockApi({
+      me: { userId: 'u1', journalId: 'j1', categories: [cat.work, { ...cat.sport, position: 2 }] },
+      entries,
+    });
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+  };
+  /** Launches, switches the Reminder on in 設定, and comes back to the month view. */
+  const launchWithReminderOn = async (entries: Record<string, MockEntry[]> = {}) => {
+    await launch(entries);
+    fireEvent.press(screen.getByLabelText('設定'));
+    await act(async () => {
+      fireEvent(await screen.findByRole('switch', { name: '每日提醒' }), 'valueChange', true);
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    await screen.findByLabelText('新增紀錄');
+  };
+  /** + on the month view's selected day, writes `title` in 運動, 儲存. */
+  const writeOnSelectedDay = async (title: string) => {
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), title);
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+  };
+  /** Opens today's day view from the month view; today is already selected. */
+  const openToday = async () => {
+    await act(async () => {
+      fireEvent.press(currentPage().getByTestId('day-holder-10'));
+    });
+    await screen.findByLabelText('返回');
+  };
+  /** From today's day view: opens the card titled `title`, then 編輯. */
+  const editCard = async (title: string) => {
+    await act(async () => {
+      fireEvent.press(await screen.findByText(title));
+    });
+    await act(async () => {
+      fireEvent.press(await screen.findByText('編輯'));
+    });
+  };
+
+  beforeEach(async () => {
+    jest.useFakeTimers({ now: morning, doNotFake: [...allButDate] });
+    fakeNotifications.reset();
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    jest.useRealTimers();
+    await AsyncStorage.clear();
+  });
+
+  it("removes today's Reminder once an Entry dated today is saved, and keeps tomorrow's", async () => {
+    await launchWithReminderOn();
+    expect(reminderDays()[0]).toBe(today);
+
+    await writeOnSelectedDay('晨跑');
+
+    await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+    expect(reminderDays()).not.toContain(today);
+    expect(fakeNotifications.scheduled()[0].date.getHours()).toBe(21);
+  });
+
+  it("brings today's Reminder back when today's only Entry is deleted before the time", async () => {
+    await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+    await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+    await openToday();
+
+    await editCard('晨跑');
+    const alertSpy = jest.spyOn(Alert, 'alert');
+    await act(async () => {
+      fireEvent.press(screen.getByText('刪除紀錄'));
+    });
+    const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+    await act(async () => {
+      destructive?.onPress?.();
+    });
+    alertSpy.mockRestore();
+
+    await waitFor(() => expect(reminderDays()[0]).toBe(today));
+    expect(reminderDays()[1]).toBe('2026-11-11');
+  });
+
+  it("brings today's Reminder back when today's only Entry moves to another date", async () => {
+    await launchWithReminderOn({ [today]: [entry('e1', today, 'c-sport', '晨跑')] });
+    await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+    await openToday();
+
+    await editCard('晨跑');
+    fireEvent.press(screen.getByText('日期'));
+    await act(async () => {
+      fireEvent.press(within(screen.getByTestId('date-picker-sheet')).getByText('15'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    await waitFor(() => expect(reminderDays()[0]).toBe(today));
+  });
+
+  it('counts an Entry in a Hidden Category: it silences today too', async () => {
+    await saveHidden({ categoryIds: [cat.sport.id], subcategoryIds: [] });
+    await launchWithReminderOn();
+
+    await writeOnSelectedDay('晨跑');
+
+    await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+  });
+
+  it("keeps today's Reminder through a failed save, and drops it once the Draft's retry lands", async () => {
+    await launchWithReminderOn();
+    api.failures.entryWrites = true;
+
+    await writeOnSelectedDay('晨跑');
+    expect(await screen.findByText('儲存失敗，請再試一次')).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+    await screen.findByLabelText('新增紀錄');
+    await act(async () => {});
+    expect(reminderDays()[0]).toBe(today);
+
+    // The Draft's row on today's day view reopens the form; 儲存 retries.
+    api.failures.entryWrites = false;
+    await openToday();
+    await act(async () => {
+      fireEvent.press(await screen.findByText('晨跑'));
+    });
+    await screen.findByDisplayValue('晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+
+    await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+  });
+
+  it("leaves today's Reminder in place when an Entry is saved for yesterday", async () => {
+    await launchWithReminderOn();
+    await act(async () => {
+      fireEvent.press(currentPage().getByTestId('day-holder-9'));
+    });
+
+    await writeOnSelectedDay('晨跑');
+    const [, init] = api.entryPosts().at(-1)!;
+    expect(JSON.parse(String(init?.body)).date).toBe('2026-11-09');
+
+    // Give a re-sync the chance to run, then look.
+    await act(async () => {});
+    expect(reminderDays()[0]).toBe(today);
+    expect(reminderDays()).toHaveLength(60);
+  });
+
+  it('schedules nothing for today when it launches with an Entry already dated today', async () => {
+    await launchWithReminderOn();
+    expect(reminderDays()[0]).toBe(today);
+    screen.unmount();
+
+    // Today's Entry was written on this phone while Sprinkie was closed.
+    api.world.entries[today] = [entry('e1', today, 'c-sport', '晨跑')];
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+
+    await waitFor(() => expect(reminderDays()[0]).toBe('2026-11-11'));
+    expect(reminderDays()).not.toContain(today);
   });
 });

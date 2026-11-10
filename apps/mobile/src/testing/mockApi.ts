@@ -307,6 +307,7 @@ export function installMockApi(
         content: requested.content,
       };
       if (requested.idempotencyKey) entriesByKey[requested.idempotencyKey] = created;
+      (world.entries[requested.date] ??= []).push(created);
       return ok(created);
     }
     if (u.includes('/entries')) {

@@ -77,10 +77,19 @@ function dayKey(date: Date): string {
   return `${date.getFullYear()}-${mm}-${dd}`;
 }
 
-async function rebuild(state: ReminderState, copy: ReminderCopy): Promise<void> {
+/**
+ * `writtenDay` (YYYY-MM-DD) is today when today already holds an Entry
+ * (#137): that day gets no Reminder. Any other day passed is never a firing.
+ */
+async function rebuild(
+  state: ReminderState,
+  copy: ReminderCopy,
+  writtenDay?: string,
+): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (!state.setting.on || state.permission !== 'granted') return;
   for (const date of firings(state.setting)) {
+    if (dayKey(date) === writtenDay) continue;
     await Notifications.scheduleNotificationAsync({
       identifier: `reminder-${dayKey(date)}`,
       content: { title: copy.title, body: copy.body },
@@ -90,10 +99,10 @@ async function rebuild(state: ReminderState, copy: ReminderCopy): Promise<void> 
 }
 
 /** Reads the setting and permission, and rebuilds the run to match them. */
-export function resyncReminder(copy: ReminderCopy): Promise<ReminderState> {
+export function resyncReminder(copy: ReminderCopy, writtenDay?: string): Promise<ReminderState> {
   return serially(async () => {
     const state = { setting: await store.load(), permission: await readPermission() };
-    await rebuild(state, copy);
+    await rebuild(state, copy, writtenDay);
     return state;
   });
 }
@@ -105,6 +114,7 @@ export function resyncReminder(copy: ReminderCopy): Promise<ReminderState> {
 export function turnOnReminder(
   time: ReminderTime,
   copy: ReminderCopy,
+  writtenDay?: string,
 ): Promise<{ result: TurnOnResult; state: ReminderState }> {
   return serially(async () => {
     const setting = await store.load();
@@ -121,7 +131,7 @@ export function turnOnReminder(
     }
     const state = { setting: { ...time, on: true }, permission };
     await store.save(state.setting);
-    await rebuild(state, copy);
+    await rebuild(state, copy, writtenDay);
     return { result: 'on' as const, state };
   });
 }
@@ -140,14 +150,18 @@ export function turnOffReminder(): Promise<ReminderState> {
 }
 
 /** Moves every pending Reminder to `time`. */
-export function changeReminderTime(time: ReminderTime, copy: ReminderCopy): Promise<ReminderState> {
+export function changeReminderTime(
+  time: ReminderTime,
+  copy: ReminderCopy,
+  writtenDay?: string,
+): Promise<ReminderState> {
   return serially(async () => {
     const state = {
       setting: { ...(await store.load()), ...time },
       permission: await readPermission(),
     };
     await store.save(state.setting);
-    await rebuild(state, copy);
+    await rebuild(state, copy, writtenDay);
     return state;
   });
 }

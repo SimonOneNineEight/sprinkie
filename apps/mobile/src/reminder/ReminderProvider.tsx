@@ -1,7 +1,9 @@
 import * as Sentry from '@sentry/react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { listEntries } from '../api/client';
+import { localDateString } from '../calendar/monthMath';
 import { useAppLanguage } from '../i18n/AppLanguageProvider';
 
 import {
@@ -18,21 +20,52 @@ import { ReminderContext, type ReminderValue } from './useReminder';
 // the run is rebuilt then, on every App Language change, and whenever the
 // app returns to the foreground, where permission may have changed in the
 // iOS Settings app. Ending the session is AppRoot's job (clearReminder).
-export function ReminderProvider({ children }: { children: React.ReactNode }) {
+//
+// A day that already holds an Entry gets no Reminder (#137): every re-sync
+// first asks the server for today's Entries, Hidden ones included, so a
+// Draft never counts. HomeScreen re-syncs whenever today's Entries may have
+// changed.
+export function ReminderProvider({
+  accessToken,
+  children,
+}: {
+  accessToken: string;
+  children: React.ReactNode;
+}) {
   const { strings } = useAppLanguage();
   const copy = strings.reminder;
   const [state, setState] = useState<ReminderState | null>(null);
+  // Today's date while today holds an Entry, as last read. Unread or
+  // unreadable (offline), today keeps its Reminder.
+  const writtenDay = useRef<string | undefined>(undefined);
+  // Only the latest read lands, so a slow read from before a save cannot
+  // bring today's Reminder back after a newer one silenced it.
+  const reads = useRef(0);
+
+  const readToday = useCallback(async () => {
+    const read = ++reads.current;
+    const today = localDateString(new Date());
+    try {
+      const { entries } = await listEntries(accessToken, today);
+      if (read === reads.current) writtenDay.current = entries.length > 0 ? today : undefined;
+    } catch {
+      // Offline: keep what was last known.
+    }
+    return writtenDay.current;
+  }, [accessToken]);
 
   const resync = useCallback(async () => {
-    setState(await resyncReminder(copy));
-  }, [copy]);
+    setState(await resyncReminder(copy, await readToday()));
+  }, [copy, readToday]);
 
   useEffect(() => {
     let active = true;
     const sync = () =>
-      resyncReminder(copy).then((next) => {
-        if (active) setState(next);
-      }, Sentry.captureException);
+      readToday()
+        .then((written) => resyncReminder(copy, written))
+        .then((next) => {
+          if (active) setState(next);
+        }, Sentry.captureException);
     void sync();
     const subscription = AppState.addEventListener('change', (next) => {
       if (next === 'active') void sync();
@@ -41,7 +74,7 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
       active = false;
       subscription.remove();
     };
-  }, [copy]);
+  }, [copy, readToday]);
 
   const value = useMemo<ReminderValue>(() => {
     const setting = state?.setting ?? defaultSetting;
@@ -51,12 +84,13 @@ export function ReminderProvider({ children }: { children: React.ReactNode }) {
       blocked: setting.on && permission === 'blocked',
       time: { hour: setting.hour, minute: setting.minute },
       turnOn: async (time = { hour: setting.hour, minute: setting.minute }) => {
-        const { result, state: next } = await turnOnReminder(time, copy);
+        const { result, state: next } = await turnOnReminder(time, copy, writtenDay.current);
         setState(next);
         return result;
       },
       turnOff: async () => setState(await turnOffReminder()),
-      changeTime: async (time) => setState(await changeReminderTime(time, copy)),
+      changeTime: async (time) =>
+        setState(await changeReminderTime(time, copy, writtenDay.current)),
       resync,
     };
   }, [state, copy, resync]);
