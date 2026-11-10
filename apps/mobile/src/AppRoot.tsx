@@ -6,6 +6,8 @@ import { ApiError, provisionMe, reactivateMe } from './api/client';
 import { supabase } from './auth/supabase';
 import { useSession } from './auth/useSession';
 import { useAppLanguage } from './i18n/AppLanguageProvider';
+import { clearReminder } from './reminder/reminder';
+import { ReminderProvider } from './reminder/ReminderProvider';
 import { DeactivatedScreen } from './screens/DeactivatedScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { SignInScreen } from './screens/SignInScreen';
@@ -61,6 +63,15 @@ export function AppRoot() {
     };
   }, [accessToken, userId, worldVersion, language, retryTick]);
 
+  // The session ended (登出, account deletion, or 登出 from the deactivated
+  // screen), or the app opened signed out: every Reminder is cancelled and
+  // the setting forgotten, so the next person on this phone starts with it
+  // off (#136).
+  const signedOut = session === null;
+  useEffect(() => {
+    if (signedOut) clearReminder().catch(Sentry.captureException);
+  }, [signedOut]);
+
   // Staleness is keyed by user, not token: a routine token refresh keeps the
   // provisioned world, while signing in as a different user discards it.
   const me = world !== null && world.userId === userId ? world.me : null;
@@ -86,10 +97,12 @@ export function AppRoot() {
     );
   }
   return (
-    <HomeScreen
-      accessToken={session.access_token}
-      categories={me?.categories ?? []}
-      onCategoriesChanged={() => setWorldVersion((v) => v + 1)}
-    />
+    <ReminderProvider>
+      <HomeScreen
+        accessToken={session.access_token}
+        categories={me?.categories ?? []}
+        onCategoriesChanged={() => setWorldVersion((v) => v + 1)}
+      />
+    </ReminderProvider>
   );
 }

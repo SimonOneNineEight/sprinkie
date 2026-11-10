@@ -91,6 +91,18 @@ const zhTW = {
     systemDefault: '系統預設',
     zhHant: '繁體中文',
     english: 'English',
+    // The Reminder's rows under 語言 (#136). The blocked line points to the
+    // iOS Settings app instead of asking again.
+    reminder: '每日提醒',
+    reminderTime: '提醒時間',
+    reminderBlocked: '每日提醒需要開啟通知，請到設定允許 Sprinkie 傳送通知。',
+    openSettings: '前往設定',
+  },
+  // The Reminder notification itself (#135): the PM's copy, fixed when it is
+  // scheduled. No streaks, counts or missed days (DESIGN.md ban 10).
+  reminder: {
+    title: '今天有什麼小事想記下來嗎？',
+    body: '一天一行，就好。',
   },
   month: {
     title: (month: number) => `${month}月`,

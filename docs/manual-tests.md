@@ -557,7 +557,7 @@ Keyboard cases are in **KB**.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| ST.1 | Open it | The account's email, a 連結帳戶 card under it, the 語言 row, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
+| ST.1 | Open it | The account's email, a 連結帳戶 card under it, the 語言 row and the 每日提醒 switch, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
 | ST.2 | Tap 語言 | The sheet offers exactly 系統預設 / 繁體中文 / English |
 | ST.3 | The two language names | Shown as endonyms, never translated **[auto]** |
 | ST.4 | Pick 繁體中文 | The UI switches immediately; the row's value updates |
@@ -703,6 +703,31 @@ the Entry view (#119).
 | LG.4 | Sign up on an English phone | Starter Categories seeded in English **[API]** |
 | LG.5 | Change the phone's language later | Starter Categories never retranslate **[API]** **[auto]** |
 | LG.6 | Every screen in English | Nothing clipped, nothing overlapping **[#37]** |
+
+### RM — Reminder
+
+Needs a phone where Sprinkie has never asked for notification permission:
+a fresh install, or reset it with Settings → General → Transfer or Reset
+iPhone → Reset → Reset Location & Privacy. The Reminder needs a native
+build; an over-the-air update cannot bring it.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.1 | 設定 → 一般, switch 每日提醒 on | iOS asks for notification permission once; allowed, the switch stays on and 提醒時間 appears showing 21:00 **[auto]** |
+| RM.2 | Set 提醒時間 two minutes ahead, lock the phone and wait | The Reminder arrives at that time: 今天有什麼小事想記下來嗎？ / 一天一行，就好。 |
+| RM.3 | Change 提醒時間 again, to another minute ahead | It arrives at the new time only, never also at the old one **[auto]** |
+| RM.4 | Switch it off, with the time a minute ahead | 提醒時間 disappears and nothing arrives **[auto]** |
+| RM.5 | On a reset phone, switch it on and tap Don't Allow | The switch stays off and nothing more is said **[auto]** |
+| RM.6 | Switch it on again after RM.5 | No system prompt; the switch stays off, with the line that the Reminder needs notifications and 前往設定 **[auto]** |
+| RM.7 | Tap 前往設定, allow notifications for Sprinkie, return | The iOS Settings app opened on Sprinkie; back in 設定 the switch can be turned on |
+| RM.8 | With it on, turn Sprinkie's notifications off in the iOS Settings app, return to 設定 | The switch reads off, with the line and 前往設定; allowing them again turns it back on by itself **[auto]** |
+| RM.9 | With it on, switch 語言 to English and set the time a minute ahead | The Reminder arrives in English **[auto]** |
+| RM.10 | With it on, 登出, set the clock past the time, or wait for it | Nothing arrives; sign back in and 設定 shows 每日提醒 off **[auto]** |
+| RM.11 | Same after 刪除帳號, and after 登出 from the deactivated screen | Same **[auto]** |
+| RM.12 | With it on, leave Sprinkie unopened for a few days, then open it | The Reminder kept arriving every day; nothing in the app counts the days |
+
+**RM.2 at 21:00**: once per release pass, leave the default time and let
+the real 21:00 Reminder arrive on a locked phone.
 
 ### AX — Accessibility
 
@@ -900,4 +925,13 @@ the tag.
 | LG.2 | `i18n/appLanguage.test.ts`, `i18n/englishScreens.test.tsx` |
 | LG.3 | `AppRoot.test.tsx`, `me_test.go` |
 | LG.5 | `me_test.go` |
+| RM.1 | `AppRoot.test.tsx` |
+| RM.3 | `AppRoot.test.tsx` |
+| RM.4 | `AppRoot.test.tsx` |
+| RM.5 | `AppRoot.test.tsx` |
+| RM.6 | `AppRoot.test.tsx` |
+| RM.8 | `AppRoot.test.tsx` |
+| RM.9 | `AppRoot.test.tsx` |
+| RM.10 | `AppRoot.test.tsx` |
+| RM.11 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |

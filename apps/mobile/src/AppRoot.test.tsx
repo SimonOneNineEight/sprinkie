@@ -6,7 +6,7 @@ import 'react-native-gesture-handler/jestSetup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActionSheetIOS, Alert } from 'react-native';
+import { ActionSheetIOS, Alert, AppState, Linking } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
@@ -16,6 +16,7 @@ import { encodeContent } from './entries/content';
 import { AppLanguageProvider } from './i18n/AppLanguageProvider';
 import { processPhoto } from './photos/processPhoto';
 import { saveDraft } from './entries/drafts';
+import { fakeNotifications } from './testing/fakeNotifications';
 import { cat } from './testing/fixtures';
 import { isHollowRow } from './testing/isHollowRow';
 import { installMockApi, type MockApi } from './testing/mockApi';
@@ -1062,5 +1063,293 @@ describe('the manual pass, without a device (#109)', () => {
     fireEvent.press(screen.getByLabelText('Categories'));
     expect(screen.getByText('Hide all')).toBeTruthy();
     for (const name of ['工作', '運動', '美食']) expect(screen.getByText(name)).toBeTruthy();
+  });
+});
+
+describe('the Reminder in 設定 (#136)', () => {
+  // A Tuesday morning, so today's 21:00 is still ahead. Only Date is faked:
+  // the suite's waits keep real timers.
+  const morning = new Date(2026, 10, 10, 9, 30);
+  const allButDate = [
+    'hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame',
+    'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate',
+    'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+  ] as const;
+
+  const reminderSwitch = () => screen.getByRole('switch', { name: '每日提醒' });
+  /** When each pending Reminder fires, as local `YYYY-MM-DD HH:MM`. */
+  const firings = () =>
+    fakeNotifications.scheduled().map((n) => {
+      const hh = String(n.date.getHours()).padStart(2, '0');
+      const mm = String(n.date.getMinutes()).padStart(2, '0');
+      return `${localDateString(n.date)} ${hh}:${mm}`;
+    });
+
+  /** Signs in and opens 設定 from the month view's gear. */
+  const openSettings = async (tree: React.ReactElement = <AppRoot />) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    render(tree);
+    fireEvent.press(await screen.findByLabelText('設定'));
+    await screen.findByText('每日提醒');
+  };
+  const switchOn = async () => {
+    await act(async () => {
+      fireEvent(reminderSwitch(), 'valueChange', true);
+    });
+  };
+
+  beforeEach(async () => {
+    jest.useFakeTimers({ now: morning, doNotFake: [...allButDate] });
+    fakeNotifications.reset();
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    jest.useRealTimers();
+    await AsyncStorage.clear();
+  });
+
+  it("asks once when switched on, then schedules a Reminder a day at 21:00 with the PM's copy", async () => {
+    await openSettings();
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.queryByText('提醒時間')).toBeNull();
+
+    await switchOn();
+
+    expect(fakeNotifications.prompts()).toBe(1);
+    expect(reminderSwitch().props.value).toBe(true);
+    expect(screen.getByText('提醒時間')).toBeTruthy();
+    expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '21:00' });
+    const pending = fakeNotifications.scheduled();
+    expect(pending).toHaveLength(60);
+    expect(firings()[0]).toBe('2026-11-10 21:00');
+    expect(firings()[1]).toBe('2026-11-11 21:00');
+    expect(firings()[59]).toBe('2027-01-08 21:00');
+    for (const n of pending) {
+      expect(n.title).toBe('今天有什麼小事想記下來嗎？');
+      expect(n.body).toBe('一天一行，就好。');
+    }
+  });
+
+  it('moves every Reminder to a new time picked on 提醒時間', async () => {
+    await openSettings();
+    await switchOn();
+
+    await act(async () => {
+      fireEvent(screen.getByTestId('reminder-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
+    });
+
+    expect(firings()).toHaveLength(60);
+    expect(firings().every((f) => f.endsWith(' 07:45'))).toBe(true);
+    // 07:45 has passed this morning: the run starts tomorrow.
+    expect(firings()[0]).toBe('2026-11-11 07:45');
+    expect(firings()[59]).toBe('2027-01-09 07:45');
+    expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '07:45' });
+  });
+
+  it('stays off, saying nothing, when the User refuses at the prompt', async () => {
+    fakeNotifications.answerPromptWith('deny');
+    await openSettings();
+
+    await switchOn();
+
+    expect(fakeNotifications.prompts()).toBe(1);
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.queryByText('提醒時間')).toBeNull();
+    expect(screen.queryByText('前往設定')).toBeNull();
+    expect(fakeNotifications.scheduled()).toEqual([]);
+  });
+
+  it('never prompts once permission is blocked: it explains, and 前往設定 opens the iOS Settings app', async () => {
+    const openSettingsApp = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
+    fakeNotifications.setPermission('blocked');
+    await openSettings();
+    expect(screen.queryByText('前往設定')).toBeNull();
+
+    await switchOn();
+
+    expect(fakeNotifications.prompts()).toBe(0);
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.queryByText('提醒時間')).toBeNull();
+    expect(fakeNotifications.scheduled()).toEqual([]);
+    expect(screen.getByText('每日提醒需要開啟通知，請到設定允許 Sprinkie 傳送通知。')).toBeTruthy();
+    fireEvent.press(screen.getByText('前往設定'));
+    expect(openSettingsApp).toHaveBeenCalled();
+    openSettingsApp.mockRestore();
+  });
+
+  it('shows the Reminder off, with the explanation, once notifications are turned off in iOS', async () => {
+    await openSettings();
+    await switchOn();
+    screen.unmount();
+
+    // The User turns Sprinkie's notifications off in the iOS Settings app,
+    // then opens Sprinkie again.
+    fakeNotifications.setPermission('blocked');
+    await openSettings();
+
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.queryByText('提醒時間')).toBeNull();
+    expect(screen.getByText('前往設定')).toBeTruthy();
+    expect(fakeNotifications.prompts()).toBe(1);
+  });
+
+  it('cancels every Reminder when switched off', async () => {
+    await openSettings();
+    await switchOn();
+
+    await act(async () => {
+      fireEvent(reminderSwitch(), 'valueChange', false);
+    });
+
+    expect(reminderSwitch().props.value).toBe(false);
+    expect(screen.queryByText('提醒時間')).toBeNull();
+    expect(fakeNotifications.scheduled()).toEqual([]);
+  });
+
+  it('schedules again once notifications are allowed in the iOS Settings app and the User comes back', async () => {
+    // React Native's jest setup mocks AppState; its recorded listeners stand
+    // in for iOS bringing Sprinkie back to the foreground.
+    const addListener = jest.mocked(AppState.addEventListener);
+    addListener.mockClear();
+    const comeBack = () =>
+      addListener.mock.calls.forEach(([type, listener]) => {
+        if (type === 'change') listener('active');
+      });
+    await openSettings();
+    await switchOn();
+    fakeNotifications.setPermission('blocked');
+    await act(async () => {
+      comeBack();
+    });
+    expect(screen.getByText('前往設定')).toBeTruthy();
+    expect(fakeNotifications.scheduled()).toEqual([]);
+
+    fakeNotifications.setPermission('granted');
+    await act(async () => {
+      comeBack();
+    });
+
+    expect(reminderSwitch().props.value).toBe(true);
+    expect(screen.queryByText('前往設定')).toBeNull();
+    expect(firings()).toHaveLength(60);
+  });
+
+  it('reschedules the run in the new language when the App Language switches', async () => {
+    await openSettings(
+      <AppLanguageProvider>
+        <AppRoot />
+      </AppLanguageProvider>,
+    );
+    await switchOn();
+
+    fireEvent.press(screen.getByText('語言'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('English'));
+    });
+    await screen.findByText('Settings');
+
+    await waitFor(() =>
+      expect(fakeNotifications.scheduled()[0]?.title).toBe(
+        'Is there a small thing from today you want to note down?',
+      ),
+    );
+    const pending = fakeNotifications.scheduled();
+    expect(pending).toHaveLength(60);
+    expect(firings()[0]).toBe('2026-11-10 21:00');
+    for (const n of pending) {
+      expect(n.title).toBe('Is there a small thing from today you want to note down?');
+      expect(n.body).toBe('One line a day, that is enough.');
+    }
+  });
+
+  it('tops the run back up to its full length on launch', async () => {
+    await openSettings();
+    await switchOn();
+    screen.unmount();
+
+    // A month passes without Sprinkie being opened: Nov 10 to Dec 10 delivered.
+    jest.setSystemTime(new Date(2026, 11, 10, 22, 0));
+    expect(fakeNotifications.scheduled()).toHaveLength(29);
+
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+
+    await waitFor(() => expect(firings()).toHaveLength(60));
+    // 21:00 has passed tonight: the run starts tomorrow.
+    expect(firings()[0]).toBe('2026-12-11 21:00');
+    expect(firings()[59]).toBe('2027-02-08 21:00');
+  });
+
+  describe('when the session ends', () => {
+    /** Signs back in on this phone and opens 設定. */
+    const signBackIn = async () => {
+      const session = { access_token: 'token-2', user: { id: 'u1' } };
+      mockAuthState.session = session;
+      act(() => mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session)));
+      fireEvent.press(await screen.findByLabelText('設定'));
+      await screen.findByText('每日提醒');
+    };
+
+    it('cancels every Reminder and forgets the setting on 登出', async () => {
+      await openSettings();
+      await switchOn();
+
+      await act(async () => {
+        fireEvent.press(screen.getByText('登出'));
+      });
+      await screen.findByText('每天五分鐘，留下你的生活');
+      await waitFor(() => expect(fakeNotifications.scheduled()).toEqual([]));
+
+      await signBackIn();
+      expect(reminderSwitch().props.value).toBe(false);
+      expect(fakeNotifications.scheduled()).toEqual([]);
+    });
+
+    it('does the same when the account is deleted', async () => {
+      const alertSpy = jest.spyOn(Alert, 'alert');
+      await openSettings();
+      await switchOn();
+
+      fireEvent.press(screen.getByText('刪除帳號'));
+      const destructive = (alertSpy.mock.calls[0][2] ?? []).find((b) => b.style === 'destructive');
+      await act(async () => {
+        destructive?.onPress?.();
+      });
+      alertSpy.mockRestore();
+      await screen.findByText('每天五分鐘，留下你的生活');
+      await waitFor(() => expect(fakeNotifications.scheduled()).toEqual([]));
+
+      // Signing back in within the grace period restores the account.
+      api.restore();
+      api = installMockApi();
+      await signBackIn();
+      expect(reminderSwitch().props.value).toBe(false);
+    });
+
+    it('does the same on 登出 from the deactivated screen', async () => {
+      await openSettings();
+      await switchOn();
+      screen.unmount();
+
+      // Deactivated from another phone; this one opens on the gate.
+      api.restore();
+      api = installMockApi({ deactivated: true });
+      render(<AppRoot />);
+      await screen.findByText('帳號已停用');
+      expect(fakeNotifications.scheduled()).toHaveLength(60);
+
+      await act(async () => {
+        fireEvent.press(screen.getByText('登出'));
+      });
+      await screen.findByText('每天五分鐘，留下你的生活');
+      await waitFor(() => expect(fakeNotifications.scheduled()).toEqual([]));
+
+      api.restore();
+      api = installMockApi();
+      await signBackIn();
+      expect(reminderSwitch().props.value).toBe(false);
+    });
   });
 });
