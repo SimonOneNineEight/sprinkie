@@ -743,6 +743,23 @@ the real 21:00 Reminder arrive on a locked phone.
 | RM.19 | Save today's Entry, force-quit Sprinkie, open it again, wait past the time | Nothing arrives today **[auto]** |
 | RM.20 | Save today's Entry on another phone signed in to the same account | This phone's Reminder still arrives today (accepted, ADR-0002 amendment) |
 
+**The invite after a first Entry (#138)**: it plays once per phone, so
+each case starts from a fresh install (deleting Sprinkie also resets its
+notification permission) and a new account with no Entries, unless the
+case says otherwise.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.21 | Save the first Entry with + | Back on the month view with today's color, 第一個生活片段，收藏好了。 fades in, holds about two seconds and fades out; then the sheet slides up: 要不要每天提醒你記一行？, the wheel at 21:00, 先不用 and 設定提醒 side by side **[auto]** |
+| RM.22 | Spin the wheel to 22:30, tap 設定提醒, then Allow | The sheet closes; 設定 shows 每日提醒 on at 22:30 **[auto]** |
+| RM.23 | Tap 設定提醒, then Don't Allow | The sheet closes and nothing is said; 設定 shows 每日提醒 off **[auto]** |
+| RM.24 | Turn Sprinkie's notifications off in the iOS Settings app first, then save the first Entry and tap 設定提醒 | No system prompt; the sheet closes and 之後可以到設定開啟每日提醒。 fades in and out **[auto]** |
+| RM.25 | Tap 先不用; on another fresh install, tap above the sheet | Either one closes it; nothing is asked **[auto]** |
+| RM.26 | After RM.21, save more Entries, force-quit, open Sprinkie and save again | Neither the line nor the sheet ever comes back **[auto]** |
+| RM.27 | Sign in to an account that already has Entries and save one | Neither the line nor the sheet **[auto]** |
+| RM.28 | Save the first Entry from the day view's + | Nothing on the day view; going back to the month view plays RM.21 **[auto]** |
+| RM.29 | Look at RM.21 against variant B on `prototype/reminder` | Copy left-aligned, the line with no "！" and no emoji, the wheel in 5-minute steps |
+
 **Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
 
 | # | Case | Expected |
@@ -964,6 +981,14 @@ the tag.
 | RM.17 | `AppRoot.test.tsx` |
 | RM.18 | `AppRoot.test.tsx` |
 | RM.19 | `AppRoot.test.tsx` |
+| RM.21 | `AppRoot.test.tsx` |
+| RM.22 | `AppRoot.test.tsx` |
+| RM.23 | `AppRoot.test.tsx` |
+| RM.24 | `AppRoot.test.tsx` |
+| RM.25 | `AppRoot.test.tsx` |
+| RM.26 | `AppRoot.test.tsx` |
+| RM.27 | `AppRoot.test.tsx` |
+| RM.28 | `AppRoot.test.tsx` |
 | RM.40 | `AppRoot.test.tsx` |
 | RM.41 | `AppRoot.test.tsx` |
 | RM.42 | `AppRoot.test.tsx` |
