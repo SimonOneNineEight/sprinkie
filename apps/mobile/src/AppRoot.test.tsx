@@ -1992,16 +1992,19 @@ describe('tapping a Reminder (#140)', () => {
 describe('the Reminder invite after a first Entry (#138)', () => {
   const firstSaveLine = '第一個生活片段，收藏好了。';
   const inviteTitle = '要不要每天提醒你記一行？';
-  /** The line holds about two seconds before the sheet comes. */
-  const sequence = { timeout: 5000 };
-  // A Tuesday morning, so today's Reminder time is still ahead. Only Date is
-  // faked: the line's fade and the suite's waits keep real timers.
+  // A Tuesday morning, so today's Reminder time is still ahead. Every timer
+  // is faked, not only Date: the line's fade and the pointer's run on the
+  // test's clock, moved on by hand, so a slow machine cannot outlast them.
   const morning = new Date(2026, 10, 10, 9, 30);
-  const allButDate = [
-    'hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame',
-    'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate',
-    'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
-  ] as const;
+  /** The line's whole fade: 600ms of today's color, in, two seconds held, out. */
+  const lineFade = 600 + 220 + 1800 + 260;
+  /** The pointer's fade, which starts at once. */
+  const pointerFade = 220 + 1800 + 260;
+  /** Moves fake time on, and lets whatever it sets off render. */
+  const elapse = (ms: number) =>
+    act(async () => {
+      jest.advanceTimersByTime(ms);
+    });
 
   /** Signs in on a world whose Category reports `inUse`, landing on the month view. */
   const signIn = async ({ inUse = false } = {}) => {
@@ -2027,7 +2030,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
   };
 
   beforeEach(async () => {
-    jest.useFakeTimers({ now: morning, doNotFake: [...allButDate] });
+    jest.useFakeTimers({ now: morning });
     fakeNotifications.reset();
     await AsyncStorage.clear();
   });
@@ -2045,7 +2048,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
     expect(screen.queryByText(inviteTitle)).toBeNull();
-    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+    await elapse(lineFade);
+    expect(screen.getByText(inviteTitle)).toBeTruthy();
     expect(screen.queryByText(firstSaveLine)).toBeNull();
     expect(screen.getByText('選個喜歡的時間，偶爾忙到忘記也沒關係。')).toBeTruthy();
     expect(screen.getByTestId('reminder-invite-time')).toHaveAccessibilityValue({ text: '21:00' });
@@ -2056,11 +2060,13 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     expect(fakeNotifications.scheduled()).toEqual([]);
   });
 
-  /** Saves the first Entry and waits for the sheet. */
+  /** Saves the first Entry and waits out the line for the sheet. */
   const reachSheet = async () => {
     await signIn();
     await saveEntry();
-    await screen.findByText(inviteTitle, {}, sequence);
+    await screen.findByText(firstSaveLine);
+    await elapse(lineFade);
+    screen.getByText(inviteTitle);
   };
   /** When each pending Reminder fires, as local `YYYY-MM-DD HH:MM`. */
   const firings = () =>
@@ -2140,7 +2146,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     expect(screen.getByText('之後可以到設定開啟每日提醒。')).toBeTruthy();
     expect(fakeNotifications.scheduled()).toEqual([]);
     // The pointer fades on its own.
-    await waitFor(() => expect(screen.queryByText('之後可以到設定開啟每日提醒。')).toBeNull(), sequence);
+    await elapse(pointerFade);
+    expect(screen.queryByText('之後可以到設定開啟每日提醒。')).toBeNull();
   });
 
   it('先不用 closes it; nothing is asked or scheduled', async () => {
@@ -2168,7 +2175,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
   });
 
   /** Lets an invite that would be due come, if it were coming. */
-  const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 200)));
+  const settle = () => elapse(200);
 
   it('never shows the line or the sheet again on this phone, whatever is saved later', async () => {
     await reachSheet();
@@ -2225,7 +2232,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     });
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+    await elapse(lineFade);
+    expect(screen.getByText(inviteTitle)).toBeTruthy();
   });
 
   /** From the month view, opens today's day view. */
@@ -2258,7 +2266,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await saveEntry('夜跑');
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+    await elapse(lineFade);
+    expect(screen.getByText(inviteTitle)).toBeTruthy();
   });
 
   it('plays again, line and sheet, when the User leaves the month view while the line shows', async () => {
@@ -2274,7 +2283,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await screen.findByLabelText('新增紀錄');
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+    await elapse(lineFade);
+    expect(screen.getByText(inviteTitle)).toBeTruthy();
   });
 
   it("never plays after a delete on the day view, which is no first Entry", async () => {
@@ -2333,7 +2343,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await saveEntry();
 
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
-    await waitFor(() => expect(screen.queryByText(firstSaveLine)).toBeNull(), sequence);
+    await elapse(lineFade);
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
     await settle();
     expect(screen.queryByText(inviteTitle)).toBeNull();
 
