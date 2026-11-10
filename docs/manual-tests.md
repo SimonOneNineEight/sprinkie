@@ -763,7 +763,7 @@ case says otherwise.
 | RM.29 | Look at RM.21 against variant B on `prototype/reminder` | Copy left-aligned, the line with no "！" and no emoji, the wheel in 5-minute steps |
 | RM.38 | Save the first Entry from the day view's +, force-quit Sprinkie before going back, open it and save another Entry with + | RM.21 plays then: closing Sprinkie early did not use up the invite **[auto]** |
 | RM.39 | Switch 每日提醒 on in 設定 first, then save the first Entry | The line plays; no sheet follows **[auto]** |
-| RM.40 | Save the first Entry with +, and while the line shows tap 設定, then 返回 | The tap reaches 設定 through the line; back on the month view RM.21 plays again, line and sheet |
+| RM.44 | Save the first Entry with +, and while the line shows tap 設定, then 返回 | The tap reaches 設定 through the line; back on the month view RM.21 plays again, line and sheet |
 
 **Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
 
