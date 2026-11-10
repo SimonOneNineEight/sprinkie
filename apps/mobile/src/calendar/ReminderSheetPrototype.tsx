@@ -5,7 +5,7 @@
  * so Simon can pick a look for the first-save line and the invite sheet on
  * the simulator; the real implementation is written fresh from the chosen
  * variant. In dev every save from the entry form plays the sequence, and the
- * floating pill cycles the variant and replays it. 設定提醒 only closes the
+ * floating pill cycles the variant and replays it, so no save is needed. 設定提醒 only closes the
  * sheet here: no permission prompt, nothing scheduled.
  */
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -45,10 +45,10 @@ export function ReminderInvitePrototype({ play, onFinished }: { play: number; on
   const [time, setTime] = useState(defaultTime);
   const opacity = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    if (play === 0) return;
+  const replay = () => {
     setTime(defaultTime());
     setPhase('line');
+    opacity.setValue(0);
     // The month has just gained today's color; let it be seen first, then the
     // line, then the sheet.
     Animated.sequence([
@@ -57,6 +57,10 @@ export function ReminderInvitePrototype({ play, onFinished }: { play: number; on
       Animated.delay(1800),
       Animated.timing(opacity, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start(() => setPhase('sheet'));
+  };
+
+  useEffect(() => {
+    if (play !== 0) replay();
   }, [play]);
 
   const close = () => {
@@ -66,8 +70,7 @@ export function ReminderInvitePrototype({ play, onFinished }: { play: number; on
 
   const cycle = () => {
     setVariant(VARIANTS[(VARIANTS.indexOf(variant) + 1) % VARIANTS.length]);
-    setTime(defaultTime());
-    setPhase('sheet');
+    replay();
   };
 
   return (
