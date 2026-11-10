@@ -1194,6 +1194,33 @@ describe('the Reminder in 設定 (#136)', () => {
     expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '21:00' });
   });
 
+  it('closes the time sheet with its row when notifications are turned off in iOS', async () => {
+    const addListener = jest.mocked(AppState.addEventListener);
+    addListener.mockClear();
+    const comeBack = () =>
+      addListener.mock.calls.forEach(([type, listener]) => {
+        if (type === 'change') listener('active');
+      });
+    await openSettings();
+    await switchOn();
+    fireEvent.press(timeRow());
+
+    fakeNotifications.setPermission('blocked');
+    await act(async () => {
+      comeBack();
+    });
+
+    expect(screen.queryByTestId('reminder-time-sheet')).toBeNull();
+    expect(screen.getByText('前往設定')).toBeTruthy();
+    // Allowed again, the row returns but the sheet does not reopen by itself.
+    fakeNotifications.setPermission('granted');
+    await act(async () => {
+      comeBack();
+    });
+    expect(timeRow()).toBeTruthy();
+    expect(screen.queryByTestId('reminder-time-sheet')).toBeNull();
+  });
+
   it('stays off, saying nothing, when the User refuses at the prompt', async () => {
     fakeNotifications.answerPromptWith('deny');
     await openSettings();

@@ -1,4 +1,3 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -21,7 +20,8 @@ import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
 import { useAppLanguage, useStrings } from '../i18n/AppLanguageProvider';
 import { legalUrls } from '../legal';
-import { dateAsTime, timeAsDate, type ReminderTime } from '../reminder/reminder';
+import { dateAsTime, timeAsDate, timeLabel, type ReminderTime } from '../reminder/reminder';
+import { ReminderWheel } from '../reminder/ReminderWheel';
 import { useReminder } from '../reminder/useReminder';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
@@ -176,8 +176,11 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
 function ReminderRows({ onRefused }: { onRefused: (refused: boolean) => void }) {
   const strings = useStrings();
   const reminder = useReminder();
-  const [timeOpen, setTimeOpen] = useState(false);
+  const [timeSheetOpen, setTimeSheetOpen] = useState(false);
   const shownTime = timeLabel(reminder.time);
+  // The sheet goes with its row: if the Reminder goes off while it is open
+  // (notifications turned off in iOS), it closes and stays closed.
+  if (!reminder.on && timeSheetOpen) setTimeSheetOpen(false);
 
   return (
     <>
@@ -204,30 +207,25 @@ function ReminderRows({ onRefused }: { onRefused: (refused: boolean) => void }) 
           accessibilityLabel={strings.settings.reminderTime}
           accessibilityValue={{ text: shownTime }}
           style={styles.row}
-          onPress={() => setTimeOpen(true)}
+          onPress={() => setTimeSheetOpen(true)}
         >
           <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings.reminderTime}</Text>
           <Text style={styles.rowValue}>{shownTime}</Text>
           <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
         </Pressable>
       ) : null}
-      {timeOpen ? (
+      {timeSheetOpen ? (
         <ReminderTimeSheet
           initial={reminder.time}
           onSave={(time) => {
             void reminder.changeTime(time);
-            setTimeOpen(false);
+            setTimeSheetOpen(false);
           }}
-          onClose={() => setTimeOpen(false)}
+          onClose={() => setTimeSheetOpen(false)}
         />
       ) : null}
     </>
   );
-}
-
-/** A time of day as the row shows it: 24-hour HH:MM. */
-function timeLabel({ hour, minute }: ReminderTime): string {
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
 // The 提醒時間 sheet (#142): Apple's editor-sheet pattern, its header matching
@@ -276,17 +274,11 @@ function ReminderTimeSheet({
             </Pressable>
           </View>
           <View style={styles.wheel}>
-            <DateTimePicker
+            <ReminderWheel
               testID="reminder-time"
               accessibilityLabel={strings.settings.reminderTime}
               value={time}
-              mode="time"
-              display="spinner"
-              minuteInterval={5}
-              themeVariant="light"
-              accentColor={theme.colors.ink}
-              textColor={theme.colors.textPrimary}
-              onValueChange={(_, date) => setTime(date)}
+              onChange={setTime}
             />
           </View>
         </View>

@@ -1,13 +1,13 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEffect, useState } from 'react';
 import { Animated, Modal, Text, View } from 'react-native';
 
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
-import { createStyles, theme } from '../theme';
+import { createStyles } from '../theme';
 
 import { firstEntryInviteShown, markFirstEntryInviteShown } from './firstEntryInvite';
 import { dateAsTime, timeAsDate } from './reminder';
+import { ReminderWheel } from './ReminderWheel';
 import { useReminder } from './useReminder';
 
 type Phase = 'checking' | 'line' | 'sheet' | 'pointer';
@@ -115,17 +115,11 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
           <Text style={styles.title}>{strings.reminderInvite.title}</Text>
           <Text style={styles.copy}>{strings.reminderInvite.body}</Text>
           <View style={styles.wheel}>
-            <DateTimePicker
+            <ReminderWheel
               testID="reminder-invite-time"
               accessibilityLabel={strings.reminderInvite.time}
               value={time}
-              mode="time"
-              display="spinner"
-              minuteInterval={5}
-              themeVariant="light"
-              accentColor={theme.colors.ink}
-              textColor={theme.colors.textPrimary}
-              onValueChange={(_, date) => setTime(date)}
+              onChange={setTime}
             />
           </View>
           <View style={styles.buttons}>

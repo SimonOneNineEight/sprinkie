@@ -726,10 +726,11 @@ build; an over-the-air update cannot bring it.
 | RM.11 | Same after 刪除帳號, and after 登出 from the deactivated screen | Same **[auto]** |
 | RM.12 | With it on, leave Sprinkie unopened for a few days, then open it | The Reminder kept arriving every day; nothing in the app counts the days |
 | RM.34 | After RM.5, go back to the month view and open 設定 again | The switch is off, with the line that the Reminder needs notifications and 前往設定, though it was never switched on; no system prompt **[auto]** |
-| RM.48 | With it on, tap 提醒時間 | The row reads 21:00 as text. A sheet slides up: 取消 on the left, 提醒時間 centered, 儲存 on the right, as in 編輯類別's header; below it the wheel, at 21:00 **[auto]** |
+| RM.48 | With it on, tap 提醒時間 | The row reads 21:00 as text. A sheet slides up: 取消 on the left, 提醒時間 centered, 儲存 on the right, as in 編輯類別's header; below it the wheel, at 21:00 |
 | RM.49 | Spin the wheel to 07:45 and tap 儲存 | The sheet closes, the row reads 07:45, and every Reminder moves to 07:45, starting tomorrow since 07:45 has passed **[auto]** |
 | RM.50 | Spin the wheel, tap 取消; open it again, spin, and tap above the sheet | Either one closes it; the row and the Reminder keep the old time, and the sheet opens at it again **[auto]** |
 | RM.51 | Look at RM.48 against RM.21's sheet | The same surface and wheel, in 5-minute steps; no line of copy under the header |
+| RM.52 | With 提醒時間's sheet open, turn Sprinkie's notifications off in the iOS Settings app and return | The sheet is gone with its row; the line and 前往設定 show. Allowing them again brings the row back, not the sheet **[auto]** |
 
 **RM.2 at 21:00**: once per release pass, leave the default time and let
 the real 21:00 Reminder arrive on a locked phone.
@@ -1014,7 +1015,7 @@ the tag.
 | RM.38 | `AppRoot.test.tsx` |
 | RM.39 | `AppRoot.test.tsx` |
 | RM.47 | `AppRoot.test.tsx` |
-| RM.48 | `AppRoot.test.tsx` |
 | RM.49 | `AppRoot.test.tsx` |
 | RM.50 | `AppRoot.test.tsx` |
+| RM.52 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |
