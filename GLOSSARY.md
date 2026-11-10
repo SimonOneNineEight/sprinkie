@@ -51,3 +51,11 @@ _Avoid_: unsaved entry, pending entry
 **Saved Color**:
 A custom color a User has actually worn on a Category, remembered most-recent-first so it can be picked again. A memory of use, not a possession: forgetting one leaves every Category wearing that color untouched, and the ten presets are not Saved Colors.
 _Avoid_: recent color, palette, swatch
+
+**Reminder**:
+A daily notification inviting the User to write, at a time they choose (21:00 unless changed). A day that already holds an Entry gets no Reminder: an invitation, never a tally of missed days.
+_Avoid_: nudge, alert, streak
+
+**Onboarding**:
+The first-run walk-through a new User sees after signing in to an account with no Entries: an introduction to the app, the chance to write a first Entry, then the offer of a Reminder. Seen once; a User who already has Entries never sees it.
+_Avoid_: tutorial, intro, welcome flow

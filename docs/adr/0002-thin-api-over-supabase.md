@@ -21,3 +21,15 @@ dependency on Supabase internals. It is the only record of which migrations
 `supabase db push` actually applied, so it moves with every migration on its
 own, where a version we kept ourselves sat at 1 and could not tell a skipped
 push from a done one. Leaving Supabase means replacing this one query.
+
+## Amendment (2026-11, phase 2): the Reminder is scheduled on the phone
+
+"Reminder logic" leaves the list of business rules the API owns. The
+Reminder is a daily local notification the phone schedules itself, its
+time and on/off state kept on that device, so no push tokens, APNs keys
+or scheduled job exist on the server. A fixed daily schedule has nothing
+for a server to decide: the one rule it carries, no Reminder on a day
+that already holds an Entry, the phone answers from its own Entries. The
+cost is that an Entry written on a second phone does not silence the
+first one's Reminder; moving the Reminder behind the API later changes
+nothing the User sees.
