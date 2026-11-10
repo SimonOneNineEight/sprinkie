@@ -114,6 +114,25 @@ export const en: StringCatalog = {
     systemDefault: 'System Default',
     zhHant: '繁體中文',
     english: 'English',
+    reminder: 'Daily Reminder',
+    reminderTime: 'Reminder Time',
+    reminderBlocked:
+      'The daily reminder needs notifications. Allow Sprinkie to send notifications in Settings',
+    openSettings: 'Go to Settings',
+  },
+  // A literal translation until the #37 English pass.
+  reminder: {
+    title: 'Is there a small thing from today you want to note down?',
+    body: 'One line a day, that is enough.',
+  },
+  reminderInvite: {
+    firstSaveLine: 'Your first moment, kept.',
+    title: 'Want a daily reminder to write a line?',
+    body: 'Pick a time you like. Forgetting on a busy day is fine.',
+    time: 'Reminder Time',
+    notNow: 'Not Now',
+    turnOn: 'Set Reminder',
+    laterInSettings: 'You can turn on the daily reminder in Settings later.',
   },
   month: {
     title: (month: number) => monthsFull[month - 1],

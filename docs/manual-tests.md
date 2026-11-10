@@ -557,7 +557,7 @@ Keyboard cases are in **KB**.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| ST.1 | Open it | The account's email, a 連結帳戶 card under it, the 語言 row, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
+| ST.1 | Open it | The account's email, a 連結帳戶 card under it, the 語言 row and the 每日提醒 switch, a 關於 card with 隱私權政策 and 服務條款, 登出, 刪除帳號 |
 | ST.2 | Tap 語言 | The sheet offers exactly 系統預設 / 繁體中文 / English |
 | ST.3 | The two language names | Shown as endonyms, never translated **[auto]** |
 | ST.4 | Pick 繁體中文 | The UI switches immediately; the row's value updates |
@@ -703,6 +703,81 @@ the Entry view (#119).
 | LG.4 | Sign up on an English phone | Starter Categories seeded in English **[API]** |
 | LG.5 | Change the phone's language later | Starter Categories never retranslate **[API]** **[auto]** |
 | LG.6 | Every screen in English | Nothing clipped, nothing overlapping **[#37]** |
+
+### RM — Reminder
+
+Needs a phone where Sprinkie has never asked for notification permission:
+a fresh install, or reset it with Settings → General → Transfer or Reset
+iPhone → Reset → Reset Location & Privacy. The Reminder needs a native
+build; an over-the-air update cannot bring it.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.1 | 設定 → 一般, switch 每日提醒 on | iOS asks for notification permission once; allowed, the switch stays on and 提醒時間 appears showing 21:00 **[auto]** |
+| RM.2 | Set 提醒時間 two minutes ahead, lock the phone and wait | The Reminder arrives at that time: 今天有什麼小事想記下來嗎？ / 一天一行，就好。 |
+| RM.3 | Change 提醒時間 again, to another minute ahead | It arrives at the new time only, never also at the old one **[auto]** |
+| RM.4 | Switch it off, with the time a minute ahead | 提醒時間 disappears and nothing arrives **[auto]** |
+| RM.5 | On a reset phone, switch it on and tap Don't Allow | The switch stays off and nothing more is said **[auto]** |
+| RM.6 | Switch it on again after RM.5 | No system prompt; the switch stays off, with the line that the Reminder needs notifications and 前往設定 **[auto]** |
+| RM.7 | Tap 前往設定, allow notifications for Sprinkie, return | The iOS Settings app opened on Sprinkie; back in 設定 the switch can be turned on |
+| RM.8 | With it on, turn Sprinkie's notifications off in the iOS Settings app, return to 設定 | The switch reads off, with the line and 前往設定; allowing them again turns it back on by itself **[auto]** |
+| RM.9 | With it on, switch 語言 to English and set the time a minute ahead | The Reminder arrives in English **[auto]** |
+| RM.10 | With it on, 登出, set the clock past the time, or wait for it | Nothing arrives; sign back in and 設定 shows 每日提醒 off **[auto]** |
+| RM.11 | Same after 刪除帳號, and after 登出 from the deactivated screen | Same **[auto]** |
+| RM.12 | With it on, leave Sprinkie unopened for a few days, then open it | The Reminder kept arriving every day; nothing in the app counts the days |
+| RM.34 | After RM.5, go back to the month view and open 設定 again | The switch is off, with the line that the Reminder needs notifications and 前往設定, though it was never switched on; no system prompt **[auto]** |
+
+**RM.2 at 21:00**: once per release pass, leave the default time and let
+the real 21:00 Reminder arrive on a locked phone.
+
+**A day that already holds an Entry (#137)**: with the Reminder on and
+提醒時間 a few minutes ahead, so each case is seen arriving or not.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.13 | Save an Entry dated today with +, then wait past the time | Nothing arrives today; tomorrow's arrives **[auto]** |
+| RM.14 | Delete today's only Entry before the time | Today's Reminder arrives **[auto]** |
+| RM.15 | Move today's only Entry to another date before the time | Today's Reminder arrives **[auto]** |
+| RM.16 | Hide a Category in 類別, save today's Entry in it | Nothing arrives today **[auto]** |
+| RM.17 | In airplane mode, save an Entry dated today, then wait past the time | The save fails and keeps a Draft; the Reminder arrives. Retrying the Draft before the time silences today **[auto]** |
+| RM.18 | Save an Entry for yesterday only | Today's Reminder arrives **[auto]** |
+| RM.19 | Save today's Entry, force-quit Sprinkie, open it again, wait past the time | Nothing arrives today **[auto]** |
+| RM.20 | Save today's Entry on another phone signed in to the same account, leaving Sprinkie on this phone closed; then repeat, opening Sprinkie on this phone before the Reminder time | Left closed, this phone's Reminder still arrives today; opened, today's Reminder is gone (accepted, ADR-0002 amendment) |
+| RM.35 | Save today's Entry, force-quit Sprinkie, turn on airplane mode, open it again, wait past the time | Nothing arrives today. Still offline the next morning, open it again: that day's Reminder arrives **[auto]** |
+
+**The invite after a first Entry (#138)**: it plays once per phone, so
+each case starts from a fresh install (deleting Sprinkie also resets its
+notification permission) and a new account with no Entries, unless the
+case says otherwise.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.21 | Save the first Entry with + | Back on the month view with today's color, 第一個生活片段，收藏好了。 fades in, holds about two seconds and fades out; then the sheet slides up: 要不要每天提醒你記一行？, the wheel at 21:00, 先不用 and 設定提醒 side by side **[auto]** |
+| RM.22 | Spin the wheel to 22:30, tap 設定提醒, then Allow | The sheet closes; 設定 shows 每日提醒 on at 22:30 **[auto]** |
+| RM.23 | Tap 設定提醒, then Don't Allow | The sheet closes and nothing is said; 設定 shows 每日提醒 off, with the line and 前往設定 **[auto]** |
+| RM.24 | Turn Sprinkie's notifications off in the iOS Settings app first, then save the first Entry and tap 設定提醒 | No system prompt; the sheet closes and 之後可以到設定開啟每日提醒。 fades in and out **[auto]** |
+| RM.25 | Tap 先不用; on another fresh install, tap above the sheet | Either one closes it; nothing is asked **[auto]** |
+| RM.26 | After RM.21, save more Entries, force-quit, open Sprinkie and save again | Neither the line nor the sheet ever comes back **[auto]** |
+| RM.27 | Sign in to an account that already has Entries and save one | Neither the line nor the sheet **[auto]** |
+| RM.28 | Save the first Entry from the day view's + | Nothing on the day view; going back to the month view plays RM.21 **[auto]** |
+| RM.29 | Look at RM.21 against variant B on `prototype/reminder` | Copy left-aligned, the line with no "！" and no emoji, the wheel in 5-minute steps |
+| RM.38 | Save the first Entry from the day view's +, force-quit Sprinkie before going back, open it and save another Entry with + | RM.21 plays then: closing Sprinkie early did not use up the invite **[auto]** |
+| RM.39 | Switch 每日提醒 on in 設定 first, then save the first Entry | The line plays; no sheet follows **[auto]** |
+| RM.44 | Save the first Entry with +, and while the line shows tap 設定, then 返回 | The tap reaches 設定 through the line; back on the month view RM.21 plays again, line and sheet |
+| RM.45 | As RM.24, and while 之後可以到設定開啟每日提醒。 shows tap 設定, then 返回 | The tap reaches 設定 through the pointer; back on the month view neither the line nor the sheet plays |
+| RM.46 | As RM.24, and while the pointer shows tap 設定 and 登出; sign up a new account and save its first Entry | Neither the line nor the sheet: the sheet already appeared on this phone |
+| RM.47 | Save the first Entry with +, wait for the sheet, force-quit Sprinkie while it shows, open it and save another Entry | Neither the line nor the sheet comes back: the offer was made **[auto]** |
+
+**Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.30 | Force-quit Sprinkie, lock the phone, tap the Reminder when it arrives and unlock | Sprinkie opens on the Entry form for today; 取消 lands on the month view on today **[auto]** |
+| RM.31 | Leave Sprinkie in the background on another month, tap the Reminder | The Entry form for today; 儲存 lands on the month view on today, the new Entry on it **[API]** **[auto]** |
+| RM.32 | With Sprinkie open on the month view, wait for the Reminder | It shows as a banner; tapping the banner opens the Entry form for today **[auto]** |
+| RM.33 | Let a Reminder arrive and leave it in Notification Center; 登出, force-quit, then tap it | Sign-in opens and nothing else; signing in lands on the month view, not the form **[auto]** |
+| RM.36 | Open + on yesterday, write nothing, then tap the Reminder from Notification Center | The form switches to today **[auto]** |
+| RM.37 | Open + on yesterday, from the month view and again from yesterday's day view, type a title, then tap the Reminder | The form stays on yesterday, the title still there **[auto]** |
 
 ### AX — Accessibility
 
@@ -900,4 +975,39 @@ the tag.
 | LG.2 | `i18n/appLanguage.test.ts`, `i18n/englishScreens.test.tsx` |
 | LG.3 | `AppRoot.test.tsx`, `me_test.go` |
 | LG.5 | `me_test.go` |
+| RM.1 | `AppRoot.test.tsx` |
+| RM.3 | `AppRoot.test.tsx` |
+| RM.4 | `AppRoot.test.tsx` |
+| RM.5 | `AppRoot.test.tsx` |
+| RM.6 | `AppRoot.test.tsx` |
+| RM.8 | `AppRoot.test.tsx` |
+| RM.9 | `AppRoot.test.tsx` |
+| RM.10 | `AppRoot.test.tsx` |
+| RM.11 | `AppRoot.test.tsx` |
+| RM.13 | `AppRoot.test.tsx` |
+| RM.14 | `AppRoot.test.tsx` |
+| RM.15 | `AppRoot.test.tsx` |
+| RM.16 | `AppRoot.test.tsx` |
+| RM.17 | `AppRoot.test.tsx` |
+| RM.18 | `AppRoot.test.tsx` |
+| RM.19 | `AppRoot.test.tsx` |
+| RM.21 | `AppRoot.test.tsx` |
+| RM.22 | `AppRoot.test.tsx` |
+| RM.23 | `AppRoot.test.tsx` |
+| RM.24 | `AppRoot.test.tsx` |
+| RM.25 | `AppRoot.test.tsx` |
+| RM.26 | `AppRoot.test.tsx` |
+| RM.27 | `AppRoot.test.tsx` |
+| RM.28 | `AppRoot.test.tsx` |
+| RM.30 | `AppRoot.test.tsx` |
+| RM.31 | `AppRoot.test.tsx` |
+| RM.32 | `AppRoot.test.tsx` |
+| RM.33 | `AppRoot.test.tsx` |
+| RM.34 | `AppRoot.test.tsx` |
+| RM.35 | `AppRoot.test.tsx` |
+| RM.36 | `AppRoot.test.tsx` |
+| RM.37 | `AppRoot.test.tsx` |
+| RM.38 | `AppRoot.test.tsx` |
+| RM.39 | `AppRoot.test.tsx` |
+| RM.47 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |

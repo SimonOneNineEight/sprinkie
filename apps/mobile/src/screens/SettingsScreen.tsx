@@ -1,7 +1,17 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, ScrollView, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { deactivateMe } from '../api/client';
@@ -11,6 +21,8 @@ import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
 import { useAppLanguage, useStrings } from '../i18n/AppLanguageProvider';
 import { legalUrls } from '../legal';
+import { dateAsTime, timeAsDate } from '../reminder/reminder';
+import { useReminder } from '../reminder/useReminder';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
 
@@ -29,6 +41,9 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
   const session = useSession();
   const [failed, setFailed] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  // A refusal at the prompt just now: nothing is said until 設定 next opens
+  // (#135 story 11), though iOS now reports notifications blocked.
+  const [reminderJustRefused, setReminderJustRefused] = useState(false);
 
   const confirmDelete = () => {
     Alert.alert(strings.settings.deleteConfirmTitle, strings.settings.deleteConfirmBody, [
@@ -79,14 +94,16 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
           <View style={styles.card}>
             <Pressable
               accessibilityRole="button"
-              style={styles.row}
+              style={[styles.row, styles.rowDivided]}
               onPress={() => setLanguageOpen(true)}
             >
               <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings.language}</Text>
               <Text style={styles.rowValue}>{languageLabel(strings, override)}</Text>
               <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
             </Pressable>
+            <ReminderRows onRefused={setReminderJustRefused} />
           </View>
+          <ReminderBlockedNote quiet={reminderJustRefused} />
         </View>
 
         <View>
@@ -150,6 +167,77 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
         />
       ) : null}
     </SafeAreaView>
+  );
+}
+
+// 每日提醒 (#136): a switch, and while it is on, 提醒時間 with iOS's compact
+// time button. The first switch-on asks iOS for permission; a refusal there
+// leaves it off with nothing said.
+function ReminderRows({ onRefused }: { onRefused: (refused: boolean) => void }) {
+  const strings = useStrings();
+  const reminder = useReminder();
+
+  return (
+    <>
+      <View style={[styles.row, reminder.on && styles.rowDivided]}>
+        <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings.reminder}</Text>
+        <Switch
+          accessibilityLabel={strings.settings.reminder}
+          value={reminder.on}
+          trackColor={{ true: theme.colors.controlPrimaryBg }}
+          onValueChange={(next) => {
+            if (!next) {
+              void reminder.turnOff();
+              return;
+            }
+            void reminder.turnOn().then((result) => {
+              onRefused(result === 'refused');
+            });
+          }}
+        />
+      </View>
+      {reminder.on ? (
+        <View style={styles.row}>
+          <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings.reminderTime}</Text>
+          <DateTimePicker
+            testID="reminder-time"
+            accessibilityLabel={strings.settings.reminderTime}
+            value={timeAsDate(reminder.time)}
+            mode="time"
+            display="compact"
+            themeVariant="light"
+            accentColor={theme.colors.ink}
+            onChange={(event, date) => {
+              if (event.type !== 'set' || !date) return;
+              void reminder.changeTime(dateAsTime(date));
+            }}
+          />
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+// Blocked permission never prompts (#136): the line says why the switch
+// stays off and opens the iOS Settings app, as the camera does. Shown
+// whenever iOS has Sprinkie's notifications blocked and the Reminder is not
+// on (#135 stories 9 and 12), except right after a refusal at the prompt.
+function ReminderBlockedNote({ quiet }: { quiet: boolean }) {
+  const strings = useStrings();
+  const reminder = useReminder();
+  if (reminder.on || !reminder.blocked || quiet) return null;
+  return (
+    <View style={styles.linkNote}>
+      <Text style={styles.linkHint}>{strings.settings.reminderBlocked}</Text>
+      <Pressable
+        accessibilityRole="button"
+        hitSlop={12}
+        style={styles.noteAction}
+        onPress={() => void Linking.openSettings()}
+      >
+        <Text style={styles.linkRetry}>{strings.settings.openSettings}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -498,6 +586,9 @@ const styles = createStyles((t) => ({
     ...t.typography.meta,
     fontWeight: '600',
     color: t.colors.textPrimary,
+  },
+  noteAction: {
+    alignSelf: 'flex-start',
   },
   linkHint: {
     ...t.typography.meta,
