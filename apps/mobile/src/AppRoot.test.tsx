@@ -1353,3 +1353,229 @@ describe('the Reminder in 設定 (#136)', () => {
     });
   });
 });
+
+// The Reminder invite (#138): after a zero-Entry account's first save, the
+// calm first-save line, then the sheet offering the Reminder. Once per phone.
+describe('the Reminder invite after a first Entry (#138)', () => {
+  const firstSaveLine = '第一個生活片段，收藏好了。';
+  const inviteTitle = '要不要每天提醒你記一行？';
+  /** The line holds about two seconds before the sheet comes. */
+  const sequence = { timeout: 5000 };
+
+  /** Signs in on a world whose Category reports `inUse`, landing on the month view. */
+  const signIn = async ({ inUse = false } = {}) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    api.restore();
+    api = installMockApi({
+      me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1, inUse }] },
+    });
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+  };
+  /** Writes an Entry from the month view's +. */
+  const saveEntry = async (title = '晨跑') => {
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), title);
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    await screen.findByLabelText('新增紀錄');
+  };
+
+  beforeEach(async () => {
+    fakeNotifications.reset();
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    await AsyncStorage.clear();
+  });
+
+  it("shows the line, then the sheet with the wheel at 21:00, after a zero-Entry account's first save", async () => {
+    await signIn();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+
+    await saveEntry();
+
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.getByText('選個喜歡的時間，偶爾忙到忘記也沒關係。')).toBeTruthy();
+    expect(screen.getByTestId('reminder-invite-time')).toHaveAccessibilityValue({ text: '21:00' });
+    expect(screen.getByText('先不用')).toBeTruthy();
+    expect(screen.getByText('設定提醒')).toBeTruthy();
+    // Nothing is asked or scheduled until the User chooses.
+    expect(fakeNotifications.prompts()).toBe(0);
+    expect(fakeNotifications.scheduled()).toEqual([]);
+  });
+
+  /** Saves the first Entry and waits for the sheet. */
+  const reachSheet = async () => {
+    await signIn();
+    await saveEntry();
+    await screen.findByText(inviteTitle, {}, sequence);
+  };
+  /** When each pending Reminder fires, as local HH:MM. */
+  const times = () =>
+    fakeNotifications.scheduled().map(
+      (n) =>
+        `${String(n.date.getHours()).padStart(2, '0')}:${String(n.date.getMinutes()).padStart(2, '0')}`,
+    );
+  const openSettings = async () => {
+    fireEvent.press(screen.getByLabelText('設定'));
+    await screen.findByText('每日提醒');
+  };
+  const reminderSwitch = () => screen.getByRole('switch', { name: '每日提醒' });
+
+  it('設定提醒 asks iOS once, then turns the Reminder on at the picked time, as 設定 then shows', async () => {
+    await reachSheet();
+    fireEvent(screen.getByTestId('reminder-invite-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 22, 30));
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('設定提醒'));
+    });
+
+    expect(fakeNotifications.prompts()).toBe(1);
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(times()).toHaveLength(60);
+    expect(times().every((t) => t === '22:30')).toBe(true);
+    await openSettings();
+    expect(reminderSwitch().props.value).toBe(true);
+    expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '22:30' });
+  });
+
+  it('設定提醒 does not prompt when notifications are already allowed', async () => {
+    fakeNotifications.setPermission('granted');
+    await reachSheet();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('設定提醒'));
+    });
+
+    expect(fakeNotifications.prompts()).toBe(0);
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(times()).toHaveLength(60);
+    expect(times().every((t) => t === '21:00')).toBe(true);
+  });
+
+  it('closes, saying nothing, when the User refuses at the prompt; the Reminder stays off', async () => {
+    fakeNotifications.answerPromptWith('deny');
+    await reachSheet();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('設定提醒'));
+    });
+
+    expect(fakeNotifications.prompts()).toBe(1);
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(screen.queryByText('之後可以到設定開啟每日提醒。')).toBeNull();
+    expect(fakeNotifications.scheduled()).toEqual([]);
+    await openSettings();
+    expect(reminderSwitch().props.value).toBe(false);
+  });
+
+  it('closes without a prompt once notifications are blocked, pointing to 設定 for later', async () => {
+    fakeNotifications.setPermission('blocked');
+    await reachSheet();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('設定提醒'));
+    });
+
+    expect(fakeNotifications.prompts()).toBe(0);
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(screen.getByText('之後可以到設定開啟每日提醒。')).toBeTruthy();
+    expect(fakeNotifications.scheduled()).toEqual([]);
+    // The pointer fades on its own.
+    await waitFor(() => expect(screen.queryByText('之後可以到設定開啟每日提醒。')).toBeNull(), sequence);
+  });
+
+  it('先不用 closes it; nothing is asked or scheduled', async () => {
+    await reachSheet();
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('先不用'));
+    });
+
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(fakeNotifications.prompts()).toBe(0);
+    expect(fakeNotifications.scheduled()).toEqual([]);
+  });
+
+  it('a tap outside the sheet closes it too', async () => {
+    await reachSheet();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reminder-invite-scrim'));
+    });
+
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+    expect(fakeNotifications.prompts()).toBe(0);
+    expect(fakeNotifications.scheduled()).toEqual([]);
+  });
+
+  /** Lets an invite that would be due come, if it were coming. */
+  const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 200)));
+
+  it('never shows the line or the sheet again on this phone, whatever is saved later', async () => {
+    await reachSheet();
+    await act(async () => {
+      fireEvent.press(screen.getByText('先不用'));
+    });
+
+    await saveEntry('夜跑');
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+
+    // Relaunched on a world /me still reports as without Entries.
+    screen.unmount();
+    await signIn();
+    await saveEntry('散步');
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+  });
+
+  it('never shows either to an account that already had Entries', async () => {
+    await signIn({ inUse: true });
+
+    await saveEntry();
+    await settle();
+
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+    expect(screen.queryByText(inviteTitle)).toBeNull();
+  });
+
+  it("counts a first Entry written from the day view, playing once back on the month view", async () => {
+    await signIn();
+    const today = new Date();
+    await act(async () => {
+      fireEvent.press(
+        within(screen.getByTestId('month-page-current')).getByTestId(`day-holder-${today.getDate()}`),
+      );
+    });
+    await screen.findByLabelText('返回');
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    await screen.findByLabelText('返回');
+    await settle();
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+  });
+});

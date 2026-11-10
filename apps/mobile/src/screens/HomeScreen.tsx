@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category } from '../api/client';
 import type { HiddenSet } from '../calendar/hidden';
 import { loadHidden, nothingHidden, saveHidden } from '../calendar/hidden';
+import { claimFirstEntryInvite, hasNoEntries } from '../reminder/firstEntryInvite';
+import { ReminderInvite } from '../reminder/ReminderInvite';
 import { createStyles } from '../theme';
 
 import { DayScreen } from './DayScreen';
@@ -36,6 +38,17 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
   // surface, persisted so it survives launches.
   const [hidden, setHidden] = useState<HiddenSet>(nothingHidden);
   const bumpMonth = () => setMonthRefresh((n) => n + 1);
+  // The Reminder invite (#138): due after a zero-Entry account's first save,
+  // wherever it was made, and played once back on the month view.
+  const [inviteDue, setInviteDue] = useState(false);
+  const entrySaved = () => {
+    bumpMonth();
+    if (!hasNoEntries(categories)) return;
+    void claimFirstEntryInvite().then((claimed) => {
+      if (claimed) setInviteDue(true);
+    });
+  };
+  const inviteFinished = useCallback(() => setInviteDue(false), []);
 
   useEffect(() => {
     let active = true;
@@ -62,7 +75,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         onChangeHidden={changeHidden}
         onBack={() => setRoute({ name: 'month', focus: focusOn(route.date) })}
         onChangeDate={(date) => setRoute({ name: 'day', date })}
-        onEntrySaved={bumpMonth}
+        onEntrySaved={entrySaved}
         onCategoriesChanged={onCategoriesChanged}
       />
     );
@@ -97,7 +110,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
         categories={categories}
         onCategoriesChanged={onCategoriesChanged}
         onDone={(outcome) => {
-          if (outcome.kind === 'saved') bumpMonth();
+          if (outcome.kind === 'saved') entrySaved();
           const landing = outcome.kind === 'saved' ? outcome.date : route.date;
           setRoute({ name: 'month', focus: focusOn(landing) });
         }}
@@ -120,6 +133,7 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
           onCategoriesChanged={onCategoriesChanged}
           onOpenYear={(year, month) => setRoute({ name: 'year', focus: { year, month } })}
         />
+        {inviteDue ? <ReminderInvite onFinished={inviteFinished} /> : null}
       </View>
     </SafeAreaView>
   );

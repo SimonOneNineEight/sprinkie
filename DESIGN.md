@@ -85,6 +85,8 @@ Settings and other long-tail screens (dialogs, errors, empty states, account del
 
 One part of Settings was designed rather than derived: **連結帳戶**, right under 帳號, is a plain grouped list with an Apple row and a Google row, each ending in 已連結 (no tap) or 連結 (that provider's own sign-in, then the link). A footer steers someone with an existing account to link from inside it, and a method another account already holds says so, with the hint that the other account must be deleted first; nothing changes (ratified 2026-11-05 from a device prototype, #20).
 
+The moment after a new User's first Entry was designed too. Back on the month view, with today's color showing, a calm line, 第一個生活片段，收藏好了。, fades in on a raised pill near the top, holds about two seconds and fades out. It acknowledges without cheering: no "！" and no emoji (ban 10). Then a bottom sheet offers the **Reminder**: 要不要每天提醒你記一行？ and 選個喜歡的時間，偶爾忙到忘記也沒關係。 left-aligned, an inline time wheel at 21:00 in 5-minute steps, and 先不用 and 設定提醒 side by side as equal pills. 設定提醒 is the filled one. It plays once per phone, and never for an account that already had Entries. Simon picked this look, variant B, on the iPhone 17 Pro simulator over a bell with a compact time row (A) and a large tappable time (C) (ratified 2026-11-10 from a device prototype, #138).
+
 ## Explicit bans
 
 1. No blinking or pulsing status dots.

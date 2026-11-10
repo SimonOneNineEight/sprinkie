@@ -125,6 +125,15 @@ export const en: StringCatalog = {
     title: 'Is there a small thing from today you want to note down?',
     body: 'One line a day, that is enough.',
   },
+  reminderInvite: {
+    firstSaveLine: 'Your first moment, kept.',
+    title: 'Want a daily reminder to write a line?',
+    body: 'Pick a time you like. Forgetting on a busy day is fine.',
+    time: 'Reminder Time',
+    notNow: 'Not Now',
+    turnOn: 'Set Reminder',
+    laterInSettings: 'You can turn on the daily reminder in Settings later.',
+  },
   month: {
     title: (month: number) => monthsFull[month - 1],
     accessibleTitle: (year: number, month: number) => `${monthsFull[month - 1]} ${year}`,
