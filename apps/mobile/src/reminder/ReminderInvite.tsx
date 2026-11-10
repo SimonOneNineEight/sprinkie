@@ -125,9 +125,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
               themeVariant="light"
               accentColor={theme.colors.ink}
               textColor={theme.colors.textPrimary}
-              onChange={(_, date) => {
-                if (date) setTime(date);
-              }}
+              onValueChange={(_, date) => setTime(date)}
             />
           </View>
           <View style={styles.buttons}>

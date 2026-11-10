@@ -1152,7 +1152,7 @@ describe('the Reminder in 設定 (#136)', () => {
     await switchOn();
     fireEvent.press(timeRow());
 
-    fireEvent(screen.getByTestId('reminder-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
+    fireEvent(screen.getByTestId('reminder-time'), 'valueChange', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
     // Spinning the wheel alone moves nothing.
     expect(firings()[0]).toBe('2026-11-10 21:00');
     await act(async () => {
@@ -1180,7 +1180,7 @@ describe('the Reminder in 設定 (#136)', () => {
     await switchOn();
     const before = firings();
     fireEvent.press(timeRow());
-    fireEvent(screen.getByTestId('reminder-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
+    fireEvent(screen.getByTestId('reminder-time'), 'valueChange', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
 
     await act(async () => {
       fireEvent.press(closer());
@@ -2126,7 +2126,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
 
   it('設定提醒 asks iOS once, then turns the Reminder on at the picked time, as 設定 then shows', async () => {
     await reachSheet();
-    fireEvent(screen.getByTestId('reminder-invite-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 22, 30));
+    fireEvent(screen.getByTestId('reminder-invite-time'), 'valueChange', { type: 'set' }, new Date(2026, 10, 10, 22, 30));
 
     await act(async () => {
       fireEvent.press(screen.getByText('設定提醒'));
