@@ -32,6 +32,11 @@ export function dateAsTime(date: Date): ReminderTime {
   return { hour: date.getHours(), minute: date.getMinutes() };
 }
 
+/** A time of day as 設定 shows it: 24-hour HH:MM. */
+export function timeLabel({ hour, minute }: ReminderTime): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
 // One Reminder per day, scheduled individually rather than as one repeating
 // notification, so a single day can be left out. 60 stays well inside iOS's
 // 64 pending notifications per app.

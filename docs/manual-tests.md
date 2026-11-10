@@ -714,18 +714,23 @@ build; an over-the-air update cannot bring it.
 | # | Case | Expected |
 | --- | --- | --- |
 | RM.1 | 設定 → 一般, switch 每日提醒 on | iOS asks for notification permission once; allowed, the switch stays on and 提醒時間 appears showing 21:00 **[auto]** |
-| RM.2 | Set 提醒時間 two minutes ahead, lock the phone and wait | The Reminder arrives at that time: 今天有什麼小事想記下來嗎？ / 一天一行，就好。 |
-| RM.3 | Change 提醒時間 again, to another minute ahead | It arrives at the new time only, never also at the old one **[auto]** |
+| RM.2 | Tap 提醒時間, spin the wheel to the first five-minute mark at least two minutes ahead, tap 儲存, lock the phone and wait | The Reminder arrives at that time: 今天有什麼小事想記下來嗎？ / 一天一行，就好。 |
+| RM.3 | Change 提醒時間 again the same way, to a later five-minute mark | It arrives at the new time only, never also at the old one **[auto]** |
 | RM.4 | Switch it off, with the time a minute ahead | 提醒時間 disappears and nothing arrives **[auto]** |
 | RM.5 | On a reset phone, switch it on and tap Don't Allow | The switch stays off and nothing more is said **[auto]** |
 | RM.6 | Switch it on again after RM.5 | No system prompt; the switch stays off, with the line that the Reminder needs notifications and 前往設定 **[auto]** |
 | RM.7 | Tap 前往設定, allow notifications for Sprinkie, return | The iOS Settings app opened on Sprinkie; back in 設定 the switch can be turned on |
 | RM.8 | With it on, turn Sprinkie's notifications off in the iOS Settings app, return to 設定 | The switch reads off, with the line and 前往設定; allowing them again turns it back on by itself **[auto]** |
-| RM.9 | With it on, switch 語言 to English and set the time a minute ahead | The Reminder arrives in English **[auto]** |
+| RM.9 | With it on, switch 語言 to English and set the time to the next five-minute mark | The Reminder arrives in English **[auto]** |
 | RM.10 | With it on, 登出, set the clock past the time, or wait for it | Nothing arrives; sign back in and 設定 shows 每日提醒 off **[auto]** |
 | RM.11 | Same after 刪除帳號, and after 登出 from the deactivated screen | Same **[auto]** |
 | RM.12 | With it on, leave Sprinkie unopened for a few days, then open it | The Reminder kept arriving every day; nothing in the app counts the days |
 | RM.34 | After RM.5, go back to the month view and open 設定 again | The switch is off, with the line that the Reminder needs notifications and 前往設定, though it was never switched on; no system prompt **[auto]** |
+| RM.48 | With it on, tap 提醒時間 | The row reads 21:00 as text. A sheet slides up: 取消 on the left, 提醒時間 centered, 儲存 on the right, as in 編輯類別's header; below it the wheel, at 21:00 |
+| RM.49 | Spin the wheel to 07:45 and tap 儲存 | The sheet closes, the row reads 07:45, and every Reminder moves to 07:45, starting tomorrow since 07:45 has passed **[auto]** |
+| RM.50 | Spin the wheel, tap 取消; open it again, spin, and tap above the sheet | Either one closes it; the row and the Reminder keep the old time, and the sheet opens at it again **[auto]** |
+| RM.51 | Look at RM.48 against RM.21's sheet | The same surface and wheel, in 5-minute steps; no line of copy under the header |
+| RM.52 | With 提醒時間's sheet open, turn Sprinkie's notifications off in the iOS Settings app and return | The sheet is gone with its row; the line and 前往設定 show. Allowing them again brings the row back, not the sheet **[auto]** |
 
 **RM.2 at 21:00**: once per release pass, leave the default time and let
 the real 21:00 Reminder arrive on a locked phone.
@@ -768,7 +773,7 @@ case says otherwise.
 | RM.46 | As RM.24, and while the pointer shows tap 設定 and 登出; sign up a new account and save its first Entry | Neither the line nor the sheet: the sheet already appeared on this phone |
 | RM.47 | Save the first Entry with +, wait for the sheet, force-quit Sprinkie while it shows, open it and save another Entry | Neither the line nor the sheet comes back: the offer was made **[auto]** |
 
-**Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
+**Tapping a Reminder (#140)**: set 提醒時間 to the next five-minute mark for each.
 
 | # | Case | Expected |
 | --- | --- | --- |
@@ -1010,4 +1015,7 @@ the tag.
 | RM.38 | `AppRoot.test.tsx` |
 | RM.39 | `AppRoot.test.tsx` |
 | RM.47 | `AppRoot.test.tsx` |
+| RM.49 | `AppRoot.test.tsx` |
+| RM.50 | `AppRoot.test.tsx` |
+| RM.52 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |
