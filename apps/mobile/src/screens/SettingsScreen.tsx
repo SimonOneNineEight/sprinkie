@@ -21,7 +21,7 @@ import { useSession } from '../auth/useSession';
 import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
 import { useAppLanguage, useStrings } from '../i18n/AppLanguageProvider';
 import { legalUrls } from '../legal';
-import { dateAsTime, timeAsDate } from '../reminder/reminder';
+import { dateAsTime, timeAsDate, type ReminderTime } from '../reminder/reminder';
 import { useReminder } from '../reminder/useReminder';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
@@ -170,12 +170,14 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
   );
 }
 
-// 每日提醒 (#136): a switch, and while it is on, 提醒時間 with iOS's compact
-// time button. The first switch-on asks iOS for permission; a refusal there
-// leaves it off with nothing said.
+// 每日提醒 (#136): a switch, and while it is on, 提醒時間 showing the time,
+// which opens ReminderTimeSheet (#142). The first switch-on asks iOS for
+// permission; a refusal there leaves it off with nothing said.
 function ReminderRows({ onRefused }: { onRefused: (refused: boolean) => void }) {
   const strings = useStrings();
   const reminder = useReminder();
+  const [timeOpen, setTimeOpen] = useState(false);
+  const shownTime = timeLabel(reminder.time);
 
   return (
     <>
@@ -197,24 +199,101 @@ function ReminderRows({ onRefused }: { onRefused: (refused: boolean) => void }) 
         />
       </View>
       {reminder.on ? (
-        <View style={styles.row}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={strings.settings.reminderTime}
+          accessibilityValue={{ text: shownTime }}
+          style={styles.row}
+          onPress={() => setTimeOpen(true)}
+        >
           <Text style={[styles.rowTitle, styles.rowText]}>{strings.settings.reminderTime}</Text>
-          <DateTimePicker
-            testID="reminder-time"
-            accessibilityLabel={strings.settings.reminderTime}
-            value={timeAsDate(reminder.time)}
-            mode="time"
-            display="compact"
-            themeVariant="light"
-            accentColor={theme.colors.ink}
-            onChange={(event, date) => {
-              if (event.type !== 'set' || !date) return;
-              void reminder.changeTime(dateAsTime(date));
-            }}
-          />
-        </View>
+          <Text style={styles.rowValue}>{shownTime}</Text>
+          <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
+        </Pressable>
+      ) : null}
+      {timeOpen ? (
+        <ReminderTimeSheet
+          initial={reminder.time}
+          onSave={(time) => {
+            void reminder.changeTime(time);
+            setTimeOpen(false);
+          }}
+          onClose={() => setTimeOpen(false)}
+        />
       ) : null}
     </>
+  );
+}
+
+/** A time of day as the row shows it: 24-hour HH:MM. */
+function timeLabel({ hour, minute }: ReminderTime): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+// The 提醒時間 sheet (#142): Apple's editor-sheet pattern, its header matching
+// CategoryEditorSheet's (取消 / centered title / 儲存), over only the invite's
+// wheel (#138, variant B). Nothing changes until 儲存; 取消 or a tap outside
+// drops the spun time.
+function ReminderTimeSheet({
+  initial,
+  onSave,
+  onClose,
+}: {
+  initial: ReminderTime;
+  onSave: (time: ReminderTime) => void;
+  onClose: () => void;
+}) {
+  const strings = useStrings();
+  const [time, setTime] = useState(() => timeAsDate(initial));
+
+  return (
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <Pressable
+          testID="reminder-time-scrim"
+          accessibilityRole="button"
+          accessibilityLabel={strings.entryForm.cancel}
+          feedback="none"
+          style={styles.scrim}
+          onPress={onClose}
+        />
+        <View style={styles.sheet} testID="reminder-time-sheet">
+          <View style={styles.editorHeader}>
+            {/* Absolutely spanned first child: the title centers on the sheet,
+                not on the gap between the unequal side buttons. */}
+            <Text style={styles.editorTitle} numberOfLines={1}>
+              {strings.settings.reminderTime}
+            </Text>
+            <Pressable accessibilityRole="button" style={styles.headerButton} onPress={onClose}>
+              <Text style={styles.headerCancel}>{strings.entryForm.cancel}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.headerSave}
+              onPress={() => onSave(dateAsTime(time))}
+            >
+              <Text style={styles.headerSaveLabel}>{strings.entryForm.save}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.wheel}>
+            <DateTimePicker
+              testID="reminder-time"
+              accessibilityLabel={strings.settings.reminderTime}
+              value={time}
+              mode="time"
+              display="spinner"
+              minuteInterval={5}
+              themeVariant="light"
+              accentColor={theme.colors.ink}
+              textColor={theme.colors.textPrimary}
+              onChange={(_, date) => {
+                if (date) setTime(date);
+              }}
+            />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -544,6 +623,52 @@ const styles = createStyles((t) => ({
     ...t.typography.entryTitle,
     color: t.colors.textPrimary,
     flexShrink: 1,
+  },
+  // The 提醒時間 sheet's header, drawn as CategoryEditorSheet draws its own.
+  editorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: t.spacing.space4,
+    padding: t.spacing.space4,
+    backgroundColor: t.colors.materialBar,
+    borderBottomWidth: t.border.hairline,
+    borderBottomColor: t.colors.lineSeparator,
+  },
+  editorTitle: {
+    ...t.typography.sectionHeader,
+    color: t.colors.textPrimary,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+  },
+  headerButton: {
+    height: 32,
+    justifyContent: 'center',
+    paddingHorizontal: t.spacing.space4,
+  },
+  headerCancel: {
+    ...t.typography.entryTitle,
+    color: t.colors.controlGhostFg,
+  },
+  headerSave: {
+    height: 32,
+    justifyContent: 'center',
+    paddingHorizontal: t.spacing.space5,
+    borderRadius: t.radius.pill,
+    backgroundColor: t.colors.controlPrimaryBg,
+  },
+  headerSaveLabel: {
+    ...t.typography.entryTitle,
+    color: t.colors.controlPrimaryFg,
+  },
+  wheel: {
+    alignItems: 'center',
+    paddingHorizontal: t.spacing.screenGutter,
+    paddingTop: t.spacing.space4,
+    // Home-indicator clearance, as the invite sheet leaves it.
+    paddingBottom: 28,
   },
   deleteButton: {
     flexDirection: 'row',

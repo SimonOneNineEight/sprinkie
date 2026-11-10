@@ -1078,6 +1078,8 @@ describe('the Reminder in 設定 (#136)', () => {
   ] as const;
 
   const reminderSwitch = () => screen.getByRole('switch', { name: '每日提醒' });
+  /** The 提醒時間 row, which shows the time and opens the sheet. */
+  const timeRow = () => screen.getByRole('button', { name: '提醒時間' });
   /** When each pending Reminder fires, as local `YYYY-MM-DD HH:MM`. */
   const firings = () =>
     fakeNotifications.scheduled().map((n) => {
@@ -1119,8 +1121,8 @@ describe('the Reminder in 設定 (#136)', () => {
 
     expect(fakeNotifications.prompts()).toBe(1);
     expect(reminderSwitch().props.value).toBe(true);
-    expect(screen.getByText('提醒時間')).toBeTruthy();
-    expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '21:00' });
+    expect(timeRow()).toHaveAccessibilityValue({ text: '21:00' });
+    expect(within(timeRow()).getByText('21:00')).toBeTruthy();
     const pending = fakeNotifications.scheduled();
     expect(pending).toHaveLength(60);
     expect(firings()[0]).toBe('2026-11-10 21:00');
@@ -1132,20 +1134,64 @@ describe('the Reminder in 設定 (#136)', () => {
     }
   });
 
-  it('moves every Reminder to a new time picked on 提醒時間', async () => {
+  it('opens a sheet from 提醒時間 with 取消, the title and 儲存 in its header and the wheel at the time', async () => {
     await openSettings();
     await switchOn();
 
+    fireEvent.press(timeRow());
+
+    const sheet = within(screen.getByTestId('reminder-time-sheet'));
+    expect(sheet.getByRole('button', { name: '取消' })).toBeTruthy();
+    expect(sheet.getByText('提醒時間')).toBeTruthy();
+    expect(sheet.getByRole('button', { name: '儲存' })).toBeTruthy();
+    expect(sheet.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '21:00' });
+  });
+
+  it('moves every Reminder to the time picked in the sheet once 儲存 is tapped', async () => {
+    await openSettings();
+    await switchOn();
+    fireEvent.press(timeRow());
+
+    fireEvent(screen.getByTestId('reminder-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
+    // Spinning the wheel alone moves nothing.
+    expect(firings()[0]).toBe('2026-11-10 21:00');
     await act(async () => {
-      fireEvent(screen.getByTestId('reminder-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
+      fireEvent.press(screen.getByText('儲存'));
     });
 
+    expect(screen.queryByTestId('reminder-time-sheet')).toBeNull();
     expect(firings()).toHaveLength(60);
     expect(firings().every((f) => f.endsWith(' 07:45'))).toBe(true);
     // 07:45 has passed this morning: the run starts tomorrow.
     expect(firings()[0]).toBe('2026-11-11 07:45');
     expect(firings()[59]).toBe('2027-01-09 07:45');
+    expect(timeRow()).toHaveAccessibilityValue({ text: '07:45' });
+    expect(within(timeRow()).getByText('07:45')).toBeTruthy();
+    // The sheet opens again at the saved time.
+    fireEvent.press(timeRow());
     expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '07:45' });
+  });
+
+  it.each([
+    ['取消', () => screen.getByText('取消')],
+    ['a tap outside the sheet', () => screen.getByTestId('reminder-time-scrim')],
+  ])('leaves the time and every Reminder as they were after %s', async (_, closer) => {
+    await openSettings();
+    await switchOn();
+    const before = firings();
+    fireEvent.press(timeRow());
+    fireEvent(screen.getByTestId('reminder-time'), 'change', { type: 'set' }, new Date(2026, 10, 10, 7, 45));
+
+    await act(async () => {
+      fireEvent.press(closer());
+    });
+
+    expect(screen.queryByTestId('reminder-time-sheet')).toBeNull();
+    expect(firings()).toEqual(before);
+    expect(timeRow()).toHaveAccessibilityValue({ text: '21:00' });
+    // The spun time is dropped: the sheet opens again at 21:00.
+    fireEvent.press(timeRow());
+    expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '21:00' });
   });
 
   it('stays off, saying nothing, when the User refuses at the prompt', async () => {
@@ -2094,7 +2140,9 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     expect(firings()[0]).toBe('2026-11-11 22:30');
     await openSettings();
     expect(reminderSwitch().props.value).toBe(true);
-    expect(screen.getByTestId('reminder-time')).toHaveAccessibilityValue({ text: '22:30' });
+    expect(screen.getByRole('button', { name: '提醒時間' })).toHaveAccessibilityValue({
+      text: '22:30',
+    });
   });
 
   it('設定提醒 does not prompt when notifications are already allowed', async () => {
