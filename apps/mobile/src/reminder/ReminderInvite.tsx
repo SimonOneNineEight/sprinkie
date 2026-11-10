@@ -1,5 +1,4 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import * as Sentry from '@sentry/react-native';
 import { useEffect, useState } from 'react';
 import { Animated, Modal, Text, View } from 'react-native';
 
@@ -74,7 +73,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
         onFinished();
         return;
       }
-      markFirstEntryInviteShown().catch(Sentry.captureException);
+      void markFirstEntryInviteShown();
       if (alreadyOn) onFinished();
       else setPhase('sheet');
     });
