@@ -7,7 +7,8 @@
 //
 // It models iOS where the app can tell: a refusal at the prompt leaves
 // permission blocked (iOS never asks twice), a pending notification whose
-// time has passed is no longer pending (it was delivered), and scheduling
+// time has passed is no longer pending (it was delivered, and stays
+// tappable in Notification Center until the test resets), and scheduling
 // under an identifier already pending replaces it.
 
 /** What iOS would answer about notification permission. */
@@ -34,6 +35,15 @@ type NotificationResponse = {
   };
 };
 type ResponseListener = (response: NotificationResponse) => void;
+type NotificationBehavior = {
+  shouldShowBanner: boolean;
+  shouldShowList: boolean;
+  shouldPlaySound: boolean;
+  shouldSetBadge: boolean;
+};
+type NotificationHandler = {
+  handleNotification: (notification: NotificationResponse['notification']) => Promise<NotificationBehavior>;
+};
 
 const state = {
   permission: 'undetermined' as FakePermission,
@@ -42,6 +52,7 @@ const state = {
   pending: [] as ScheduledNotification[],
   responseListeners: [] as ResponseListener[],
   lastResponse: null as NotificationResponse | null,
+  handler: null as NotificationHandler | null,
 };
 
 const notDelivered = (n: ScheduledNotification) => n.date.getTime() > Date.now();
@@ -65,6 +76,7 @@ export const fakeNotifications = {
     state.pending = [];
     state.responseListeners = [];
     state.lastResponse = null;
+    state.handler = null;
   },
   setPermission(permission: FakePermission) {
     state.permission = permission;
@@ -81,25 +93,40 @@ export const fakeNotifications = {
   scheduled(): ScheduledNotification[] {
     return state.pending.filter(notDelivered).sort((a, b) => a.date.getTime() - b.date.getTime());
   },
-  /** The User taps a pending notification. */
+  /**
+   * The User taps a notification, pending or already delivered (still in
+   * Notification Center), with Sprinkie closed, in the background or open.
+   */
   tap(identifier: string) {
-    const tapped = state.pending.find((n) => n.identifier === identifier);
-    if (!tapped) throw new Error(`No pending notification ${identifier}`);
     const response: NotificationResponse = {
       actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
-      notification: {
-        date: tapped.date.getTime(),
-        request: {
-          identifier: tapped.identifier,
-          content: { title: tapped.title, body: tapped.body, data: tapped.data },
-          trigger: { type: 'date', value: tapped.date.getTime() },
-        },
-      },
+      notification: notificationOf(identifier),
     };
     state.lastResponse = response;
     state.responseListeners.forEach((listener) => listener(response));
   },
+  /**
+   * A notification fires while Sprinkie is open: what iOS shows, as the app's
+   * notification handler decides. With no handler, iOS shows nothing.
+   */
+  async arriveInForeground(identifier: string): Promise<{ banner: boolean; list: boolean }> {
+    const behavior = await state.handler?.handleNotification(notificationOf(identifier));
+    return { banner: behavior?.shouldShowBanner ?? false, list: behavior?.shouldShowList ?? false };
+  },
 };
+
+function notificationOf(identifier: string): NotificationResponse['notification'] {
+  const found = state.pending.find((n) => n.identifier === identifier);
+  if (!found) throw new Error(`No notification ${identifier}`);
+  return {
+    date: found.date.getTime(),
+    request: {
+      identifier: found.identifier,
+      content: { title: found.title, body: found.body, data: found.data },
+      trigger: { type: 'date', value: found.date.getTime() },
+    },
+  };
+}
 
 let generatedIds = 0;
 
@@ -137,11 +164,13 @@ export const expoNotifications = {
     });
     return identifier;
   },
+  // Cancelling reaches only what has not fired yet: a delivered one stays in
+  // Notification Center, where it can still be tapped.
   async cancelScheduledNotificationAsync(identifier: string) {
-    state.pending = state.pending.filter((n) => n.identifier !== identifier);
+    state.pending = state.pending.filter((n) => n.identifier !== identifier || !notDelivered(n));
   },
   async cancelAllScheduledNotificationsAsync() {
-    state.pending = [];
+    state.pending = state.pending.filter((n) => !notDelivered(n));
   },
   async getAllScheduledNotificationsAsync() {
     return fakeNotifications.scheduled().map((n) => ({
@@ -163,5 +192,11 @@ export const expoNotifications = {
   },
   async getLastNotificationResponseAsync() {
     return state.lastResponse;
+  },
+  clearLastNotificationResponse() {
+    state.lastResponse = null;
+  },
+  setNotificationHandler(handler: NotificationHandler | null) {
+    state.handler = handler;
   },
 };

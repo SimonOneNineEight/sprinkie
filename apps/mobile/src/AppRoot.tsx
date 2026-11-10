@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { Me } from './api/client';
 import { ApiError, provisionMe, reactivateMe } from './api/client';
 import { supabase } from './auth/supabase';
+import { localDateString } from './calendar/monthMath';
 import { useSession } from './auth/useSession';
 import { useAppLanguage } from './i18n/AppLanguageProvider';
-import { clearReminder } from './reminder/reminder';
+import { clearReminder, watchReminders } from './reminder/reminder';
 import { ReminderProvider } from './reminder/ReminderProvider';
 import { DeactivatedScreen } from './screens/DeactivatedScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -33,6 +34,14 @@ export function AppRoot() {
   // every 30s.
   const [retryTick, setRetryTick] = useState(0);
   const failedInARow = useRef(0);
+  // A tap on a Reminder (#140), waiting for the signed-in home to open the
+  // Entry form for the day it was tapped on.
+  const [reminderTap, setReminderTap] = useState<{ date: string } | null>(null);
+
+  useEffect(
+    () => watchReminders(() => setReminderTap({ date: localDateString(new Date()) })),
+    [],
+  );
 
   useEffect(() => {
     if (!accessToken || !userId) return;
@@ -66,11 +75,13 @@ export function AppRoot() {
   // The session ended (登出, account deletion, or 登出 from the deactivated
   // screen), or the app opened signed out: every Reminder is cancelled and
   // the setting forgotten, so the next person on this phone starts with it
-  // off (#136).
+  // off (#136). A Reminder tapped while signed out, or not yet opened when
+  // the session ended, is dropped with them (#140).
   const signedOut = session === null;
   useEffect(() => {
     if (signedOut) clearReminder().catch(Sentry.captureException);
   }, [signedOut]);
+  if (signedOut && reminderTap !== null) setReminderTap(null);
 
   // Staleness is keyed by user, not token: a routine token refresh keeps the
   // provisioned world, while signing in as a different user discards it.
@@ -102,6 +113,8 @@ export function AppRoot() {
         accessToken={session.access_token}
         categories={me?.categories ?? []}
         onCategoriesChanged={() => setWorldVersion((v) => v + 1)}
+        reminderTap={reminderTap}
+        onReminderTapOpened={() => setReminderTap(null)}
       />
     </ReminderProvider>
   );

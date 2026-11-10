@@ -1353,3 +1353,215 @@ describe('the Reminder in 設定 (#136)', () => {
     });
   });
 });
+
+describe('tapping a Reminder (#140)', () => {
+  // Tonight's Reminder has just arrived. Only Date is faked: the suite's
+  // waits keep real timers.
+  const evening = new Date(2026, 10, 10, 21, 0, 30);
+  const allButDate = [
+    'hrtime', 'nextTick', 'performance', 'queueMicrotask', 'requestAnimationFrame',
+    'cancelAnimationFrame', 'requestIdleCallback', 'cancelIdleCallback', 'setImmediate',
+    'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+  ] as const;
+  const tonight = 'reminder-2026-11-10';
+  /** The Entry form is open, its header and date row naming `heading`. */
+  const expectFormFor = (heading: string) => {
+    expect(screen.getByText('儲存')).toBeTruthy();
+    expect(screen.getAllByText(heading)).toHaveLength(2);
+  };
+
+  /** Signs in, switches 每日提醒 on in 設定 that morning, and closes Sprinkie. */
+  const setUpTheReminder = async () => {
+    jest.setSystemTime(new Date(2026, 10, 10, 9, 30));
+    mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+    render(<AppRoot />);
+    fireEvent.press(await screen.findByLabelText('設定'));
+    await screen.findByText('每日提醒');
+    await act(async () => {
+      fireEvent(screen.getByRole('switch', { name: '每日提醒' }), 'valueChange', true);
+    });
+    screen.unmount();
+    jest.setSystemTime(evening);
+  };
+
+  beforeEach(async () => {
+    jest.useFakeTimers({ now: evening, doNotFake: [...allButDate] });
+    fakeNotifications.reset();
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    jest.useRealTimers();
+    await AsyncStorage.clear();
+  });
+
+  it("opens today's Entry form when tapped with Sprinkie closed, and 取消 lands on today's month view", async () => {
+    await setUpTheReminder();
+
+    fakeNotifications.tap(tonight);
+    render(<AppRoot />);
+
+    await waitFor(() => expectFormFor('11月10日 星期二'));
+    await act(async () => {
+      fireEvent.press(screen.getByText('取消'));
+    });
+    expect(await screen.findByText('11月10日 星期二')).toBeTruthy();
+    expect(screen.getByLabelText('新增紀錄')).toBeTruthy();
+    expect(screen.getByText('11月')).toBeTruthy();
+  });
+
+  it("opens today's Entry form when tapped with Sprinkie in the background, and 儲存 lands on today's month view", async () => {
+    await setUpTheReminder();
+    api.restore();
+    api = installMockApi({
+      me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] },
+    });
+    // Sprinkie was left in the background on another month's day.
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+    await act(async () => {
+      fireEvent(screen.getByTestId('month-pager'), 'momentumScrollEnd', {
+        nativeEvent: { contentOffset: { x: 0 } },
+      });
+    });
+    await screen.findByText('10月');
+
+    await act(async () => {
+      fakeNotifications.tap(tonight);
+    });
+
+    expectFormFor('11月10日 星期二');
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '夜跑');
+    await act(async () => {
+      fireEvent.press(screen.getByText('儲存'));
+    });
+    expect(JSON.parse(String(api.entryPosts()[0][1]?.body)).date).toBe('2026-11-10');
+    expect(await screen.findByText('11月')).toBeTruthy();
+    expect(screen.getByText('11月10日 星期二')).toBeTruthy();
+  });
+
+  it('dates the form by the day of the tap, not the day the Reminder was for', async () => {
+    await setUpTheReminder();
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+
+    // Last night's Reminder, tapped from Notification Center after midnight.
+    jest.setSystemTime(new Date(2026, 10, 11, 0, 10));
+    await act(async () => {
+      fakeNotifications.tap(tonight);
+    });
+
+    expectFormFor('11月11日 星期三');
+  });
+
+  it('leaves a form the User is already writing in as it is', async () => {
+    await setUpTheReminder();
+    api.restore();
+    api = installMockApi({
+      me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] },
+    });
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    fireEvent.press(screen.getByText('運動'));
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '還沒寫完');
+
+    await act(async () => {
+      fakeNotifications.tap(tonight);
+    });
+
+    expect(screen.getByDisplayValue('還沒寫完')).toBeTruthy();
+  });
+
+  it('shows a Reminder arriving while Sprinkie is open as a banner, and tapping it opens the form', async () => {
+    await setUpTheReminder();
+    render(<AppRoot />);
+    await screen.findByLabelText('新增紀錄');
+
+    expect(await fakeNotifications.arriveInForeground(tonight)).toEqual({ banner: true, list: true });
+    await act(async () => {
+      fakeNotifications.tap(tonight);
+    });
+
+    expectFormFor('11月10日 星期二');
+  });
+
+  describe('signed out, the tap is dropped', () => {
+    /** Signs in on the sign-in screen's session, as a provider would. */
+    const signIn = async () => {
+      const session = { access_token: 'token-2', user: { id: 'u1' } };
+      mockAuthState.session = session;
+      act(() => mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session)));
+      await screen.findByLabelText('新增紀錄');
+    };
+    const expectMonthView = async () => {
+      // Long enough for a late form to have opened.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(screen.getByText('11月')).toBeTruthy();
+      expect(screen.queryByText('儲存')).toBeNull();
+    };
+
+    it('with Sprinkie closed: sign-in opens, and signing in afterwards does not open the form', async () => {
+      await setUpTheReminder();
+      // Tonight's Reminder arrived; then the User signed out.
+      render(<AppRoot />);
+      fireEvent.press(await screen.findByLabelText('設定'));
+      await act(async () => {
+        fireEvent.press(await screen.findByText('登出'));
+      });
+      await screen.findByText('每天五分鐘，留下你的生活');
+      screen.unmount();
+
+      fakeNotifications.tap(tonight);
+      render(<AppRoot />);
+
+      expect(await screen.findByText('每天五分鐘，留下你的生活')).toBeTruthy();
+      await signIn();
+      await expectMonthView();
+    });
+
+    it('with Sprinkie in the background on sign-in: signing in afterwards does not open the form', async () => {
+      await setUpTheReminder();
+      render(<AppRoot />);
+      fireEvent.press(await screen.findByLabelText('設定'));
+      await act(async () => {
+        fireEvent.press(await screen.findByText('登出'));
+      });
+      await screen.findByText('每天五分鐘，留下你的生活');
+
+      await act(async () => {
+        fakeNotifications.tap(tonight);
+      });
+
+      expect(screen.getByText('每天五分鐘，留下你的生活')).toBeTruthy();
+      await signIn();
+      await expectMonthView();
+    });
+
+    it('a tap waiting behind the deactivated screen is dropped by 登出 there', async () => {
+      await setUpTheReminder();
+      api.restore();
+      api = installMockApi({ deactivated: true });
+      render(<AppRoot />);
+      await screen.findByText('帳號已停用');
+
+      await act(async () => {
+        fakeNotifications.tap(tonight);
+      });
+      await act(async () => {
+        fireEvent.press(screen.getByText('登出'));
+      });
+      await screen.findByText('每天五分鐘，留下你的生活');
+
+      api.restore();
+      api = installMockApi();
+      await signIn();
+      await expectMonthView();
+    });
+  });
+});
