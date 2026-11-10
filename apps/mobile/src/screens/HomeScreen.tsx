@@ -21,6 +21,9 @@ type Props = {
   accessToken: string;
   categories: Category[];
   onCategoriesChanged?: () => void;
+  /** A tapped Reminder (#140): open the Entry form for its date. */
+  reminderTap?: { date: string } | null;
+  onReminderTapOpened?: () => void;
 };
 
 type Route =
@@ -33,7 +36,13 @@ type Route =
 // Home lands on the month view (#6); the day list, entry form, settings, and
 // year view are routes behind it. Real navigation infrastructure can replace
 // this switch when the screen graph outgrows it.
-export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Props) {
+export function HomeScreen({
+  accessToken,
+  categories,
+  onCategoriesChanged,
+  reminderTap,
+  onReminderTapOpened,
+}: Props) {
   const [route, setRoute] = useState<Route>({ name: 'month' });
   const [monthRefresh, setMonthRefresh] = useState(0);
   // The hidden-set (#30): one visibility state across every calendar
@@ -67,6 +76,18 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
       active = false;
     };
   }, []);
+
+  // A tapped Reminder lands on the Entry form for its date, on top of the
+  // month view as + opens it (#140). Each tap opens it once; AppRoot then
+  // lets go of it, so a later remount never reopens it.
+  const [openedTap, setOpenedTap] = useState<Props['reminderTap']>(null);
+  if (reminderTap && reminderTap !== openedTap) {
+    setOpenedTap(reminderTap);
+    setRoute({ name: 'form', date: reminderTap.date });
+  }
+  useEffect(() => {
+    if (reminderTap) onReminderTapOpened?.();
+  }, [reminderTap, onReminderTapOpened]);
 
   const changeHidden = (next: HiddenSet) => {
     setHidden(next);

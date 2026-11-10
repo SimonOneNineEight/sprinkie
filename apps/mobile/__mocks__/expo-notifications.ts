@@ -14,4 +14,6 @@ export const {
   addNotificationResponseReceivedListener,
   getLastNotificationResponse,
   getLastNotificationResponseAsync,
+  clearLastNotificationResponse,
+  setNotificationHandler,
 } = expoNotifications;

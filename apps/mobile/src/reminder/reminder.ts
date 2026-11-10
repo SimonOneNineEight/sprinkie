@@ -92,7 +92,7 @@ async function rebuild(
     if (dayKey(date) === writtenDay) continue;
     await Notifications.scheduleNotificationAsync({
       identifier: `reminder-${dayKey(date)}`,
-      content: { title: copy.title, body: copy.body },
+      content: { title: copy.title, body: copy.body, data: reminderMarker },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
     });
   }
@@ -164,6 +164,38 @@ export function changeReminderTime(
     await rebuild(state, copy, writtenDay);
     return state;
   });
+}
+
+// What a Reminder carries, so a tap on it is told apart from any other
+// notification (#140).
+const reminderMarker = { kind: 'reminder' };
+
+const isReminder = (response: Notifications.NotificationResponse | null) =>
+  response?.notification.request.content.data?.kind === reminderMarker.kind;
+
+/**
+ * Shows a Reminder that arrives while Sprinkie is open as a banner, and calls
+ * `onTap` for a tap on one: the tap that launched Sprinkie, or one while it
+ * runs (#140). A handled tap is cleared so a later launch never replays it.
+ * Returns the unsubscribe.
+ */
+export function watchReminders(onTap: () => void): () => void {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+  const handle = (response: Notifications.NotificationResponse | null) => {
+    if (!isReminder(response)) return;
+    Notifications.clearLastNotificationResponse();
+    onTap();
+  };
+  handle(Notifications.getLastNotificationResponse());
+  const subscription = Notifications.addNotificationResponseReceivedListener(handle);
+  return () => subscription.remove();
 }
 
 /** The session ended: cancel every Reminder and forget the setting. */

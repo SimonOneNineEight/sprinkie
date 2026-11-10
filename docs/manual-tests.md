@@ -743,6 +743,15 @@ the real 21:00 Reminder arrive on a locked phone.
 | RM.19 | Save today's Entry, force-quit Sprinkie, open it again, wait past the time | Nothing arrives today **[auto]** |
 | RM.20 | Save today's Entry on another phone signed in to the same account | This phone's Reminder still arrives today (accepted, ADR-0002 amendment) |
 
+**Tapping a Reminder (#140)**: set 提醒時間 a minute ahead for each.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| RM.40 | Force-quit Sprinkie, lock the phone, tap the Reminder when it arrives and unlock | Sprinkie opens on the Entry form for today; 取消 lands on the month view on today **[auto]** |
+| RM.41 | Leave Sprinkie in the background on another month, tap the Reminder | The Entry form for today; 儲存 lands on the month view on today, the new Entry on it **[API]** **[auto]** |
+| RM.42 | With Sprinkie open on the month view, wait for the Reminder | It shows as a banner; tapping the banner opens the Entry form for today **[auto]** |
+| RM.43 | Let a Reminder arrive and leave it in Notification Center; 登出, force-quit, then tap it | Sign-in opens and nothing else; signing in lands on the month view, not the form **[auto]** |
+
 ### AX — Accessibility
 
 | # | Case | Expected |
@@ -955,4 +964,8 @@ the tag.
 | RM.17 | `AppRoot.test.tsx` |
 | RM.18 | `AppRoot.test.tsx` |
 | RM.19 | `AppRoot.test.tsx` |
+| RM.40 | `AppRoot.test.tsx` |
+| RM.41 | `AppRoot.test.tsx` |
+| RM.42 | `AppRoot.test.tsx` |
+| RM.43 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |
