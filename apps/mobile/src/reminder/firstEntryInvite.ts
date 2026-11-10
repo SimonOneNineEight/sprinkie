@@ -26,9 +26,12 @@ export function hasNoEntries(categories: Category[]): boolean {
   return categories.length > 0 && categories.every((category) => category.inUse !== true);
 }
 
-/** True the first time only: marks the invite shown on this phone. */
-export async function claimFirstEntryInvite(): Promise<boolean> {
-  if (await store.load()) return false;
-  await store.save(true);
-  return true;
+/** Whether the invite has already played through on this phone. */
+export function firstEntryInviteShown(): Promise<boolean> {
+  return store.load();
+}
+
+/** Marks the invite played through, once its sequence ends. */
+export function markFirstEntryInviteShown(): Promise<void> {
+  return store.save(true);
 }

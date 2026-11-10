@@ -56,8 +56,9 @@ export function HomeScreen({
     resyncReminder().catch(Sentry.captureException);
   };
   // The Reminder invite (#138): due after a zero-Entry account's first save,
-  // wherever it was made, and played once back on the month view, which is
-  // where it claims its once-only mark. A delete or a reorder is no save.
+  // wherever it was made, and played back on the month view. It stays due
+  // until it plays through there, which is when it claims its once-only
+  // mark. A delete or a reorder is no save.
   const [inviteDue, setInviteDue] = useState(false);
   const entrySaved = () => {
     bumpMonth();

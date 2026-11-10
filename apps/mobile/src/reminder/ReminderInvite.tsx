@@ -1,16 +1,16 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Animated, Modal, Text, View } from 'react-native';
 
 import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles, theme } from '../theme';
 
-import { claimFirstEntryInvite } from './firstEntryInvite';
+import { firstEntryInviteShown, markFirstEntryInviteShown } from './firstEntryInvite';
 import { dateAsTime, timeAsDate } from './reminder';
 import { useReminder } from './useReminder';
 
-type Phase = 'claiming' | 'line' | 'sheet' | 'pointer';
+type Phase = 'checking' | 'line' | 'sheet' | 'pointer';
 
 // The first-save line, then the Reminder invite (#138), played once over the
 // month view after a zero-Entry account's first save. The look is variant B
@@ -18,24 +18,32 @@ type Phase = 'claiming' | 'line' | 'sheet' | 'pointer';
 // left-aligned, an inline wheel at 21:00, 先不用 and 設定提醒 side by side.
 // 設定提醒 turns on the same Reminder 設定 does; notifications already
 // blocked close the sheet with a pointer to 設定 instead of a prompt. The
-// once-only mark is claimed as the line plays, not at the save, so Sprinkie
-// closed before the month view does not use it up. A Reminder already on
-// leaves nothing to offer: the line plays alone.
+// once-only mark is claimed only when the sequence ends, so Sprinkie closed
+// before the month view does not use it up, and a User who leaves the month
+// view while the line plays (the line lets touches through) sees it all
+// again on return: HomeScreen keeps the invite due and mounts this anew. A
+// Reminder already on as the sequence starts leaves nothing to offer: the
+// line plays alone.
 export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
   const strings = useStrings();
   const reminder = useReminder();
-  const alreadyOn = reminder.on;
-  const [phase, setPhase] = useState<Phase>('claiming');
+  const [alreadyOn] = useState(reminder.on);
+  const [phase, setPhase] = useState<Phase>('checking');
   const [time, setTime] = useState(() => timeAsDate(reminder.time));
   // useState's initialiser, not a ref: read during render for the style.
   const [opacity] = useState(() => new Animated.Value(0));
 
+  const finish = useCallback(() => {
+    void markFirstEntryInviteShown();
+    onFinished();
+  }, [onFinished]);
+
   useEffect(() => {
     let active = true;
-    void claimFirstEntryInvite().then((claimed) => {
+    void firstEntryInviteShown().then((shown) => {
       if (!active) return;
-      if (claimed) setPhase('line');
-      else onFinished();
+      if (shown) onFinished();
+      else setPhase('line');
     });
     return () => {
       active = false;
@@ -56,18 +64,18 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
     fade.start(({ finished }) => {
       if (!finished) return;
       if (phase === 'line' && !alreadyOn) setPhase('sheet');
-      else onFinished();
+      else finish();
     });
     return () => fade.stop();
-  }, [phase, opacity, onFinished, alreadyOn]);
+  }, [phase, opacity, finish, alreadyOn]);
 
   const turnOn = async () => {
     const result = await reminder.turnOn(dateAsTime(time));
     if (result === 'blocked') setPhase('pointer');
-    else onFinished();
+    else finish();
   };
 
-  if (phase === 'claiming') return null;
+  if (phase === 'checking') return null;
   if (phase !== 'sheet') {
     return (
       <Animated.View pointerEvents="none" style={[styles.lineHolder, { opacity }]}>
@@ -82,7 +90,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
     );
   }
   return (
-    <Modal transparent animationType="slide" onRequestClose={onFinished}>
+    <Modal transparent animationType="slide" onRequestClose={finish}>
       <View style={styles.overlay}>
         <Pressable
           testID="reminder-invite-scrim"
@@ -90,7 +98,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
           accessibilityLabel={strings.reminderInvite.notNow}
           feedback="none"
           style={styles.scrim}
-          onPress={onFinished}
+          onPress={finish}
         />
         <View style={styles.sheet}>
           <Text style={styles.title}>{strings.reminderInvite.title}</Text>
@@ -115,7 +123,7 @@ export function ReminderInvite({ onFinished }: { onFinished: () => void }) {
             <Pressable
               accessibilityRole="button"
               style={[styles.button, styles.secondary]}
-              onPress={onFinished}
+              onPress={finish}
             >
               <Text style={styles.secondaryText}>{strings.reminderInvite.notNow}</Text>
             </Pressable>

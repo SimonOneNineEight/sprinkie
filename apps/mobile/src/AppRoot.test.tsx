@@ -2192,6 +2192,22 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
   });
 
+  it('plays again, line and sheet, when the User leaves the month view while the line shows', async () => {
+    await signIn();
+    await saveEntry();
+    await screen.findByText(firstSaveLine);
+
+    // The line lets touches through: 設定 opens over it.
+    await openSettings();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('返回'));
+    });
+    await screen.findByLabelText('新增紀錄');
+
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    expect(await screen.findByText(inviteTitle, {}, sequence)).toBeTruthy();
+  });
+
   it("never plays after a delete on the day view, which is no first Entry", async () => {
     // /me still reports no Category in use, as before a first save.
     mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
