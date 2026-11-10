@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +8,7 @@ import type { HiddenSet } from '../calendar/hidden';
 import { loadHidden, nothingHidden, saveHidden } from '../calendar/hidden';
 import { claimFirstEntryInvite, hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
+import { useReminder } from '../reminder/useReminder';
 import { createStyles } from '../theme';
 
 import { DayScreen } from './DayScreen';
@@ -37,7 +39,13 @@ export function HomeScreen({ accessToken, categories, onCategoriesChanged }: Pro
   // The hidden-set (#30): one visibility state across every calendar
   // surface, persisted so it survives launches.
   const [hidden, setHidden] = useState<HiddenSet>(nothingHidden);
-  const bumpMonth = () => setMonthRefresh((n) => n + 1);
+  const { resync: resyncReminder } = useReminder();
+  // An Entry was saved, deleted or moved: the month reloads, and today's
+  // Reminder follows whether today now holds an Entry (#137).
+  const bumpMonth = () => {
+    setMonthRefresh((n) => n + 1);
+    resyncReminder().catch(Sentry.captureException);
+  };
   // The Reminder invite (#138): due after a zero-Entry account's first save,
   // wherever it was made, and played once back on the month view.
   const [inviteDue, setInviteDue] = useState(false);
