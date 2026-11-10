@@ -2054,6 +2054,8 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     expect(fakeNotifications.scheduled()).toEqual([]);
     await openSettings();
     expect(reminderSwitch().props.value).toBe(false);
+    // Opened afterwards, 設定 says why (#135 story 9).
+    expect(screen.getByText('前往設定')).toBeTruthy();
   });
 
   it('closes without a prompt once notifications are blocked, pointing to 設定 for later', async () => {
