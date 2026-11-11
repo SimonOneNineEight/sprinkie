@@ -23,3 +23,7 @@ Default vocabulary — the five canonical role names used as-is. See `docs/agent
 ### Domain docs
 
 Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Coding standards
+
+Reviewing a change: apply every rule in `CODING_STANDARDS.md`.
