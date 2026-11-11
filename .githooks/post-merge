@@ -1,0 +1,3 @@
+#!/bin/sh
+# A pull or merge moves HEAD the way a branch switch does.
+exec "$(dirname "$0")/post-checkout" ORIG_HEAD HEAD 1
