@@ -6,7 +6,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "generate:theme": "pnpm --filter mobile generate:theme",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
     "openapi-typescript": "^7.9.1"

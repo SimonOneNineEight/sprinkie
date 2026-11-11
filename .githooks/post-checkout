@@ -1,0 +1,29 @@
+#!/bin/sh
+# Dependencies follow a branch switch: a changed lockfile reinstalls, and a
+# changed native surface (mobile dependencies or app.json) asks for a fresh
+# native build, since the dev client cannot load a module it was built
+# without. post-merge runs this too, with ORIG_HEAD and HEAD.
+# Wired by the root package.json's prepare script (core.hooksPath).
+old=$1
+new=$2
+# 0 is a checkout of files, not of a branch.
+[ "$3" = 1 ] || exit 0
+# A fresh clone has no old HEAD; the clone's own install covers it.
+case $old in *[!0]*) ;; *) exit 0 ;; esac
+[ "$old" = "$new" ] && exit 0
+
+cd "$(git rev-parse --show-toplevel)" || exit 0
+
+if ! git diff --quiet "$old" "$new" -- pnpm-lock.yaml; then
+  echo "post-checkout: pnpm-lock.yaml changed, running pnpm install --frozen-lockfile"
+  pnpm install --frozen-lockfile
+fi
+
+deps() {
+  git show "$1:apps/mobile/package.json" 2>/dev/null |
+    node -e 'let s="";process.stdin.on("data",(d)=>(s+=d)).on("end",()=>{try{console.log(JSON.stringify(JSON.parse(s).dependencies??{}))}catch{}})'
+}
+if [ "$(deps "$old")" != "$(deps "$new")" ] || ! git diff --quiet "$old" "$new" -- apps/mobile/app.json; then
+  echo "post-checkout: native dependencies or app.json changed; in apps/mobile run: pnpm expo prebuild --platform ios --clean && pnpm ios"
+fi
+exit 0

@@ -10,6 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The base branch's docs/manual-tests.md, for the never-removed ids check.
+          fetch-depth: 0
+      - name: No Co-Authored-By trailers
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          bad=$(git rev-list "$BASE..$HEAD" | while read -r c; do
+            git show -s --format=%B "$c" | grep -qi '^co-authored-by:' && git show -s --format='%h %s' "$c"
+          done || true)
+          if [ -n "$bad" ]; then
+            echo "These commits carry a Co-Authored-By trailer (CLAUDE.md, Commits):"
+            echo "$bad"
+            exit 1
+          fi
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -28,6 +45,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm --filter mobile test:scripts
+        env:
+          MANUAL_TESTS_BASE: origin/${{ github.base_ref || 'main' }}
 
   api:
     runs-on: ubuntu-latest

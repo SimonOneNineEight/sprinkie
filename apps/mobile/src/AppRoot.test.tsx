@@ -93,6 +93,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  jest.useRealTimers();
   api.restore();
 });
 
@@ -274,6 +275,8 @@ it('hides a Category from the day view, and the other surfaces agree (#41)', asy
 });
 
 it('loads the world once the network returns after an offline launch, so a kept draft reopens prefilled (#100)', async () => {
+  // The failed /me retries on a 2s timer, which the test moves on by hand.
+  jest.useFakeTimers();
   // J5.3: relaunched in airplane mode, with a draft kept from the failed save.
   await AsyncStorage.clear();
   api.restore();
@@ -310,7 +313,8 @@ it('loads the world once the network returns after an offline launch, so a kept 
 
   // The retry lands while the form is open, and the form takes the draft's
   // Category from it rather than staying on an empty list.
-  expect(await screen.findByDisplayValue('晨跑', {}, { timeout: 5000 })).toBeTruthy();
+  await act(() => jest.advanceTimersByTimeAsync(2000));
+  expect(await screen.findByDisplayValue('晨跑')).toBeTruthy();
   await act(async () => {
     fireEvent.press(screen.getByText('儲存'));
   });
@@ -319,6 +323,8 @@ it('loads the world once the network returns after an offline launch, so a kept 
 });
 
 it('colors the month dots once /me answers, after a launch whose first /me failed (#100)', async () => {
+  // The failed /me retries on a 2s timer, which the test moves on by hand.
+  jest.useFakeTimers();
   // A phone that just woke drops its first request; everything after is online.
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -343,7 +349,9 @@ it('colors the month dots once /me answers, after a launch whose first /me faile
   // retry it wears 運動's, rather than staying grey until a relaunch.
   const dot = () =>
     within(within(screen.getByTestId('month-page-current')).getByTestId('day-dots-1')).getByTestId('day-dot');
-  await waitFor(() => expect(dot()).toHaveStyle({ backgroundColor: cat.sport.color }), { timeout: 5000 });
+  await screen.findByLabelText('新增紀錄');
+  await act(() => jest.advanceTimersByTimeAsync(2000));
+  await waitFor(() => expect(dot()).toHaveStyle({ backgroundColor: cat.sport.color }));
   globalThis.fetch = online;
 });
 
