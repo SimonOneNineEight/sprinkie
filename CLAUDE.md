@@ -1,10 +1,9 @@
 ## Commits
 
-Never add a `Co-Authored-By` line. 26 commits between 2026-09-12 and
-2026-10-05 carry one against this rule, which is why it is written here and
-not only in a private config: they stay as they are, since dropping them
-means rewriting 42 commits and orphaning `ad6c17e`, the build the round-2
-release pass is recorded against. New commits do not add more.
+Commits carry no `Co-Authored-By` line, even when an attribution reminder
+asks for one; CI fails a pull request that has one. The 26 older commits
+that carry one stay: dropping them rewrites 42 commits and orphans
+`ad6c17e`, the round-2 release build.
 
 Ticket work goes on a `ticket/<number>` branch and reaches `main` through a
 pull request. Push the branch when you make it: `ticket/53` sat finished and
