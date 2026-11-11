@@ -34,6 +34,26 @@ module.exports = defineConfig([
     rules: { 'i18next/no-literal-string': 'off' },
   },
   {
+    // No wall-clock waits (#138 retro): a raised timeout passes on a fast
+    // laptop and times out on CI. Time-driven behavior runs on fake timers.
+    files: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...[
+          "CallExpression:matches([callee.name=/^(find(All)?By|waitFor)/], [callee.property.name=/^(find(All)?By|waitFor)/]) > ObjectExpression > Property[key.name='timeout']",
+          "CallExpression[callee.object.name='jest'][callee.property.name='setTimeout']",
+          "CallExpression:matches([callee.name=/^[fx]?(it|test)$/], [callee.object.name=/^(it|test)$/], [callee.callee.object.name=/^(it|test)$/], [callee.tag.object.name=/^(it|test)$/])[arguments.length=3]",
+          'CallExpression[callee.name=/^(before|after)(Each|All)$/][arguments.length=2]',
+        ].map((selector) => ({
+          selector,
+          message:
+            'Drive time with Jest fake timers (jest.useFakeTimers + advanceTimersByTimeAsync) instead of a timeout: real-time waits pass locally and time out on CI.',
+        })),
+      ],
+    },
+  },
+  {
     // App Language discipline (#33): the catalog is reached only through
     // useStrings, so a language switch re-renders everything. A direct
     // import would freeze that consumer on zh-TW.
