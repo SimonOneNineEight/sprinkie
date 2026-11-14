@@ -59,8 +59,9 @@ type Props = {
    * freely even while other categories are filtered out.
    */
   hidden?: HiddenSet;
-  /** Opens the 類別 sheet from this header (#41). Absent, no button is drawn. */
+  /** The Filter the 類別 sheet shows and changes (#134). */
   filter?: Filter;
+  /** Opens the 類別 sheet from this header (#41). Absent, no button is drawn. */
   onChangeFilter?: (filter: Filter) => void;
 };
 

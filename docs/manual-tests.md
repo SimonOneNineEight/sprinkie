@@ -131,7 +131,7 @@ Throwaway User, phone language Traditional Chinese.
 | J3.1 | Swipe back three months and forward again | Months page one per swipe; dots match each month **[API]** |
 | J3.2 | Tap ‹ 2026年 (the year under the month title), pick a month from a past year | Year view opens, then that month **[API]** |
 | J3.3 | Choose one Category from 類別, walk month → day → year | Only it shows on all three **[API]** |
-| J3.4 | Show it again | It returns on all three **[API]** |
+| J3.4 | Tap 全部 | Everything returns on all three **[API]** |
 
 ### J4 — Organizing
 
@@ -485,7 +485,7 @@ deliberately unchanged until testers say whether it matters. Not a YR failure.
 | CS.15 | Type a Category's name in the search field | Only that Category's family remains **[auto]** |
 | CS.16 | Type a Subcategory's name | Its parent stays as context; the parent's other children drop **[auto]** |
 | CS.17 | Clear the field | The whole tree returns, the Filter unchanged **[auto]** |
-| CS.18 | Type something nothing matches | Only the pinned 新增類別 row remains **[auto]** |
+| CS.18 | Type something nothing matches | Only 全部 and the pinned 新增類別 row remain **[auto]** |
 | CS.19 | While searching, tap a parent row | The whole family toggles, including members the search is hiding **[auto]** |
 | CS.20 | While searching, tap 全部 | Clears the whole Filter, not just the matches **[auto]** |
 | CS.21 | Type a name, then 新增類別 | The editor opens with that name already in the field **[auto]** |

@@ -7,6 +7,6 @@ The 類別 sheet's visibility half used Apple Calendar's model (#30, the 2026-08
 
 The cost is permanent hiding. A Filter lasts until the app is closed, so a User who wanted Work kept off their calendar for good has no way to say so any more. That is accepted on purpose: a lens for looking back (回顧) that survived a relaunch would open the app onto a sparse calendar with nothing on screen saying why, which is the worse failure. Existing Hidden sets were discarded rather than converted, because their complement would switch on a Filter the User never chose.
 
-The sheet keeps the rest of the 08-20 structure: row tap selects, ✎ opens the editor, 新增類別 creates. A 全部 row, checked while the Filter is empty, replaces the 全部隱藏 / 全部顯示 header toggle, and the 類別 nav icon fills in the accent color while a Filter is on.
+The sheet keeps the rest of the 08-20 structure: row tap selects, ✎ opens the editor, 新增類別 creates. A 全部 row, checked while the Filter is empty, replaces the 全部隱藏 / 全部顯示 header toggle, and the 類別 nav icon fills in ink while a Filter is on (the app has no accent color; ink is its action color, DESIGN.md).
 
 Revisit if Users ask for permanent hiding back: it would return as its own durable setting, not as a persisted Filter.

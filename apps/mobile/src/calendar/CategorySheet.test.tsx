@@ -325,11 +325,12 @@ describe('the manual pass, without a device (#109)', () => {
   });
 
   // CS.18
-  it('leaves only the pinned 新增類別 row when nothing matches', () => {
+  it('leaves only 全部 and the pinned 新增類別 row when nothing matches', () => {
     renderSheet();
 
     fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '天文');
 
+    expect(screen.getByText('全部')).toBeTruthy();
     expect(screen.getByText('新增類別')).toBeTruthy();
     for (const name of ['工作', '運動', '健身房', '美食']) expect(screen.queryByText(name)).toBeNull();
     expect(screen.queryAllByLabelText('編輯類別')).toHaveLength(0);
