@@ -1,4 +1,4 @@
-import type { StringCatalog } from './strings';
+import type { Published, StringCatalog } from './strings';
 
 // The English catalog (#34). Copy drafted by the implementing agent;
 // Simon and the PM review it before release (#37). Typed as StringCatalog,
@@ -110,6 +110,10 @@ export const en: StringCatalog = {
     aboutHeader: 'About',
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
+    version: (version: string, published: Published | null) =>
+      published
+        ? `Version ${version} · Updated ${monthsShort[published.month - 1]} ${published.day}, ${published.time} (${published.zone})`
+        : `Version ${version}`,
     language: 'Language',
     systemDefault: 'System Default',
     zhHant: '繁體中文',

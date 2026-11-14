@@ -3,7 +3,7 @@ import { AuthApiError } from '@supabase/supabase-js';
 import { Alert } from 'react-native';
 
 import { installMockApi, type MockApi } from '../testing/mockApi';
-import { SettingsScreen } from './SettingsScreen';
+import { SettingsScreen, zoneLabel } from './SettingsScreen';
 
 const mockSignOut = jest.fn(async () => ({ error: null }));
 // The account's sign-in methods as Supabase holds them (#20).
@@ -31,6 +31,24 @@ const mockLinkIdentity = jest.fn(async ({ provider }: { provider: string; token:
 const mockAppleSignIn = jest.fn(async (_options: unknown) => ({
   identityToken: 'apple-id-token' as string | null,
 }));
+// The running update, as expo-updates reports it (#147). Each test sets it.
+const mockUpdates: { isEmbeddedLaunch: boolean; createdAt: Date | null; updateId: string | null } = {
+  isEmbeddedLaunch: true,
+  createdAt: null,
+  updateId: null,
+};
+jest.mock('expo-updates', () => ({
+  get isEmbeddedLaunch() {
+    return mockUpdates.isEmbeddedLaunch;
+  },
+  get createdAt() {
+    return mockUpdates.createdAt;
+  },
+  get updateId() {
+    return mockUpdates.updateId;
+  },
+}));
+
 jest.mock('expo-apple-authentication', () => ({
   AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
   signInAsync: (options: unknown) => mockAppleSignIn(options),
@@ -338,5 +356,40 @@ describe('連結帳戶 (#20)', () => {
     expect(screen.queryByText('無法載入連結狀態')).toBeNull();
     expect(within(await row('Apple')).getByText('已連結')).toBeTruthy();
     expect(within(await row('Google')).getByText('連結')).toBeTruthy();
+  });
+});
+
+// The 關於 version line (#147). An over-the-air update keeps the build's
+// version (runtimeVersion follows appVersion), so when the running update
+// was published is what tells a tester it arrived. It reads in the phone's
+// own time, with its offset, so a tester elsewhere can be compared exactly.
+// 0.9.0 is app.json's version, written out rather than read back. Jest
+// runs in UTC (jest.global-setup.js), so the screen reads GMT+0; the
+// offsets a tester abroad would see are checked on zoneLabel.
+describe('the version line (#147)', () => {
+  afterEach(() => {
+    Object.assign(mockUpdates, { isEmbeddedLaunch: true, createdAt: null, updateId: null });
+  });
+
+  it('shows only the version while the build runs its own code', async () => {
+    await renderSettings();
+    expect(screen.getByText('版本 0.9.0')).toBeTruthy();
+  });
+
+  it('adds when the running update was published, in local time with its offset', async () => {
+    Object.assign(mockUpdates, {
+      isEmbeddedLaunch: false,
+      createdAt: new Date(Date.UTC(2026, 10, 14, 15, 5)),
+      updateId: '0b7c2f9e-41aa-4c55-9d1e-3f0a8c6b2d11',
+    });
+    await renderSettings();
+    expect(screen.getByText('版本 0.9.0 · 11月14日 15:05 (GMT+0) 更新')).toBeTruthy();
+  });
+
+  it('names the offset east and west of UTC, half hours included', () => {
+    expect(zoneLabel(480)).toBe('GMT+8');
+    expect(zoneLabel(-360)).toBe('GMT-6');
+    expect(zoneLabel(330)).toBe('GMT+5:30');
+    expect(zoneLabel(0)).toBe('GMT+0');
   });
 });

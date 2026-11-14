@@ -195,7 +195,20 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 
 - **Version.** The beta runs `0.9.x`; `1.0.0` is reserved for the App Store
   launch. The production profile auto-increments the build number, so only the
-  marketing version is ever set by hand.
+  marketing version is ever set by hand. The rule (#147): the version marks a
+  native build, never a JS update.
+  - **JS-only change:** `eas update`; the version stays. Bumping it without a
+    build strands every installed phone (see OTA updates below).
+  - **Native change** (a native dependency, a permission, `Info.plist`, an
+    entitlement, an Expo SDK upgrade): `eas build` + `eas submit` and a bump —
+    patch for a native fix (`0.9.1`), minor for a milestone (`0.10.0` with
+    onboarding), `1.0.0` at public launch.
+  - **After launch** every App Store release bumps it, which Apple requires.
+  - **No bump per update.** An update is told apart by when it was published,
+    which 設定 shows (below). A hand-bumped counter drifts the first time it is
+    forgotten.
+  - **At the next native build, consider** Expo's `fingerprint` runtime policy,
+    so the visible version stops deciding which builds an update reaches.
 - **Export compliance.** ADR-0004 confirms there is no client-side encryption,
   only TLS, which is exempt — so `app.json` declares
   `ITSAppUsesNonExemptEncryption: false`. Without it every single upload stops
@@ -231,10 +244,13 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
   is an upper bound, not a measurement; nobody watched for the download to
   finish.
 
-  **A tester cannot tell.** Nothing on screen says an update arrived or is
-  waiting, and backgrounding the app and returning to it is not a launch. So
-  after a publish, tell testers to open the app, wait a minute, force-quit, and
-  reopen, and before trusting a report, ask whether they did.
+  **Ask the tester to read 設定.** Since #147 the line under 關於 shows the
+  running update's publish time, in the phone's own time with its offset
+  (`版本 0.9.0 · 11月14日 23:05 (GMT+8) 更新`), or only `版本 0.9.0` while the
+  build runs its own code. Backgrounding the app and returning to it is not a
+  launch, so after a publish, tell testers to open the app, wait a minute,
+  force-quit, reopen, and read that line back; convert its offset to match it
+  against the publish.
 
 ## Per-release
 

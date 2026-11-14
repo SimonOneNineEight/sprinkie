@@ -1,3 +1,4 @@
+import * as Updates from 'expo-updates';
 import * as WebBrowser from 'expo-web-browser';
 import { Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
@@ -13,11 +14,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { expo } from '../../app.json';
 import { deactivateMe } from '../api/client';
 import { providerIdToken, type Provider } from '../auth/providerTokens';
 import { supabase } from '../auth/supabase';
 import { useSession } from '../auth/useSession';
-import type { LanguageOverride, StringCatalog } from '../i18n/appLanguage';
+import type { LanguageOverride, Published, StringCatalog } from '../i18n/appLanguage';
 import { useAppLanguage, useStrings } from '../i18n/AppLanguageProvider';
 import { legalUrls } from '../legal';
 import { dateAsTime, timeAsDate, timeLabel, type ReminderTime } from '../reminder/reminder';
@@ -35,6 +37,30 @@ type Props = {
 // idiom (類別 moved to the calendar's 類別 sheet, ratified 2026-08-20);
 // leaving is a right, so 刪除帳號 closes the screen with the grace spelled
 // out.
+// When the running over-the-air update was published (#147), or null while
+// the build runs the code it shipped with. The version alone cannot say: an
+// update keeps its build's version (runtimeVersion follows appVersion). Read
+// in the phone's own time with its offset, so a tester in another zone can
+// be matched exactly against the publish.
+function runningUpdate(): Published | null {
+  const at = Updates.createdAt;
+  if (Updates.isEmbeddedLaunch || !at) return null;
+  return {
+    month: at.getMonth() + 1,
+    day: at.getDate(),
+    time: `${at.getHours()}:${String(at.getMinutes()).padStart(2, '0')}`,
+    zone: zoneLabel(-at.getTimezoneOffset()),
+  };
+}
+
+/** An offset east of UTC in minutes, as GMT+8, GMT-6 or GMT+5:30. */
+export function zoneLabel(offset: number): string {
+  const hours = Math.trunc(Math.abs(offset) / 60);
+  const minutes = Math.abs(offset) % 60;
+  const sign = offset < 0 ? '-' : '+';
+  return `GMT${sign}${hours}${minutes ? `:${String(minutes).padStart(2, '0')}` : ''}`;
+}
+
 export function SettingsScreen({ accessToken, onBack }: Props) {
   const strings = useStrings();
   const { override, setOverride } = useAppLanguage();
@@ -134,6 +160,9 @@ export function SettingsScreen({ accessToken, onBack }: Props) {
               <ChevronRight size={18} color={theme.colors.iconMuted} strokeWidth={2} />
             </Pressable>
           </View>
+          <Text style={[styles.linkHint, styles.versionLine]}>
+            {strings.settings.version(expo.version, runningUpdate())}
+          </Text>
         </View>
 
         <View style={styles.card}>
@@ -708,5 +737,9 @@ const styles = createStyles((t) => ({
   linkHint: {
     ...t.typography.meta,
     color: t.colors.textSecondary,
+  },
+  versionLine: {
+    marginTop: t.spacing.space4,
+    marginHorizontal: t.spacing.space1,
   },
 }));
