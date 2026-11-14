@@ -724,6 +724,34 @@ paths:
             Hidden Subcategory ids: a refined Entry is omitted when its
             subcategory is any of these, and shown otherwise — even under
             a hidden parent.
+        - name: filterCategories
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: >
+            The Filter (#134, ADR-0010): Category ids the User chose. A
+            chosen Category shows its unrefined Entries and, unless listed in
+            filterSubcategoryExceptions, every Subcategory's, including ones
+            the app has never seen. With both filter params empty there is
+            no Filter. Applies alongside the hidden-set params.
+        - name: filterSubcategoryExceptions
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: >
+            Subcategory ids whose choice differs from their Category's: under
+            a chosen Category they drop out, under an unchosen one they are
+            chosen alone. A refined Entry follows its Subcategory.
       responses:
         "200":
           description: The month's days that have Entries, in date order.
@@ -791,6 +819,34 @@ paths:
           description: >
             Hidden Subcategory ids: a refined Entry follows its refinement.
             The Entry count follows the same visibility.
+        - name: filterCategories
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: >
+            The Filter (#134, ADR-0010): Category ids the User chose. A
+            chosen Category shows its unrefined Entries and, unless listed in
+            filterSubcategoryExceptions, every Subcategory's, including ones
+            the app has never seen. With both filter params empty there is
+            no Filter. Applies alongside the hidden-set params.
+        - name: filterSubcategoryExceptions
+          in: query
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          description: >
+            Subcategory ids whose choice differs from their Category's: under
+            a chosen Category they drop out, under an unchosen one they are
+            chosen alone. A day's color comes from its first shown Entry, and the count follows the same rule.
       responses:
         "200":
           description: The year's recorded days, in date order.

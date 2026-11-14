@@ -17,9 +17,9 @@ canvas re-pulled 2026-09-10 for the new 設定 artboard (#35).
 > - **年視圖**: no back button, no chevrons; swipe-only paging; the title
 >   opens an endless year wheel.
 > - **分類 sheet (篩選 A/B)**: both filter explorations are retired — the
->   類別 sheet is a visibility checklist over a persistent hidden-set
->   (DESIGN.md §9): icon-fill toggles, check-circles for subcategories,
->   family master switch, 全部隱藏/全部顯示.
+>   類別 sheet is the Filter's checklist (DESIGN.md §9, #134): icon-fill
+>   choices, check-circles for subcategories, family switch, a leading 全部
+>   row. (#30's hidden-set and 全部隱藏/全部顯示 are retired too.)
 > - **新增/編輯分類 sheet**: the parent list swaps in for its summary row
 >   (accordion); sheet titles center on the sheet, not the button gap.
 >

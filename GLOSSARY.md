@@ -20,9 +20,9 @@ _Avoid_: tag, label, habit
 A user-defined refinement of a Category (Sport → basketball, gym, swim).
 _Avoid_: tag, sub-tag
 
-**Hidden**:
-A per-User visibility state on a Category or Subcategory: while hidden, its Entries are omitted from calendar views. Nothing is hidden by default; hiding is view state and never changes data.
-_Avoid_: filter, filtered out
+**Filter**:
+The Categories and Subcategories a User has chosen to see on the calendar. An empty Filter shows everything; otherwise only Entries it covers show. A refined Entry follows its Subcategory, an unrefined one its Category. Choosing a Category chooses all of its Subcategories too, and any of them can then be dropped; the Category's own choice covers its Entries that have no Subcategory, so choosing every Subcategory one by one does not choose the Category. Lasts until the app is closed; it is view state and never changes data. Replaced Hidden (2026-11, #134).
+_Avoid_: hidden, hide, visibility
 
 **Entry**:
 A record inside a Journal for a specific date: title, optional note, optional photos. Carries exactly one Category, optionally refined by a Subcategory. A date can hold several Entries. Written by one User, its author, which is not necessarily the Journal's owner.
@@ -41,7 +41,7 @@ The app's name as a person reads it: **Sprinkie**, the same Latin string in ever
 _Avoid_: app name, logo, daily-wlog (the pre-rename name; internal ids that keep it are listed in docs/release.md)
 
 **Starter Category**:
-One of the five Categories created for a new User at signup, named in the App Language in effect at that moment. An ordinary Category from then on: renameable, hideable, deletable, and never retranslated.
+One of the five Categories created for a new User at signup, named in the App Language in effect at that moment. An ordinary Category from then on: renameable, deletable, and never retranslated.
 _Avoid_: default category, seed category
 
 **Draft**:

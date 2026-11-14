@@ -1,4 +1,4 @@
-import { ChevronLeft, Tags } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
@@ -8,10 +8,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category, Entry } from '../api/client';
 import { listEntries, reorderDay } from '../api/client';
-import type { HiddenSet } from '../calendar/hidden';
+import { CategoriesButton } from '../calendar/CategoriesButton';
+import type { Filter } from '../calendar/filter';
+import { entryIsShown, isFiltering, noFilter } from '../calendar/filter';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
-import { entryIsVisible, nothingHidden } from '../calendar/hidden';
 import { dateHeading } from '../calendar/dateLabel';
 import { localDateString, shiftDay } from '../calendar/monthMath';
 import { decodeContent } from '../entries/content';
@@ -50,14 +51,14 @@ type Props = {
   onFormState?: (form: OpenForm | null) => void;
   onCategoriesChanged?: () => void;
   /**
-   * The persistent hidden-set (#30). Hidden cards drop out; drag-reorder
-   * disables only while THIS day shows a partial list, since ordering a
-   * partial view is undefined — a fully visible day reorders freely even
-   * while other categories hide.
+   * The Filter (#134), shown in the 類別 sheet and applied here: cards
+   * outside it drop out; drag-reorder disables only while THIS day shows a
+   * partial list, since ordering a partial view is undefined — a fully
+   * shown day reorders freely even while other categories are filtered out.
    */
-  hidden?: HiddenSet;
+  filter?: Filter;
   /** Opens the 類別 sheet from this header (#41). Absent, no button is drawn. */
-  onChangeHidden?: (hidden: HiddenSet) => void;
+  onChangeFilter?: (filter: Filter) => void;
 };
 
 // The day view (#7): the date's Entries as cards; long-press drag reorders
@@ -73,8 +74,8 @@ export function DayScreen({
   onEntrySaved,
   onFormState,
   onCategoriesChanged,
-  hidden = nothingHidden,
-  onChangeHidden,
+  filter = noFilter,
+  onChangeFilter,
 }: Props) {
   const strings = useStrings();
   // A loaded list carries the date it answers, as the month's dots carry
@@ -135,7 +136,7 @@ export function DayScreen({
   if (
     viewingId !== null &&
     entries !== null &&
-    !entries.some((entry) => entry.id === viewingId && entryIsVisible(entry, hidden))
+    !entries.some((entry) => entry.id === viewingId && entryIsShown(entry, filter))
   ) {
     setViewingId(null);
   }
@@ -202,7 +203,7 @@ export function DayScreen({
   };
 
   const heading = dateHeading(strings, date);
-  const visibleEntries = (entries ?? []).filter((entry) => entryIsVisible(entry, hidden));
+  const visibleEntries = (entries ?? []).filter((entry) => entryIsShown(entry, filter));
   const partialDay = visibleEntries.length !== (entries?.length ?? 0);
 
   // The Entry view (#119) moves over the Entries this day view shows, in its
@@ -284,15 +285,12 @@ export function DayScreen({
               {/* The same 類別 icon the month and year nav bars carry, in the
                   same place and opening the same sheet: visibility is one
                   thing to learn (#41, DESIGN.md §9 as amended 2026-09-12). */}
-              {onChangeHidden ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={strings.categories.title}
+              {onChangeFilter ? (
+                <CategoriesButton
+                  filtering={isFiltering(filter, categories)}
                   style={styles.navButton}
                   onPress={() => setSheetOpen(true)}
-                >
-                  <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
-                </Pressable>
+                />
               ) : null}
             </View>
             {failed ? <Text style={styles.muted}>{strings.day.loadFailed}</Text> : null}
@@ -342,12 +340,12 @@ export function DayScreen({
             {...(onChangeDate ? { onToday: () => onChangeDate(localDateString(today)) } : {})}
             onAdd={() => setComposing(true)}
           />
-          {sheetOpen && onChangeHidden ? (
+          {sheetOpen && onChangeFilter ? (
             <CategorySheet
               accessToken={accessToken}
               categories={categories}
-              hidden={hidden}
-              onChange={onChangeHidden}
+              filter={filter}
+              onChange={onChangeFilter}
               onCategoriesChanged={() => onCategoriesChanged?.()}
               onClose={() => setSheetOpen(false)}
             />

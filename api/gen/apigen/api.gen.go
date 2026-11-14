@@ -286,6 +286,12 @@ type GetMonthParams struct {
 
 	// HiddenSubcategories Hidden Subcategory ids: a refined Entry is omitted when its subcategory is any of these, and shown otherwise — even under a hidden parent.
 	HiddenSubcategories *[]string `form:"hiddenSubcategories,omitempty" json:"hiddenSubcategories,omitempty"`
+
+	// FilterCategories The Filter (#134, ADR-0010): Category ids the User chose. A chosen Category shows its unrefined Entries and, unless listed in filterSubcategoryExceptions, every Subcategory's, including ones the app has never seen. With both filter params empty there is no Filter. Applies alongside the hidden-set params.
+	FilterCategories *[]string `form:"filterCategories,omitempty" json:"filterCategories,omitempty"`
+
+	// FilterSubcategoryExceptions Subcategory ids whose choice differs from their Category's: under a chosen Category they drop out, under an unchosen one they are chosen alone. A refined Entry follows its Subcategory.
+	FilterSubcategoryExceptions *[]string `form:"filterSubcategoryExceptions,omitempty" json:"filterSubcategoryExceptions,omitempty"`
 }
 
 // GetYearParams defines parameters for GetYear.
@@ -295,6 +301,12 @@ type GetYearParams struct {
 
 	// HiddenSubcategories Hidden Subcategory ids: a refined Entry follows its refinement. The Entry count follows the same visibility.
 	HiddenSubcategories *[]string `form:"hiddenSubcategories,omitempty" json:"hiddenSubcategories,omitempty"`
+
+	// FilterCategories The Filter (#134, ADR-0010): Category ids the User chose. A chosen Category shows its unrefined Entries and, unless listed in filterSubcategoryExceptions, every Subcategory's, including ones the app has never seen. With both filter params empty there is no Filter. Applies alongside the hidden-set params.
+	FilterCategories *[]string `form:"filterCategories,omitempty" json:"filterCategories,omitempty"`
+
+	// FilterSubcategoryExceptions Subcategory ids whose choice differs from their Category's: under a chosen Category they drop out, under an unchosen one they are chosen alone. A day's color comes from its first shown Entry, and the count follows the same rule.
+	FilterSubcategoryExceptions *[]string `form:"filterSubcategoryExceptions,omitempty" json:"filterSubcategoryExceptions,omitempty"`
 }
 
 // CreateCategoryJSONRequestBody defines body for CreateCategory for application/json ContentType.
@@ -956,6 +968,32 @@ func (siw *ServerInterfaceWrapper) GetMonth(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	// ------------- Optional query parameter "filterCategories" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", false, false, "filterCategories", r.URL.Query(), &params.FilterCategories, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filterCategories"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filterCategories", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filterSubcategoryExceptions" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", false, false, "filterSubcategoryExceptions", r.URL.Query(), &params.FilterSubcategoryExceptions, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filterSubcategoryExceptions"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filterSubcategoryExceptions", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetMonth(w, r, month, params)
 	}))
@@ -1033,6 +1071,32 @@ func (siw *ServerInterfaceWrapper) GetYear(w http.ResponseWriter, r *http.Reques
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hiddenSubcategories"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hiddenSubcategories", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filterCategories" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", false, false, "filterCategories", r.URL.Query(), &params.FilterCategories, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filterCategories"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filterCategories", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "filterSubcategoryExceptions" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", false, false, "filterSubcategoryExceptions", r.URL.Query(), &params.FilterSubcategoryExceptions, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filterSubcategoryExceptions"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filterSubcategoryExceptions", Err: err})
 		}
 		return
 	}

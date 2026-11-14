@@ -3,7 +3,7 @@ import { Dimensions } from 'react-native';
 
 import { encodeContent } from '../entries/content';
 import { theme } from '../theme';
-import { nothingHidden } from '../calendar/hidden';
+import { noFilter } from '../calendar/filter';
 import { cat } from '../testing/fixtures';
 import { installMockApi, type MockApi } from '../testing/mockApi';
 import { MonthScreen } from './MonthScreen';
@@ -241,7 +241,7 @@ describe('VoiceOver month stepping (#18)', () => {
   });
 
   it('leaves the year label and the nav buttons reachable on their own', async () => {
-    renderMonth({ onOpenYear: jest.fn(), onChangeHidden: jest.fn(), onOpenSettings: jest.fn() });
+    renderMonth({ onOpenYear: jest.fn(), onChangeFilter: jest.fn(), onOpenSettings: jest.fn() });
     const adjustable = await screen.findByRole('adjustable');
 
     // The adjustable is the title alone, not a group swallowing its neighbours:
@@ -268,37 +268,30 @@ describe('visibility (#30)', () => {
     { id: 'c-gym', name: '健身房', color: '#73B062', icon: 'tag', position: 1, parentId: 'c-sport' },
   ];
 
-  it('opens the 類別 sheet and toggles rows into the hidden-set', async () => {
-    const onChangeHidden = jest.fn();
-    renderMonth({
-      categories: withSub,
-      hidden: { categoryIds: [], subcategoryIds: [] },
-      onChangeHidden,
-    });
+  it('opens the 類別 sheet and toggles rows into the Filter', async () => {
+    const onChangeFilter = jest.fn();
+    renderMonth({ categories: withSub, onChangeFilter });
     await act(async () => {});
 
     fireEvent.press(screen.getByLabelText('類別'));
     expect(screen.getByText('類別')).toBeTruthy();
     fireEvent.press(screen.getByText('工作'));
-    expect(onChangeHidden).toHaveBeenCalledWith({ categoryIds: ['c-work'], subcategoryIds: [] });
+    expect(onChangeFilter).toHaveBeenCalledWith({ categoryIds: ['c-work'], subcategoryIds: [] });
 
-    // A parent with children is the family master switch.
+    // A parent with children chooses its whole family.
     fireEvent.press(screen.getByText('運動'));
-    expect(onChangeHidden).toHaveBeenCalledWith({
-      categoryIds: ['c-sport'],
-      subcategoryIds: ['c-gym'],
-    });
+    expect(onChangeFilter).toHaveBeenCalledWith({ categoryIds: ['c-sport'], subcategoryIds: [] });
 
     // Subcategory rows toggle only themselves.
     fireEvent.press(screen.getByText('健身房'));
-    expect(onChangeHidden).toHaveBeenCalledWith({ categoryIds: [], subcategoryIds: ['c-gym'] });
+    expect(onChangeFilter).toHaveBeenCalledWith({ categoryIds: [], subcategoryIds: ['c-gym'] });
   });
 
-  it('sends the hidden-set to the month endpoint', async () => {
+  it('sends the Filter to the month endpoint (#134)', async () => {
     renderMonth({
       categories: withSub,
-      hidden: { categoryIds: ['c-work'], subcategoryIds: ['c-gym'] },
-      onChangeHidden: jest.fn(),
+      filter: { categoryIds: ['c-work'], subcategoryIds: ['c-gym'] },
+      onChangeFilter: jest.fn(),
     });
     await act(async () => {});
 
@@ -307,7 +300,7 @@ describe('visibility (#30)', () => {
       .filter((u) => u.includes('/months/'));
     expect(
       monthCalls.some(
-        (u) => u.includes('hiddenCategories=c-work') && u.includes('hiddenSubcategories=c-gym'),
+        (u) => u.includes('filterCategories=c-work') && u.includes('filterSubcategoryExceptions=c-gym'),
       ),
     ).toBe(true);
   });
@@ -338,20 +331,20 @@ describe('calendar navigation (#40)', () => {
     expect(dotsOn(12)).toHaveLength(0);
   });
 
-  it('paints no dots while a hidden-set change is in flight (#40 item 8)', async () => {
+  it('paints no dots while a Filter change is in flight (#40 item 8)', async () => {
     api.world.monthDays = { '2026-08': [{ date: '2026-08-12', categoryIds: ['c-work'] }] };
-    const view = renderMonth({ hidden: nothingHidden, onChangeHidden: jest.fn() });
+    const view = renderMonth({ filter: noFilter, onChangeFilter: jest.fn() });
     await screen.findByText('8月');
     expect(dotsOn(12)).toHaveLength(1);
 
-    // Hiding refetches the same month, so the month key alone cannot tell the
-    // new answer from the old one: what is on screen still says 工作 is shown.
+    // A Filter change refetches the same month, so the month key alone cannot
+    // tell the new answer from the old one: what is on screen still says 工作 is shown.
     const release = api.holdMonths();
     await act(async () => {
       view.rerender(
         monthElement({
-          hidden: { categoryIds: ['c-work'], subcategoryIds: [] },
-          onChangeHidden: jest.fn(),
+          filter: { categoryIds: ['c-sport'], subcategoryIds: [] },
+          onChangeFilter: jest.fn(),
         }),
       );
     });
@@ -396,7 +389,7 @@ describe('calendar navigation (#40)', () => {
   });
 
   it('keeps only tools in the nav bar; 今天 floats at the bottom (#50)', async () => {
-    renderMonth({ onOpenSettings: jest.fn(), onChangeHidden: jest.fn() });
+    renderMonth({ onOpenSettings: jest.fn(), onChangeFilter: jest.fn() });
     await screen.findByText('8月');
 
     const nav = within(screen.getByTestId('month-nav-actions'));

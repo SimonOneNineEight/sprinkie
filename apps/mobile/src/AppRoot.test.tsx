@@ -10,7 +10,6 @@ import { ActionSheetIOS, Alert, AppState, Linking } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
-import { loadHidden, saveHidden } from './calendar/hidden';
 import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
 import { AppLanguageProvider } from './i18n/AppLanguageProvider';
@@ -204,12 +203,24 @@ it('zooms out to the month you came from, not the top of a year (#40 item 10, #5
   );
 });
 
+/** Opens the 類別 sheet from the screen showing, taps each name, closes it. */
+const choose = async (...names: string[]) => {
+  fireEvent.press(screen.getByLabelText(/^類別/));
+  for (const name of names) {
+    await act(async () => {
+      // Within the sheet: the day view's cards carry Category names too.
+      fireEvent.press(within(screen.getByTestId('category-sheet')).getByText(name));
+    });
+  }
+  fireEvent.press(screen.getByText('完成'));
+};
+
 // Visibility is a property of the Journal, not of a screen (#41 items 12-14).
-// The hidden-set is owned by HomeScreen and every surface reads it, so a hide
+// The Filter is owned by HomeScreen and every surface reads it, so a choice
 // made from the day view reaching the month and year views is only true end
 // to end: the sheet changes state one route up, and the other two routes are
 // rebuilt from it.
-it('hides a Category from the day view, and the other surfaces agree (#41)', async () => {
+it('chooses a Category from the day view, and the other surfaces agree (#41)', async () => {
   const today = new Date();
   const date = localDateString(today);
   mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
@@ -241,18 +252,14 @@ it('hides a Category from the day view, and the other surfaces agree (#41)', asy
   expect(await screen.findByLabelText('返回')).toBeTruthy();
   expect(screen.getByText('運動 · 健身房')).toBeTruthy();
 
-  // Hide 運動 from the day view's own sheet — the family master switch takes
-  // 健身房 with it, so the refined Entry goes too.
-  fireEvent.press(screen.getByLabelText('類別'));
-  await act(async () => {
-    fireEvent.press(screen.getByText('運動'));
-  });
-  fireEvent.press(screen.getByText('完成'));
+  // Choose 工作 from the day view's own sheet: 運動 and its 健身房 fall
+  // outside the Filter, so the refined Entry goes.
+  await choose('工作');
   expect(screen.queryByText('晨跑')).toBeNull();
   expect(screen.getByText('寫程式')).toBeTruthy();
 
   // The month view, without a relaunch: its panel drops the Entry and its
-  // dots are asked for under the new hidden-set.
+  // dots are asked for under the Filter.
   await act(async () => {
     fireEvent.press(screen.getByLabelText('返回'));
   });
@@ -260,7 +267,7 @@ it('hides a Category from the day view, and the other surfaces agree (#41)', asy
   expect(screen.queryByText('晨跑')).toBeNull();
   const monthCalls = () => api.calls().map(([u]) => String(u)).filter((u) => u.includes('/months/'));
   await waitFor(() => {
-    expect(monthCalls().at(-1)).toContain('hiddenCategories=c-sport&hiddenSubcategories=c-gym');
+    expect(monthCalls().at(-1)).toContain('?filterCategories=c-work');
   });
 
   // And the year view, whose filtering is the server's: it has to ask.
@@ -270,8 +277,45 @@ it('hides a Category from the day view, and the other surfaces agree (#41)', asy
   await screen.findByLabelText('選擇年份');
   const yearCalls = api.calls().map(([u]) => String(u)).filter((u) => u.includes('/years/'));
   expect(yearCalls.at(-1)).toContain(
-    `/years/${today.getFullYear()}?hiddenCategories=c-sport&hiddenSubcategories=c-gym`,
+    `/years/${today.getFullYear()}?filterCategories=c-work`,
   );
+});
+
+// The Filter travels as itself, never as its complement (ADR-0010): a
+// complement can only name the Categories the app has loaded, so a
+// Subcategory created elsewhere, or after the last load, would ride
+// through as "not hidden" under a Category the User left out.
+it('keeps a Subcategory the app never loaded out of the Filter (#134)', async () => {
+  const today = new Date();
+  const date = localDateString(today);
+  const entry = (id: string, position: number, title: string, categoryId: string, subcategoryId?: string) => ({
+    id, date, position, categoryId, ...(subcategoryId ? { subcategoryId } : {}), authorId: 'u1',
+    content: encodeContent({ title, note: '' }),
+  });
+  mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+  api.restore();
+  api = installMockApi({
+    // No 游泳 here: the server has it, the app has not heard of it.
+    me: { userId: 'u1', journalId: 'j1', categories: [cat.work, { ...cat.sport, position: 2 }] },
+    entries: {
+      [date]: [
+        entry('e1', 1, '寫程式', 'c-work'),
+        entry('e2', 2, '晨泳', 'c-sport', 'c-swim'),
+        entry('e3', 3, '晨跑', 'c-sport'),
+      ],
+    },
+  });
+  render(<AppRoot />);
+  expect(await screen.findByText('晨泳')).toBeTruthy();
+
+  await choose('工作');
+
+  expect(screen.getByText('寫程式')).toBeTruthy();
+  expect(screen.queryByText('晨跑')).toBeNull();
+  expect(screen.queryByText('晨泳')).toBeNull();
+  const monthCalls = () => api.calls().map(([u]) => String(u)).filter((u) => u.includes('/months/'));
+  await waitFor(() => expect(monthCalls().at(-1)).toContain('?filterCategories=c-work'));
+  expect(monthCalls().at(-1)).not.toContain('hidden');
 });
 
 it('loads the world once the network returns after an offline launch, so a kept draft reopens prefilled (#100)', async () => {
@@ -740,14 +784,14 @@ describe('the Entry view (#119)', () => {
   };
 
   it("swipes through the day's visible Entries in order, stopping at either end", async () => {
-    // 寫程式 sits between the two and is Hidden, so the day view skips it
-    // and so does the swipe (ADR 0005: the day view is the surface here).
-    await saveHidden({ categoryIds: [cat.work.id], subcategoryIds: [] });
+    // 寫程式 sits between the two and is outside the Filter, so the day view
+    // skips it and so does the swipe (ADR 0010: the day view is the surface).
     await openToday([
       entry('e1', 1, 'c-sport', '晨跑'),
       entry('e2', 2, 'c-work', '寫程式'),
       entry('e3', 3, 'c-food', '午餐'),
     ]);
+    await choose('運動', '美食');
     await openCard('晨跑');
     expect(screen.getByText('1 / 2')).toBeTruthy();
 
@@ -793,8 +837,8 @@ describe('the Entry view (#119)', () => {
     expect(screen.getByText('編輯')).toBeTruthy();
   });
 
-  /** From the open Entry view: 編輯, move the Entry to 工作 (hidden), 儲存. */
-  const editIntoHidden = async () => {
+  /** From the open Entry view: 編輯, move the Entry to 工作 (outside the Filter), 儲存. */
+  const editOutOfFilter = async () => {
     await act(async () => {
       fireEvent.press(screen.getByText('編輯'));
     });
@@ -805,17 +849,17 @@ describe('the Entry view (#119)', () => {
     });
   };
 
-  it('stays on the day view once the viewed Entry is hidden, even when it shows again', async () => {
-    await saveHidden({ categoryIds: [cat.work.id], subcategoryIds: [] });
+  it('stays on the day view once the viewed Entry leaves the Filter, even when it comes back', async () => {
     await openToday([entry('e1', 1, 'c-sport', '晨跑'), entry('e2', 2, 'c-food', '午餐')]);
+    await choose('運動', '美食');
     await openCard('晨跑');
 
-    await editIntoHidden();
+    await editOutOfFilter();
     expect(await screen.findByText('午餐')).toBeTruthy();
     expect(screen.queryByText('編輯')).toBeNull();
 
-    // Unhiding 工作 brings the card back, not the Entry view.
-    fireEvent.press(screen.getByLabelText('類別'));
+    // Choosing 工作 too brings the card back, not the Entry view.
+    fireEvent.press(screen.getByLabelText(/^類別/));
     await act(async () => {
       fireEvent.press(screen.getByText('工作'));
     });
@@ -826,12 +870,12 @@ describe('the Entry view (#119)', () => {
 
   it("does not follow a new Entry the day view's + saved onto another date", async () => {
     const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() === 15 ? 16 : 15);
-    await saveHidden({ categoryIds: [cat.work.id], subcategoryIds: [] });
     await openToday([entry('e1', 1, 'c-sport', '晨跑'), entry('e2', 2, 'c-food', '午餐')]);
+    await choose('運動', '美食');
     await openCard('晨跑');
     // Back on the day view the way the view lets go of an Entry it can no
     // longer show, rather than by ‹.
-    await editIntoHidden();
+    await editOutOfFilter();
     await screen.findByText('午餐');
 
     await act(async () => {
@@ -958,41 +1002,75 @@ describe('the manual pass, without a device (#109)', () => {
   });
 
   afterEach(async () => {
-    // The language override and the hidden-set persist; neither may leak.
+    // The language override persists, and #30's hidden-set did; neither may leak.
     await AsyncStorage.clear();
   });
 
   // CS.13
-  it('reopens the 類別 sheet in the visibility state it was closed in', async () => {
+  it('reopens the 類別 sheet with the Filter it was closed with', async () => {
     await signIn();
 
-    fireEvent.press(screen.getByLabelText('類別'));
-    await act(async () => {
-      fireEvent.press(screen.getByText('運動'));
-    });
-    fireEvent.press(screen.getByText('完成'));
-    expect(screen.queryByText('全部隱藏')).toBeNull();
+    await choose('運動');
 
-    fireEvent.press(screen.getByLabelText('類別'));
-    expect(isHollowRow('運動')).toBe(true);
-    expect(isHollowRow('工作')).toBe(false);
-    expect(isHollowRow('美食')).toBe(false);
-    expect(screen.getByText('全部隱藏')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(/^類別/));
+    expect(isHollowRow('運動')).toBe(false);
+    expect(isHollowRow('工作')).toBe(true);
+    expect(isHollowRow('美食')).toBe(true);
+    expect(screen.getByRole('button', { name: '全部', selected: false })).toBeTruthy();
+  });
+
+  it('says on the 類別 button that a Filter is on, on the month and year views (#134)', async () => {
+    await signIn();
+    expect(screen.getByLabelText('類別')).toBeTruthy();
+
+    await choose('運動');
+    expect(screen.getByLabelText('類別，篩選中')).toBeTruthy();
+    expect(screen.queryByText('寫程式')).toBeNull();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('年'));
+    });
+    await screen.findByLabelText('選擇年份');
+    expect(screen.getByLabelText('類別，篩選中')).toBeTruthy();
+
+    await choose('全部');
+    expect(screen.getByLabelText('類別')).toBeTruthy();
+  });
+
+  // VI.10
+  it('starts every launch with no Filter, and lets go of the hidden-set #30 stored', async () => {
+    await AsyncStorage.setItem(
+      'hiddenCategories.v1',
+      JSON.stringify({ v: 1, categoryIds: ['c-work'], subcategoryIds: [] }),
+    );
+    await signIn();
+
+    // The stored 工作 hides nothing, and is gone from the device.
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    expect(screen.getByLabelText('類別')).toBeTruthy();
+    await waitFor(async () => expect(await AsyncStorage.getItem('hiddenCategories.v1')).toBeNull());
+
+    // A Filter chosen now does not outlive the launch.
+    await choose('運動');
+    expect(screen.queryByText('寫程式')).toBeNull();
+    screen.unmount();
+    await signIn();
+    expect(screen.getByText('晨跑')).toBeTruthy();
+    expect(screen.getByLabelText('類別')).toBeTruthy();
   });
 
   // VI.12
-  it('deletes a hidden Category without anything breaking', async () => {
+  it('deletes the one chosen Category, and the calendar shows everything again', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert');
     await signIn();
     const reads = (path: string) =>
       api.calls().map(([u]) => String(u)).filter((u) => u.includes(path));
 
-    // Hide 美食, then delete it from its editor while it is hidden.
-    fireEvent.press(screen.getByLabelText('類別'));
-    await act(async () => {
-      fireEvent.press(screen.getByText('美食'));
-    });
-    expect(isHollowRow('美食')).toBe(true);
+    // Choose only 美食, then delete it from its editor while it is chosen.
+    await choose('美食');
+    expect(screen.queryByText('寫程式')).toBeNull();
+    fireEvent.press(screen.getByLabelText(/^類別/));
     const editButtons = screen.getAllByLabelText('編輯類別');
     fireEvent.press(editButtons[editButtons.length - 1]);
     fireEvent.press(screen.getByText('刪除類別'));
@@ -1004,33 +1082,19 @@ describe('the manual pass, without a device (#109)', () => {
     alertSpy.mockRestore();
     await waitFor(() => expect(screen.queryByText('美食')).toBeNull());
 
-    // The id stays behind in the hidden-set: nothing cleans it up.
-    expect((await loadHidden()).categoryIds).toEqual(['c-food']);
-
-    // It touches nothing still here: the sheet reads the rest as visible,
-    // its switches still work, and hiding the rest reads as everything.
-    expect(isHollowRow('工作')).toBe(false);
-    expect(isHollowRow('運動')).toBe(false);
-    expect(screen.getByText('全部隱藏')).toBeTruthy();
-    for (const name of ['工作', '運動']) {
-      await act(async () => {
-        fireEvent.press(screen.getByText(name));
-      });
-    }
-    expect(screen.getByText('全部顯示')).toBeTruthy();
-    for (const name of ['工作', '運動']) {
-      await act(async () => {
-        fireEvent.press(screen.getByText(name));
-      });
-    }
-    expect(isHollowRow('工作')).toBe(false);
+    // A Filter holding only a deleted id is no Filter: 全部 is selected and
+    // the rest read as unchosen.
+    expect(screen.getByRole('button', { name: '全部', selected: true })).toBeTruthy();
+    expect(isHollowRow('工作')).toBe(true);
+    expect(isHollowRow('運動')).toBe(true);
     fireEvent.press(screen.getByText('完成'));
 
-    // The month view asks with the stale id, is answered, and paints.
+    // The month view asks with nothing hidden, is answered, and paints.
     expect(await screen.findByText('寫程式')).toBeTruthy();
     expect(screen.getByText('晨跑')).toBeTruthy();
+    expect(screen.getByLabelText('類別')).toBeTruthy();
     await waitFor(() => expect(reads('/months/').length).toBeGreaterThan(monthReadsBefore));
-    expect(reads('/months/').at(-1)).toContain('hiddenCategories=c-food');
+    expect(reads('/months/').at(-1)).not.toContain('hidden');
     const todayDots = () =>
       within(
         within(screen.getByTestId('month-page-current')).getByTestId(`day-dots-${today.getDate()}`),
@@ -1042,7 +1106,7 @@ describe('the manual pass, without a device (#109)', () => {
       fireEvent.press(screen.getByLabelText('年'));
     });
     await screen.findByLabelText('選擇年份');
-    expect(reads('/years/').at(-1)).toContain(`/years/${today.getFullYear()}?hiddenCategories=c-food`);
+    expect(reads('/years/').at(-1)).toMatch(new RegExp(`/years/${today.getFullYear()}$`));
     expect(
       await screen.findByTestId(`year-day-${today.getMonth() + 1}-${today.getDate()}`),
     ).toHaveStyle({ backgroundColor: cat.work.color });
@@ -1070,7 +1134,7 @@ describe('the manual pass, without a device (#109)', () => {
     expect(await screen.findByText('寫程式')).toBeTruthy();
     expect(screen.getByText('晨跑')).toBeTruthy();
     fireEvent.press(screen.getByLabelText('Categories'));
-    expect(screen.getByText('Hide all')).toBeTruthy();
+    expect(screen.getByText('All')).toBeTruthy();
     for (const name of ['工作', '運動', '美食']) expect(screen.getByText(name)).toBeTruthy();
   });
 });
@@ -1585,9 +1649,9 @@ describe('no Reminder on a day that already holds an Entry (#137)', () => {
     await waitFor(() => expect(reminderDays()[0]).toBe(today));
   });
 
-  it('counts an Entry in a Hidden Category: it silences today too', async () => {
-    await saveHidden({ categoryIds: [cat.sport.id], subcategoryIds: [] });
+  it('counts an Entry outside the Filter: it silences today too', async () => {
     await launchWithReminderOn();
+    await choose('工作');
 
     await writeOnSelectedDay('晨跑');
 

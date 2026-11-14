@@ -1345,6 +1345,10 @@ export interface operations {
                 hiddenCategories?: string[];
                 /** @description Hidden Subcategory ids: a refined Entry is omitted when its subcategory is any of these, and shown otherwise — even under a hidden parent. */
                 hiddenSubcategories?: string[];
+                /** @description The Filter (#134, ADR-0010): Category ids the User chose. A chosen Category shows its unrefined Entries and, unless listed in filterSubcategoryExceptions, every Subcategory's, including ones the app has never seen. With both filter params empty there is no Filter. Applies alongside the hidden-set params. */
+                filterCategories?: string[];
+                /** @description Subcategory ids whose choice differs from their Category's: under a chosen Category they drop out, under an unchosen one they are chosen alone. A refined Entry follows its Subcategory. */
+                filterSubcategoryExceptions?: string[];
             };
             header?: never;
             path: {
@@ -1400,6 +1404,10 @@ export interface operations {
                 hiddenCategories?: string[];
                 /** @description Hidden Subcategory ids: a refined Entry follows its refinement. The Entry count follows the same visibility. */
                 hiddenSubcategories?: string[];
+                /** @description The Filter (#134, ADR-0010): Category ids the User chose. A chosen Category shows its unrefined Entries and, unless listed in filterSubcategoryExceptions, every Subcategory's, including ones the app has never seen. With both filter params empty there is no Filter. Applies alongside the hidden-set params. */
+                filterCategories?: string[];
+                /** @description Subcategory ids whose choice differs from their Category's: under a chosen Category they drop out, under an unchosen one they are chosen alone. A day's color comes from its first shown Entry, and the count follows the same rule. */
+                filterSubcategoryExceptions?: string[];
             };
             header?: never;
             path: {

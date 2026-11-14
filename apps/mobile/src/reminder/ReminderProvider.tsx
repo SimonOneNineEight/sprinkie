@@ -25,7 +25,7 @@ import { ReminderContext, type ReminderValue } from './useReminder';
 // iOS Settings app. Ending the session is AppRoot's job (clearReminder).
 //
 // A day that already holds an Entry gets no Reminder (#137): every re-sync
-// first asks the server for today's Entries, Hidden ones included, so a
+// first asks the server for today's Entries, unfiltered, so a
 // Draft never counts. HomeScreen re-syncs whenever today's Entries may have
 // changed.
 export function ReminderProvider({

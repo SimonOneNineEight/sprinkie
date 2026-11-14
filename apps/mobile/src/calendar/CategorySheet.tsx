@@ -11,27 +11,20 @@ import { Pressable } from '../theme/press';
 import { createStyles, singleLineField, theme } from '../theme';
 
 import { CategoryIcon } from './CategoryIcon';
-import type { HiddenSet } from './hidden';
-import {
-  allHidden,
-  familyIsVisible,
-  hideAll,
-  nothingHidden,
-  toggleFamily,
-  toggleSubcategory,
-} from './hidden';
+import type { Filter } from './filter';
+import { isChosen, isFiltering, noFilter, toggleCategory, toggleSubcategory } from './filter';
 
 type Props = {
   accessToken: string;
   categories: Category[];
-  hidden: HiddenSet;
-  onChange: (hidden: HiddenSet) => void;
+  filter: Filter;
+  onChange: (filter: Filter) => void;
   onCategoriesChanged: () => void;
   onClose: () => void;
 };
 
 // The Apple-style check-circle carrying a subcategory row's own state in
-// the parent's color: filled with a white check = visible, hollow = hidden.
+// the parent's color: filled with a white check = chosen, hollow = not.
 function CheckCircle({ color, on }: { color: string; on: boolean }) {
   return on ? (
     <View style={[styles.checkCircle, { backgroundColor: color }]}>
@@ -42,18 +35,17 @@ function CheckCircle({ color, on }: { color: string; on: boolean }) {
   );
 }
 
-// The 類別 sheet as a visibility checklist (#30, DESIGN.md §9, built from
-// the ratified text — the artboard requirement was waived by Simon,
-// 2026-09-10): one surface fusing visibility with management. Category
-// rows toggle by icon-circle fill and a parent's circle is the family
-// master switch (lit while any member is visible; tapping shows or hides
-// the whole family). Subcategory rows carry their own check-circles, the
-// glyph itself telling the level. The ✎ opens the editor; 新增類別
-// creates; the header's one toggle is 全部隱藏 / 全部顯示.
+// The 類別 sheet as the Filter's checklist (#134, ADR-0008; the #30
+// visibility checklist before it, DESIGN.md §9): one surface fusing the
+// Filter with management. Rows are hollow until chosen. A Category row is
+// the family switch (on chooses it and every child, off clears them all);
+// Subcategory rows carry their own check-circles, the glyph itself telling
+// the level. 全部 leads the list, selected while nothing is chosen, and
+// tapping it clears the Filter. The ✎ opens the editor; 新增類別 creates.
 export function CategorySheet({
   accessToken,
   categories,
-  hidden,
+  filter,
   onChange,
   onCategoriesChanged,
   onClose,
@@ -64,7 +56,7 @@ export function CategorySheet({
 
   const topLevel = categories.filter((c) => !c.parentId);
   const childrenOf = (id: string) => categories.filter((c) => c.parentId === id);
-  const everythingHidden = allHidden(hidden, categories);
+  const filtering = isFiltering(filter, categories);
 
   // Matching spans both levels (#48): the sheet is where Subcategories are
   // managed, so a search blind to them could not find one by name. A matched
@@ -108,22 +100,11 @@ export function CategorySheet({
           style={styles.scrim}
           onPress={onClose}
         />
-        <View style={styles.sheet}>
+        <View style={styles.sheet} testID="category-sheet">
           <View style={styles.header}>
             {/* Rendered first and absolutely spanned, so the title centers
                 on the sheet itself, not on the gap the side buttons leave. */}
             <Text style={styles.headerTitle}>{strings.categories.title}</Text>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.headerButton}
-              onPress={() =>
-                onChange(everythingHidden ? nothingHidden : hideAll(categories))
-              }
-            >
-              <Text style={styles.headerToggle}>
-                {everythingHidden ? strings.categories.showAll : strings.categories.hideAll}
-              </Text>
-            </Pressable>
             <Pressable accessibilityRole="button" style={styles.headerDone} onPress={onClose}>
               <Text style={styles.headerDoneLabel}>{strings.categories.done}</Text>
             </Pressable>
@@ -142,22 +123,34 @@ export function CategorySheet({
               />
             </View>
             <View style={styles.card}>
+              {topLevel.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: !filtering }}
+                  style={[styles.row, styles.rowDivided]}
+                  onPress={() => onChange(noFilter)}
+                >
+                  <CheckCircle color={theme.colors.textPrimary} on={!filtering} />
+                  <Text style={[styles.rowTitle, styles.rowText]}>{strings.categories.all}</Text>
+                </Pressable>
+              ) : null}
               {shownTopLevel.map((category) => {
                 // The family switch takes every child, not the shown ones: a
                 // member the search hid is still part of the family.
                 const children = childrenOf(category.id);
-                const familyOn = familyIsVisible(hidden, category, children);
+                const chosen = isChosen(filter, category);
                 return (
                   <View key={category.id}>
                     <Pressable
                       accessibilityRole="button"
+                      accessibilityState={{ selected: chosen }}
                       style={[styles.row, styles.rowDivided]}
-                      onPress={() => onChange(toggleFamily(hidden, category, children))}
+                      onPress={() => onChange(toggleCategory(filter, category, children))}
                     >
                       <CategoryIcon
                         icon={category.icon}
                         color={category.color}
-                        hollow={!familyOn}
+                        hollow={!chosen}
                       />
                       <Text style={[styles.rowTitle, styles.rowText]}>{category.name}</Text>
                       {editButton(() => setEditing({ mode: 'edit', id: category.id }))}
@@ -166,14 +159,12 @@ export function CategorySheet({
                       <Pressable
                         key={child.id}
                         accessibilityRole="button"
+                        accessibilityState={{ selected: isChosen(filter, child) }}
                         style={[styles.row, styles.rowDivided]}
-                        onPress={() => onChange(toggleSubcategory(hidden, child.id))}
+                        onPress={() => onChange(toggleSubcategory(filter, child.id))}
                       >
                         <View style={styles.subLead}>
-                          <CheckCircle
-                            color={category.color}
-                            on={!hidden.subcategoryIds.includes(child.id)}
-                          />
+                          <CheckCircle color={category.color} on={isChosen(filter, child)} />
                         </View>
                         <Text style={[styles.rowTitle, styles.rowText]}>{child.name}</Text>
                         {editButton(() => setEditing({ mode: 'edit', id: child.id }))}
@@ -250,21 +241,13 @@ const styles = createStyles((t) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    // The title is absolutely spanned, so 完成 is the one child in flow.
+    justifyContent: 'flex-end',
     gap: t.spacing.space4,
     padding: t.spacing.space4,
     backgroundColor: t.colors.materialBar,
     borderBottomWidth: t.border.hairline,
     borderBottomColor: t.colors.lineSeparator,
-  },
-  headerButton: {
-    height: 32,
-    justifyContent: 'center',
-    paddingHorizontal: t.spacing.space4,
-  },
-  headerToggle: {
-    ...t.typography.entryTitle,
-    color: t.colors.controlGhostFg,
   },
   headerTitle: {
     ...t.typography.sectionHeader,

@@ -5,6 +5,7 @@
 -- Under the hidden-set (#30) the distinct-on picks the first VISIBLE entry,
 -- so a day wears its topmost visible color; none visible, no row. A refined
 -- Entry follows its Subcategory, an unrefined one its Category.
+-- The Filter (#134, ADR-0010) narrows the same way; see months.sql.
 select distinct on (entry_date)
     to_char(entry_date, 'YYYY-MM-DD') as entry_date,
     category_id
@@ -15,6 +16,14 @@ where journal_id = @journal_id::uuid
   and not (
     (subcategory_id is null and category_id = any(@hidden_category_ids::uuid[]))
     or (subcategory_id is not null and subcategory_id = any(@hidden_subcategory_ids::uuid[]))
+  )
+  and (
+    (cardinality(@filter_category_ids::uuid[]) = 0
+      and cardinality(@filter_subcategory_exception_ids::uuid[]) = 0)
+    or (subcategory_id is null and category_id = any(@filter_category_ids::uuid[]))
+    or (subcategory_id is not null
+      and (category_id = any(@filter_category_ids::uuid[]))
+        <> (subcategory_id = any(@filter_subcategory_exception_ids::uuid[])))
   )
 order by entry_date, position;
 
@@ -27,4 +36,12 @@ where journal_id = @journal_id::uuid
   and not (
     (subcategory_id is null and category_id = any(@hidden_category_ids::uuid[]))
     or (subcategory_id is not null and subcategory_id = any(@hidden_subcategory_ids::uuid[]))
+  )
+  and (
+    (cardinality(@filter_category_ids::uuid[]) = 0
+      and cardinality(@filter_subcategory_exception_ids::uuid[]) = 0)
+    or (subcategory_id is null and category_id = any(@filter_category_ids::uuid[]))
+    or (subcategory_id is not null
+      and (category_id = any(@filter_category_ids::uuid[]))
+        <> (subcategory_id = any(@filter_subcategory_exception_ids::uuid[])))
   );

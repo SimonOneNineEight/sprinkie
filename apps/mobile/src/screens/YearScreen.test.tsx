@@ -43,7 +43,7 @@ function renderScreen(overrides: Partial<React.ComponentProps<typeof YearScreen>
       categories={categories}
       today={today}
       onOpenMonth={jest.fn()}
-      onChangeHidden={jest.fn()}
+      onChangeFilter={jest.fn()}
       {...overrides}
     />,
   );
@@ -133,7 +133,7 @@ it('refetches when an Entry is saved elsewhere', async () => {
       categories={categories}
       today={today}
       onOpenMonth={jest.fn()}
-      onChangeHidden={jest.fn()}
+      onChangeFilter={jest.fn()}
       refresh={1}
     />,
   );
@@ -259,11 +259,11 @@ it('opens the tapped month', async () => {
   expect(onOpenMonth).toHaveBeenCalledWith(2026, 8);
 });
 
-it('sends the hidden-set to the year endpoint (#30)', async () => {
-  renderScreen({ hidden: { categoryIds: ['c-work'], subcategoryIds: [] } });
+it('sends the Filter to the year endpoint (#134)', async () => {
+  renderScreen({ filter: { categoryIds: ['c-work'], subcategoryIds: [] } });
 
   await waitFor(() =>
-    expect(api.calls().some(([u]) => String(u).includes('hiddenCategories=c-work'))).toBe(true),
+    expect(api.calls().some(([u]) => String(u).includes('filterCategories=c-work'))).toBe(true),
   );
 });
 

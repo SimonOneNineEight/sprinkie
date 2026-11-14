@@ -23,15 +23,25 @@ where journal_id = $1::uuid
     (subcategory_id is null and category_id = any($4::uuid[]))
     or (subcategory_id is not null and subcategory_id = any($5::uuid[]))
   )
+  and (
+    (cardinality($6::uuid[]) = 0
+      and cardinality($7::uuid[]) = 0)
+    or (subcategory_id is null and category_id = any($6::uuid[]))
+    or (subcategory_id is not null
+      and (category_id = any($6::uuid[]))
+        <> (subcategory_id = any($7::uuid[])))
+  )
 order by entry_date, position
 `
 
 type ListMonthDotsParams struct {
-	JournalID            string
-	FirstDay             pgtype.Date
-	NextMonth            pgtype.Date
-	HiddenCategoryIds    []string
-	HiddenSubcategoryIds []string
+	JournalID                     string
+	FirstDay                      pgtype.Date
+	NextMonth                     pgtype.Date
+	HiddenCategoryIds             []string
+	HiddenSubcategoryIds          []string
+	FilterCategoryIds             []string
+	FilterSubcategoryExceptionIds []string
 }
 
 type ListMonthDotsRow struct {
@@ -45,6 +55,10 @@ type ListMonthDotsRow struct {
 // Visibility is the hidden-set (#30): a refined Entry follows its
 // Subcategory (shown even under a hidden parent), an unrefined one follows
 // its Category; empty arrays hide nothing.
+// The Filter (#134, ADR-0010) applies alongside it: an unrefined Entry
+// shows when its Category is chosen; a refined one when its Category's
+// choice and its Subcategory's listing as an exception differ, so a
+// Subcategory nobody listed follows its Category. Both empty: no Filter.
 func (q *Queries) ListMonthDots(ctx context.Context, arg ListMonthDotsParams) ([]ListMonthDotsRow, error) {
 	rows, err := q.db.Query(ctx, listMonthDots,
 		arg.JournalID,
@@ -52,6 +66,8 @@ func (q *Queries) ListMonthDots(ctx context.Context, arg ListMonthDotsParams) ([
 		arg.NextMonth,
 		arg.HiddenCategoryIds,
 		arg.HiddenSubcategoryIds,
+		arg.FilterCategoryIds,
+		arg.FilterSubcategoryExceptionIds,
 	)
 	if err != nil {
 		return nil, err

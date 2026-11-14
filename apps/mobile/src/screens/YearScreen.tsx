@@ -1,4 +1,3 @@
-import { Tags } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import type { ViewToken } from 'react-native';
@@ -8,8 +7,9 @@ import type { Category } from '../api/client';
 import { getYear } from '../api/client';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
-import type { HiddenSet } from '../calendar/hidden';
-import { hiddenKey, hiddenParams, nothingHidden } from '../calendar/hidden';
+import { CategoriesButton } from '../calendar/CategoriesButton';
+import type { Filter } from '../calendar/filter';
+import { filterKey, filterParams, isFiltering, noFilter } from '../calendar/filter';
 import { MiniMonth, miniMonthHeight } from '../calendar/MiniMonth';
 import {
   monthsInRow,
@@ -32,9 +32,8 @@ type Props = {
   /** Open on this month rather than today's — the month view's zoom-out hands
    * over the month it was showing (#40, sharpened by #51). */
   initialFocus?: { year: number; month: number };
-  /** The persistent hidden-set (#30), owned by HomeScreen. */
-  hidden?: HiddenSet;
-  onChangeHidden?: (hidden: HiddenSet) => void;
+  filter?: Filter;
+  onChangeFilter?: (filter: Filter) => void;
   /** Fired after the 類別 sheet changes a category, so /me refetches. */
   onCategoriesChanged?: () => void;
   /** Bump to refetch every visible year (after a save elsewhere), the shape
@@ -81,8 +80,8 @@ export function YearScreen({
   categories,
   today = new Date(),
   initialFocus,
-  hidden = nothingHidden,
-  onChangeHidden,
+  filter = noFilter,
+  onChangeFilter,
   onCategoriesChanged,
   refresh = 0,
   onOpenMonth,
@@ -113,13 +112,13 @@ export function YearScreen({
   const [listHeight, setListHeight] = useState(0);
   const [headerYear, setHeaderYear] = useState(focus.year);
   const [visibleYears, setVisibleYears] = useState<number[]>([focus.year]);
-  // The cache carries the hidden-set and categories it answers, the shape
-  // MonthScreen's dots already use (#40 item 8). Hiding a Category or
+  // The cache carries the Filter and categories it answers, the shape
+  // MonthScreen's dots already use (#40 item 8). Filtering a Category or
   // recoloring one changes every year at once, so a stale key reads as empty
   // rather than being cleared from an effect.
-  const cacheKey = `${hiddenKey(hidden)}|${categories.map((c) => `${c.id}${c.color}`).join(',')}|${refresh}`;
+  const cacheKey = `${filterKey(filter)}|${categories.map((c) => `${c.id}${c.color}`).join(',')}|${refresh}`;
   // Keyed "<cacheKey>|<year>", not {key, byYear}. A response that lands after
-  // the hidden-set changed writes into its own slot and is simply never read,
+  // the Filter changed writes into its own slot and is simply never read,
   // so no request needs cancelling — and an effect re-run cannot invalidate a
   // sibling request that is still in the air, which is what dropped a year
   // whenever two were on screen at once.
@@ -155,7 +154,7 @@ export function YearScreen({
       if (yearsForKey[year] || inFlight.current.get(year) === cacheKey) continue;
       const requestKey = cacheKey;
       inFlight.current.set(year, requestKey);
-      getYear(accessToken, String(year), hiddenParams(hidden))
+      getYear(accessToken, String(year), filterParams(filter))
         .then((data) => {
           // Only clear the marker this request owns: a newer key's request for
           // the same year must keep its own.
@@ -177,7 +176,7 @@ export function YearScreen({
           if (inFlight.current.get(year) === requestKey) inFlight.current.delete(year);
         });
     }
-  }, [accessToken, categories, hidden, visibleYears, yearsForKey, cacheKey]);
+  }, [accessToken, categories, filter, visibleYears, yearsForKey, cacheKey]);
 
   const onViewable = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -237,15 +236,12 @@ export function YearScreen({
                 : strings.year.totalLabel(total)}
             </Text>
           </View>
-          {onChangeHidden ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={strings.categories.title}
+          {onChangeFilter ? (
+            <CategoriesButton
+              filtering={isFiltering(filter, categories)}
               style={styles.navButton}
               onPress={() => setSheetOpen(true)}
-            >
-              <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
-            </Pressable>
+            />
           ) : null}
         </View>
         <FlatList
@@ -313,12 +309,12 @@ export function YearScreen({
           visible={actionsVisible}
           onToday={() => scrollToMonth(thisYear, today.getMonth() + 1)}
         />
-        {sheetOpen && onChangeHidden ? (
+        {sheetOpen && onChangeFilter ? (
           <CategorySheet
             accessToken={accessToken}
             categories={categories}
-            hidden={hidden}
-            onChange={onChangeHidden}
+            filter={filter}
+            onChange={onChangeFilter}
             onCategoriesChanged={() => onCategoriesChanged?.()}
             onClose={() => setSheetOpen(false)}
           />

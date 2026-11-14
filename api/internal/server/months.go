@@ -14,10 +14,10 @@ import (
 
 const monthLayout = "2006-01"
 
-// hiddenIDs unpacks the optional hidden-set params (#30). Empty non-nil
-// slices keep the queries' nothing-hidden path (a nil array reads as NULL
-// in Postgres); a malformed id surfaces as false.
-func hiddenIDs(categories, subcategories *[]string) (cats, subs []string, ok bool) {
+// idLists unpacks a pair of optional id-list params: the hidden-set (#30)
+// or the Filter (#134). Empty non-nil slices keep the queries' no-op path
+// (a nil array reads as NULL in Postgres); a malformed id surfaces as false.
+func idLists(categories, subcategories *[]string) (cats, subs []string, ok bool) {
 	cats, subs = []string{}, []string{}
 	for _, param := range []*[]string{categories, subcategories} {
 		if param == nil {
@@ -43,9 +43,13 @@ func (h handlers) GetMonth(ctx context.Context, request apigen.GetMonthRequestOb
 	if err != nil {
 		return apigen.GetMonth400JSONResponse{Message: "month must be YYYY-MM"}, nil
 	}
-	cats, subs, ok := hiddenIDs(request.Params.HiddenCategories, request.Params.HiddenSubcategories)
+	cats, subs, ok := idLists(request.Params.HiddenCategories, request.Params.HiddenSubcategories)
 	if !ok {
 		return apigen.GetMonth400JSONResponse{Message: "hidden ids must be UUIDs"}, nil
+	}
+	chosen, exceptions, ok := idLists(request.Params.FilterCategories, request.Params.FilterSubcategoryExceptions)
+	if !ok {
+		return apigen.GetMonth400JSONResponse{Message: "filter ids must be UUIDs"}, nil
 	}
 	userID := auth.UserID(ctx)
 	journalID, err := h.queries.GetJournal(ctx, userID)
@@ -53,11 +57,13 @@ func (h handlers) GetMonth(ctx context.Context, request apigen.GetMonthRequestOb
 		return apigen.GetMonth500JSONResponse(h.failure(ctx, "loading the month failed", err)), nil
 	}
 	rows, err := h.queries.ListMonthDots(ctx, dbgen.ListMonthDotsParams{
-		JournalID:            journalID,
-		FirstDay:             pgtype.Date{Time: firstDay, Valid: true},
-		NextMonth:            pgtype.Date{Time: firstDay.AddDate(0, 1, 0), Valid: true},
-		HiddenCategoryIds:    cats,
-		HiddenSubcategoryIds: subs,
+		JournalID:                     journalID,
+		FirstDay:                      pgtype.Date{Time: firstDay, Valid: true},
+		NextMonth:                     pgtype.Date{Time: firstDay.AddDate(0, 1, 0), Valid: true},
+		HiddenCategoryIds:             cats,
+		HiddenSubcategoryIds:          subs,
+		FilterCategoryIds:             chosen,
+		FilterSubcategoryExceptionIds: exceptions,
 	})
 	if err != nil {
 		return apigen.GetMonth500JSONResponse(h.failure(ctx, "loading the month failed", err)), nil
