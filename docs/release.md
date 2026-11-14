@@ -193,22 +193,19 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 
 ## Build config
 
-- **Version.** The beta runs `0.9.x`; `1.0.0` is reserved for the App Store
-  launch. The production profile auto-increments the build number, so only the
-  marketing version is ever set by hand. The rule (#147): the version marks a
-  native build, never a JS update.
-  - **JS-only change:** `eas update`; the version stays. Bumping it without a
-    build strands every installed phone (see OTA updates below).
-  - **Native change** (a native dependency, a permission, `Info.plist`, an
-    entitlement, an Expo SDK upgrade): `eas build` + `eas submit` and a bump —
-    patch for a native fix (`0.9.1`), minor for a milestone (`0.10.0` with
-    onboarding), `1.0.0` at public launch.
-  - **After launch** every App Store release bumps it, which Apple requires.
-  - **No bump per update.** An update is told apart by when it was published,
-    which 設定 shows (below). A hand-bumped counter drifts the first time it is
-    forgotten.
-  - **At the next native build, consider** Expo's `fingerprint` runtime policy,
-    so the visible version stops deciding which builds an update reaches.
+- **Version.** Semantic Versioning, major.minor.patch (#149): **minor** for
+  new features, **patch** for fixes, whether they ship in a build or over the
+  air; **major** stays `0` through the beta, and `1.0.0` is the App Store
+  launch. Bump `expo.version` in the PR that ships the change. The production
+  profile auto-increments the build number, so only this version is ever set
+  by hand.
+  - **Bump on every publish.** 設定 shows the running update's version and
+    publish time (#147), so a skipped bump still leaves updates told apart, but
+    the version stops saying what is in them.
+  - **After launch** every App Store release needs a higher version than the
+    last one Apple released.
+  - **TestFlight shows the build's version, 設定 the running code's.** After a
+    `0.11.0` update to a `0.10.0` build the two differ; 設定 is the truth.
 - **Export compliance.** ADR-0004 confirms there is no client-side encryption,
   only TLS, which is exempt — so `app.json` declares
   `ITSAppUsesNonExemptEncryption: false`. Without it every single upload stops
@@ -223,15 +220,21 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
   which works because the `production` channel points at the `production`
   branch; a channel aimed at no branch delivers nothing, silently.
   Two constraints that bite if you forget them:
-  - **`runtimeVersion` is `{"policy": "appVersion"}`**, so an update only
-    reaches builds whose marketing version matches. Bump `0.9.0` to `0.9.1` and
-    every already-installed build stops receiving updates until it is replaced.
-    That is the trade for not having to reason about native compatibility by
-    hand.
+  - **`runtimeVersion` is `{"policy": "fingerprint"}`** (since `0.10.0`,
+    #149; `0.9.0` builds were on `appVersion`). An update reaches only builds
+    whose native code hashes the same, whatever the version says. `eas update`
+    computes the hash on the Mac that publishes, so if it differs from the
+    build's, the update lands on no phone and nothing errors: after the first
+    publish to a new build, confirm it in 設定, and compare with
+    `pnpm dlx eas-cli@latest fingerprint:compare` when it does not arrive.
   - **Native changes never travel over the air.** A new dependency with native
     code, a permission, or anything in `app.json` that lands in `Info.plist`
-    needs a fresh build. Shipping such a change as an update produces a binary
-    whose JS expects native code it does not have.
+    needs a fresh build. The fingerprint now keeps such an update off old
+    builds, where `appVersion` let it through: on 2026-11-14 an update from
+    `main` would have handed build 5 JS that imports `expo-notifications`, a
+    module it does not have, and crashed it on launch. Before publishing,
+    still diff `app.json` and `package.json` against the last build's commit
+    (`eas build:list`), not just the ticket: an update ships all of `main`.
 
   **What a round trip looks like** (first one, #65, 2026-10-06). The update
   "The year view becomes a ribbon" was published with the command above and
@@ -246,7 +249,7 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
 
   **Ask the tester to read 設定.** Since #147 the line under 關於 shows the
   running update's publish time, in the phone's own time with its offset
-  (`版本 0.9.0 · 11月14日 23:05 (GMT+8) 更新`), or only `版本 0.9.0` while the
+  (`版本 0.11.0 · 11月20日 23:05 (GMT+8) 更新`), or only `版本 0.10.0` while the
   build runs its own code. Backgrounding the app and returning to it is not a
   launch, so after a publish, tell testers to open the app, wait a minute,
   force-quit, reopen, and read that line back; convert its offset to match it

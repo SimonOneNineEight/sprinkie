@@ -2,7 +2,7 @@
   "expo": {
     "name": "Sprinkie",
     "slug": "sprinkie",
-    "version": "0.9.0",
+    "version": "0.10.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -51,7 +51,7 @@
     },
     "owner": "simon198tw",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/7dfa6da3-8887-454c-b2c1-f3465f7501ad"
