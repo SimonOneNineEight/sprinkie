@@ -7,6 +7,9 @@
 // template.
 const weekdaysFull = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 
+/** When an over-the-air update was published, read in the phone's time (#147). */
+export type Published = { month: number; day: number; time: string; zone: string };
+
 const zhTW = {
   signIn: {
     wordmark: 'Sprinkie',
@@ -87,6 +90,12 @@ const zhTW = {
     aboutHeader: '關於',
     privacyPolicy: '隱私權政策',
     termsOfService: '服務條款',
+    // The 關於 version line (#147): the build's version, and when the running
+    // update was published, in the phone's time with its offset.
+    version: (version: string, published: Published | null) =>
+      published
+        ? `版本 ${version} · ${published.month}月${published.day}日 ${published.time} (${published.zone}) 更新`
+        : `版本 ${version}`,
     language: '語言',
     systemDefault: '系統預設',
     zhHant: '繁體中文',

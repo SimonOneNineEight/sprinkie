@@ -585,6 +585,8 @@ Keyboard cases are in **KB**.
 | ST.29 | Apple row, 連結, choose Hide My Email on the sheet | The row turns 已連結; 登出, then Sign in with Apple opens this journal, though the relay address matches no account's email |
 | ST.30 | Signed out, Sign in with Google using the address of an existing email account whose address is confirmed | Lands in that account's journal, not a new one; its 設定 shows Google 已連結 |
 | ST.31 | Airplane mode, open 設定; then airplane mode off, tap 重試 | Under the 連結帳戶 card, 無法載入連結狀態 and 重試, with neither 已連結 nor 連結 on a row; after 重試, each row shows its state and the line is gone **[auto]** |
+| ST.32 | The line under 關於, on a build that has received no update | 版本 and the build's version only, e.g. 版本 0.9.0 **[auto]** |
+| ST.33 | The same line after an update arrives (open, wait a minute, force-quit, reopen) | 版本 0.9.0 · the update's publish date and time in the phone's own time, with its offset, e.g. 11月14日 23:05 (GMT+8) 更新 — matching `eas update`'s publish once converted **[auto]** |
 
 **ST.1 after Sign in with Apple** may show an `@privaterelay.appleid.com`
 address: the User chose Hide My Email, and that relay is their account email.
@@ -957,6 +959,8 @@ the tag.
 | ST.25 | `screens/SettingsScreen.test.tsx` |
 | ST.28 | `screens/SettingsScreen.test.tsx` |
 | ST.31 | `screens/SettingsScreen.test.tsx` |
+| ST.32 | `screens/SettingsScreen.test.tsx` |
+| ST.33 | `screens/SettingsScreen.test.tsx` |
 | VI.1 | `months_test.go` |
 | VI.2 | `AppRoot.test.tsx` |
 | VI.3 | `AppRoot.test.tsx` |
