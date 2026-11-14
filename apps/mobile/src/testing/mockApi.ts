@@ -238,7 +238,7 @@ export function installMockApi(
     }
     if (u.includes('/color-recents')) return ok({ colors: world.colorRecents });
     if (u.includes('/months/')) {
-      // The hidden-set rides as query params; the month key is the path.
+      // The Filter rides as query params; the month key is the path.
       const month = u.split('/months/')[1].split('?')[0];
       if (failures.monthReads) network();
       if (monthHold && (monthHold.month === undefined || monthHold.month === month)) {

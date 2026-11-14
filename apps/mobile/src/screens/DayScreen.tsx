@@ -10,11 +10,9 @@ import type { Category, Entry } from '../api/client';
 import { listEntries, reorderDay } from '../api/client';
 import { CategoriesButton } from '../calendar/CategoriesButton';
 import type { Filter } from '../calendar/filter';
-import { isFiltering, noFilter } from '../calendar/filter';
-import type { HiddenSet } from '../calendar/hidden';
+import { entryIsShown, isFiltering, noFilter } from '../calendar/filter';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
-import { entryIsVisible, nothingHidden } from '../calendar/hidden';
 import { dateHeading } from '../calendar/dateLabel';
 import { localDateString, shiftDay } from '../calendar/monthMath';
 import { decodeContent } from '../entries/content';
@@ -53,13 +51,11 @@ type Props = {
   onFormState?: (form: OpenForm | null) => void;
   onCategoriesChanged?: () => void;
   /**
-   * The Filter's complement (#134, ADR-0009). Hidden cards drop out;
-   * drag-reorder disables only while THIS day shows a partial list, since
-   * ordering a partial view is undefined — a fully visible day reorders
-   * freely even while other categories are filtered out.
+   * The Filter (#134), shown in the 類別 sheet and applied here: cards
+   * outside it drop out; drag-reorder disables only while THIS day shows a
+   * partial list, since ordering a partial view is undefined — a fully
+   * shown day reorders freely even while other categories are filtered out.
    */
-  hidden?: HiddenSet;
-  /** The Filter the 類別 sheet shows and changes (#134). */
   filter?: Filter;
   /** Opens the 類別 sheet from this header (#41). Absent, no button is drawn. */
   onChangeFilter?: (filter: Filter) => void;
@@ -78,7 +74,6 @@ export function DayScreen({
   onEntrySaved,
   onFormState,
   onCategoriesChanged,
-  hidden = nothingHidden,
   filter = noFilter,
   onChangeFilter,
 }: Props) {
@@ -141,7 +136,7 @@ export function DayScreen({
   if (
     viewingId !== null &&
     entries !== null &&
-    !entries.some((entry) => entry.id === viewingId && entryIsVisible(entry, hidden))
+    !entries.some((entry) => entry.id === viewingId && entryIsShown(entry, filter))
   ) {
     setViewingId(null);
   }
@@ -208,7 +203,7 @@ export function DayScreen({
   };
 
   const heading = dateHeading(strings, date);
-  const visibleEntries = (entries ?? []).filter((entry) => entryIsVisible(entry, hidden));
+  const visibleEntries = (entries ?? []).filter((entry) => entryIsShown(entry, filter));
   const partialDay = visibleEntries.length !== (entries?.length ?? 0);
 
   // The Entry view (#119) moves over the Entries this day view shows, in its

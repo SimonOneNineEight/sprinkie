@@ -166,6 +166,44 @@ func TestYearHiddenSet(t *testing.T) {
 	}
 }
 
+func TestYearFilter(t *testing.T) {
+	ts := newTestServer(t)
+	token := signUpTestUser(t)
+	me := decodeMe(t, postMe(t, ts, token))
+	work, sport := me.Categories[0].ID, me.Categories[1].ID
+	gym := decodeCategory(t, createCategory(t, ts, token, map[string]string{
+		"name": "健身房", "color": me.Categories[1].Color, "parentId": sport,
+	}))
+
+	// 04-10: sport leads, work follows. 04-20: a refined sport Entry only.
+	mustCreateEntry(t, ts, token, "2026-04-10", sport)
+	mustCreateEntry(t, ts, token, "2026-04-10", work)
+	createEntry(t, ts, token, map[string]string{
+		"date": "2026-04-20", "categoryId": sport, "subcategoryId": gym.ID, "content": "x",
+	}).Body.Close()
+
+	// Choosing work: 04-10 wears its first shown Entry's color, the refined
+	// sport day drops out, and the count follows.
+	chosen := decodeYear(t, getYear(t, ts, token, "2026?filterCategories="+work))
+	if len(chosen.Days) != 1 || chosen.Days[0].Date != "2026-04-10" || chosen.Days[0].CategoryID != work {
+		t.Errorf("work-filter year days = %+v, want only 04-10 in work", chosen.Days)
+	}
+	if chosen.TotalEntries != 1 {
+		t.Errorf("work-filter totalEntries = %d, want 1", chosen.TotalEntries)
+	}
+	// 健身房 alone: only its refined day, none of sport's unrefined.
+	alone := decodeYear(t, getYear(t, ts, token, "2026?filterSubcategoryExceptions="+gym.ID))
+	if len(alone.Days) != 1 || alone.Days[0].Date != "2026-04-20" || alone.TotalEntries != 1 {
+		t.Errorf("健身房-alone year = %+v, want only 04-20 with one Entry", alone)
+	}
+
+	resp := getYear(t, ts, token, "2026?filterSubcategoryExceptions=nope")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("malformed filter ids status = %d, want 400", resp.StatusCode)
+	}
+}
+
 func TestYearValidation(t *testing.T) {
 	ts := newTestServer(t)
 	token := signUpTestUser(t)

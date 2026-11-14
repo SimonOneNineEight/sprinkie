@@ -76,6 +76,10 @@ type Querier interface {
 	// Visibility is the hidden-set (#30): a refined Entry follows its
 	// Subcategory (shown even under a hidden parent), an unrefined one follows
 	// its Category; empty arrays hide nothing.
+	// The Filter (#134, ADR-0010) applies alongside it: an unrefined Entry
+	// shows when its Category is chosen; a refined one when its Category's
+	// choice and its Subcategory's listing as an exception differ, so a
+	// Subcategory nobody listed follows its Category. Both empty: no Filter.
 	ListMonthDots(ctx context.Context, arg ListMonthDotsParams) ([]ListMonthDotsRow, error)
 	ListPhotoIDs(ctx context.Context, entryID string) ([]string, error)
 	ListPhotosForEntries(ctx context.Context, entryIds []string) ([]ListPhotosForEntriesRow, error)
@@ -87,6 +91,7 @@ type Querier interface {
 	// Under the hidden-set (#30) the distinct-on picks the first VISIBLE entry,
 	// so a day wears its topmost visible color; none visible, no row. A refined
 	// Entry follows its Subcategory, an unrefined one its Category.
+	// The Filter (#134, ADR-0010) narrows the same way; see months.sql.
 	ListYearFirstCategories(ctx context.Context, arg ListYearFirstCategoriesParams) ([]ListYearFirstCategoriesRow, error)
 	// First-sign-in provisioning in one atomic statement: User, Journal, and the
 	// five Starter Categories (colors/icons per the design canvas), named in the

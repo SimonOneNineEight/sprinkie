@@ -1,5 +1,6 @@
-import type { HiddenSet } from './hidden';
-import { nothingHidden } from './hidden';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import type { FilterParams } from '../api/client';
 
 // The Filter (#134, GLOSSARY.md, ADR-0008): what the User chose to see. An
 // empty Filter shows everything. Choosing a Category chooses its whole
@@ -54,15 +55,34 @@ export function toggleSubcategory(filter: Filter, id: string): Filter {
   };
 }
 
+type EntryLike = { categoryId: string; subcategoryId?: string | null };
+
 /**
- * The complement the surfaces apply (ADR-0009): every current Category and
- * Subcategory the Filter does not choose, sent as the API's hidden-set.
+ * Whether an Entry shows under the Filter, for surfaces holding full Entries
+ * (the day panel, the day view). It reads only the Entry's own ids, never a
+ * Category list, so a Subcategory the app has not loaded still follows its
+ * Category (ADR-0010).
  */
-export function hiddenFor(filter: Filter, categories: CategoryLike[]): HiddenSet {
-  if (!isFiltering(filter, categories)) return nothingHidden;
-  const unchosen = categories.filter((c) => !isChosen(filter, c));
-  return {
-    categoryIds: unchosen.filter((c) => !c.parentId).map((c) => c.id),
-    subcategoryIds: unchosen.filter((c) => c.parentId).map((c) => c.id),
-  };
+export function entryIsShown(entry: EntryLike, filter: Filter): boolean {
+  if (filter.categoryIds.length === 0 && filter.subcategoryIds.length === 0) return true;
+  const categoryChosen = filter.categoryIds.includes(entry.categoryId);
+  if (entry.subcategoryId == null) return categoryChosen;
+  return categoryChosen !== filter.subcategoryIds.includes(entry.subcategoryId);
+}
+
+/** The Filter as the months and years endpoints take it; undefined when empty. */
+export function filterParams(filter: Filter): FilterParams | undefined {
+  if (filter.categoryIds.length === 0 && filter.subcategoryIds.length === 0) return undefined;
+  return { filterCategories: filter.categoryIds, filterSubcategoryExceptions: filter.subcategoryIds };
+}
+
+/** A stable string for the Filter, for tagging fetched data with the Filter it answers. */
+export function filterKey(filter: Filter): string {
+  return `${filter.categoryIds.join(',')}|${filter.subcategoryIds.join(',')}`;
+}
+
+// #30 kept a hidden-set on the device; #134 discarded it rather than
+// converting it (ADR-0008), so the old key is only ever deleted.
+export function forgetStoredHidden(): Promise<void> {
+  return AsyncStorage.removeItem('hiddenCategories.v1').catch(() => undefined);
 }

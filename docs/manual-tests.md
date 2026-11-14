@@ -305,7 +305,7 @@ lines and three photos.
 
 **EV.4 never crosses days** on purpose: a swipe past the day's last Entry
 would make the Entry view a fourth surface applying the Filter, which is
-ADR 0009's revisit trigger.
+ADR 0010's revisit trigger.
 
 ### EF — Entry form
 
@@ -623,7 +623,8 @@ already translate. Not a failure.
 | VI.14 | Return to the month, then the year view | Both agree with the choice made on the day view, no relaunch **[API]** **[auto]** |
 
 **VI.1 and VI.4 are round-2 reports #6 and #9.** They pass only when the
-deployed revision carries the hidden-set.
+deployed revision carries the Filter params (#134); an older one ignores
+them and shows every day.
 
 ### KB — Keyboard, across surfaces
 

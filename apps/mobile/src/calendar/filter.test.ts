@@ -1,13 +1,13 @@
 import type { Filter } from './filter';
 import {
-  hiddenFor,
+  entryIsShown,
+  filterParams,
   isChosen,
   isFiltering,
   noFilter,
   toggleCategory,
   toggleSubcategory,
 } from './filter';
-import { entryIsVisible, nothingHidden } from './hidden';
 
 const sport = { id: 'c-sport' };
 const gym = { id: 'c-gym', parentId: 'c-sport' };
@@ -16,14 +16,17 @@ const work = { id: 'c-work' };
 const desk = { id: 'c-desk', parentId: 'c-work' };
 const all = [sport, gym, run, work, desk];
 
-describe('what the calendar hides', () => {
-  it('an empty Filter hides nothing', () => {
-    expect(hiddenFor(noFilter, all)).toEqual(nothingHidden);
+describe('what the calendar asks the API for', () => {
+  it('an empty Filter sends nothing', () => {
+    expect(filterParams(noFilter)).toBeUndefined();
   });
 
-  it('choosing a Category hides every other family', () => {
-    const filter = toggleCategory(noFilter, sport, [gym, run]);
-    expect(hiddenFor(filter, all)).toEqual({ categoryIds: ['c-work'], subcategoryIds: ['c-desk'] });
+  it('a Filter travels as itself, never as its complement (ADR-0010)', () => {
+    const filter = toggleSubcategory(toggleCategory(noFilter, sport, [gym, run]), 'c-gym');
+    expect(filterParams(filter)).toEqual({
+      filterCategories: ['c-sport'],
+      filterSubcategoryExceptions: ['c-gym'],
+    });
   });
 });
 
@@ -62,31 +65,35 @@ describe('a Category and its Subcategories (#134 Q8b)', () => {
   });
 });
 
-describe('the Filter against a changing Category list', () => {
-  it('a Subcategory created under a chosen Category joins the Filter (#134 Q13)', () => {
-    const filter = toggleCategory(noFilter, sport, [gym, run]);
-    const swim = { id: 'c-swim', parentId: 'c-sport' };
-    expect(hiddenFor(filter, [...all, swim]).subcategoryIds).not.toContain('c-swim');
+describe('Entries under a Filter, with no Category list (ADR-0010)', () => {
+  const sportOnly = toggleCategory(noFilter, sport, [gym, run]);
+
+  it('an empty Filter shows every Entry', () => {
+    expect(entryIsShown({ categoryId: 'c-work', subcategoryId: 'c-desk' }, noFilter)).toBe(true);
   });
 
-  it('a Subcategory created under an unchosen Category stays out', () => {
-    const filter = toggleCategory(noFilter, sport, [gym, run]);
-    const meeting = { id: 'c-meeting', parentId: 'c-work' };
-    expect(hiddenFor(filter, [...all, meeting]).subcategoryIds).toContain('c-meeting');
+  it('a Subcategory the app never loaded follows its Category (#134 Q13)', () => {
+    expect(entryIsShown({ categoryId: 'c-sport', subcategoryId: 'c-swim' }, sportOnly)).toBe(true);
+    expect(entryIsShown({ categoryId: 'c-work', subcategoryId: 'c-meeting' }, sportOnly)).toBe(false);
   });
 
-  it('a Filter holding only deleted categories is no Filter', () => {
-    const filter = toggleSubcategory(toggleCategory(noFilter, { id: 'c-gone' }, []), 'c-gone-too');
-    expect(isFiltering(filter, all)).toBe(false);
-    expect(hiddenFor(filter, all)).toEqual(nothingHidden);
+  it('a dropped Subcategory leaves, its Category\'s unrefined Entries stay', () => {
+    const filter = toggleSubcategory(sportOnly, 'c-gym');
+    expect(entryIsShown({ categoryId: 'c-sport', subcategoryId: 'c-gym' }, filter)).toBe(false);
+    expect(entryIsShown({ categoryId: 'c-sport' }, filter)).toBe(true);
+  });
+
+  it('a lone Subcategory shows its Entries but not its Category\'s unrefined ones', () => {
+    const filter = toggleSubcategory(noFilter, 'c-gym');
+    expect(entryIsShown({ categoryId: 'c-sport', subcategoryId: 'c-gym' }, filter)).toBe(true);
+    expect(entryIsShown({ categoryId: 'c-sport' }, filter)).toBe(false);
+    expect(entryIsShown({ categoryId: 'c-work' }, filter)).toBe(false);
   });
 });
 
-describe('Entries under a Filter', () => {
-  it('a lone Subcategory shows its Entries but not its Category\'s unrefined ones', () => {
-    const hidden = hiddenFor(toggleSubcategory(noFilter, 'c-gym'), all);
-    expect(entryIsVisible({ categoryId: 'c-sport', subcategoryId: 'c-gym' }, hidden)).toBe(true);
-    expect(entryIsVisible({ categoryId: 'c-sport' }, hidden)).toBe(false);
-    expect(entryIsVisible({ categoryId: 'c-work' }, hidden)).toBe(false);
+describe('a Filter whose choices were deleted', () => {
+  it('is no Filter', () => {
+    const filter = toggleSubcategory(toggleCategory(noFilter, { id: 'c-gone' }, []), 'c-gone-too');
+    expect(isFiltering(filter, all)).toBe(false);
   });
 });

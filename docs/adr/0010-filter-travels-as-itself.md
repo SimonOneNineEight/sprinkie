@@ -1,0 +1,9 @@
+# The Filter travels as itself, not as its complement
+
+Supersedes ADR-0009, which had the app turn the Filter into its complement (every loaded Category and Subcategory it does not choose) and send that as the #30 hidden-set params, so the API stayed untouched. That leaked on the first device test (2026-11-14): Subcategories created after the app last loaded its Categories were missing from the complement, and the server's rule that a refined Entry follows its Subcategory then showed their Entries under a Category the User had left out. A complement can only name what the app has loaded, and anything it misses lands on the shown side, which is the wrong side for a Filter. Hidden made the same mistake safely: an unknown Category stayed visible, which is what Hidden wanted.
+
+So the months and years endpoints take the Filter itself, `filterCategories` and `filterSubcategoryExceptions`, exactly as the app stores it (GLOSSARY.md), and resolve Subcategories against the database: an unrefined Entry shows when its Category is chosen, a refined one when its Category's choice and its Subcategory's listing as an exception differ. A Subcategory nobody listed follows its Category, wherever it was created. The day panel and the day view apply the same rule from the Entry's own two ids, so no surface consults a Category list to decide what shows. The app only uses its list to tell a Filter whose every choice was deleted from a live one.
+
+ADR-0005's per-surface shape stands, and so do its reasons. The hidden-set params stay accepted, applied alongside the Filter, for app versions already installed; nothing current sends them. Releasing is ordered: the API deploys first, then the over-the-air update, since an older revision ignores the new params and shows every day.
+
+Revisit when no installed app sends the hidden-set params (then drop them), when a fourth surface consumes the Filter, or when the query/refresh redesign happens.

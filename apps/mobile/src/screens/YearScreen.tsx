@@ -9,9 +9,7 @@ import { CalendarFloatingActions, useFloatingActions } from '../calendar/Calenda
 import { CategorySheet } from '../calendar/CategorySheet';
 import { CategoriesButton } from '../calendar/CategoriesButton';
 import type { Filter } from '../calendar/filter';
-import { isFiltering, noFilter } from '../calendar/filter';
-import type { HiddenSet } from '../calendar/hidden';
-import { hiddenKey, hiddenParams, nothingHidden } from '../calendar/hidden';
+import { filterKey, filterParams, isFiltering, noFilter } from '../calendar/filter';
 import { MiniMonth, miniMonthHeight } from '../calendar/MiniMonth';
 import {
   monthsInRow,
@@ -34,8 +32,6 @@ type Props = {
   /** Open on this month rather than today's — the month view's zoom-out hands
    * over the month it was showing (#40, sharpened by #51). */
   initialFocus?: { year: number; month: number };
-  /** The Filter's complement (#134, ADR-0009), owned by HomeScreen. */
-  hidden?: HiddenSet;
   filter?: Filter;
   onChangeFilter?: (filter: Filter) => void;
   /** Fired after the 類別 sheet changes a category, so /me refetches. */
@@ -84,7 +80,6 @@ export function YearScreen({
   categories,
   today = new Date(),
   initialFocus,
-  hidden = nothingHidden,
   filter = noFilter,
   onChangeFilter,
   onCategoriesChanged,
@@ -117,13 +112,13 @@ export function YearScreen({
   const [listHeight, setListHeight] = useState(0);
   const [headerYear, setHeaderYear] = useState(focus.year);
   const [visibleYears, setVisibleYears] = useState<number[]>([focus.year]);
-  // The cache carries the hidden-set and categories it answers, the shape
-  // MonthScreen's dots already use (#40 item 8). Hiding a Category or
+  // The cache carries the Filter and categories it answers, the shape
+  // MonthScreen's dots already use (#40 item 8). Filtering a Category or
   // recoloring one changes every year at once, so a stale key reads as empty
   // rather than being cleared from an effect.
-  const cacheKey = `${hiddenKey(hidden)}|${categories.map((c) => `${c.id}${c.color}`).join(',')}|${refresh}`;
+  const cacheKey = `${filterKey(filter)}|${categories.map((c) => `${c.id}${c.color}`).join(',')}|${refresh}`;
   // Keyed "<cacheKey>|<year>", not {key, byYear}. A response that lands after
-  // the hidden-set changed writes into its own slot and is simply never read,
+  // the Filter changed writes into its own slot and is simply never read,
   // so no request needs cancelling — and an effect re-run cannot invalidate a
   // sibling request that is still in the air, which is what dropped a year
   // whenever two were on screen at once.
@@ -159,7 +154,7 @@ export function YearScreen({
       if (yearsForKey[year] || inFlight.current.get(year) === cacheKey) continue;
       const requestKey = cacheKey;
       inFlight.current.set(year, requestKey);
-      getYear(accessToken, String(year), hiddenParams(hidden))
+      getYear(accessToken, String(year), filterParams(filter))
         .then((data) => {
           // Only clear the marker this request owns: a newer key's request for
           // the same year must keep its own.
@@ -181,7 +176,7 @@ export function YearScreen({
           if (inFlight.current.get(year) === requestKey) inFlight.current.delete(year);
         });
     }
-  }, [accessToken, categories, hidden, visibleYears, yearsForKey, cacheKey]);
+  }, [accessToken, categories, filter, visibleYears, yearsForKey, cacheKey]);
 
   const onViewable = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {

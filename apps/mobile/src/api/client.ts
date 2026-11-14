@@ -76,16 +76,16 @@ export function listEntries(accessToken: string, date: string): Promise<EntryLis
   return request<EntryList>(accessToken, `/entries?date=${date}`);
 }
 
-export type HiddenParams = { hiddenCategories: string[]; hiddenSubcategories: string[] };
+export type FilterParams = { filterCategories: string[]; filterSubcategoryExceptions: string[] };
 
-function hiddenQuery(hidden?: HiddenParams): string {
-  if (!hidden) return '';
+function filterQuery(filter?: FilterParams): string {
+  if (!filter) return '';
   const parts: string[] = [];
-  if (hidden.hiddenCategories.length > 0) {
-    parts.push(`hiddenCategories=${hidden.hiddenCategories.join(',')}`);
+  if (filter.filterCategories.length > 0) {
+    parts.push(`filterCategories=${filter.filterCategories.join(',')}`);
   }
-  if (hidden.hiddenSubcategories.length > 0) {
-    parts.push(`hiddenSubcategories=${hidden.hiddenSubcategories.join(',')}`);
+  if (filter.filterSubcategoryExceptions.length > 0) {
+    parts.push(`filterSubcategoryExceptions=${filter.filterSubcategoryExceptions.join(',')}`);
   }
   return parts.length > 0 ? `?${parts.join('&')}` : '';
 }
@@ -93,9 +93,9 @@ function hiddenQuery(hidden?: HiddenParams): string {
 export function getMonth(
   accessToken: string,
   month: string,
-  hidden?: HiddenParams,
+  filter?: FilterParams,
 ): Promise<MonthDots> {
-  return request<MonthDots>(accessToken, `/months/${month}${hiddenQuery(hidden)}`);
+  return request<MonthDots>(accessToken, `/months/${month}${filterQuery(filter)}`);
 }
 
 export type YearColors = paths['/years/{year}']['get']['responses']['200']['content']['application/json'];
@@ -103,9 +103,9 @@ export type YearColors = paths['/years/{year}']['get']['responses']['200']['cont
 export function getYear(
   accessToken: string,
   year: string,
-  hidden?: HiddenParams,
+  filter?: FilterParams,
 ): Promise<YearColors> {
-  return request<YearColors>(accessToken, `/years/${year}${hiddenQuery(hidden)}`);
+  return request<YearColors>(accessToken, `/years/${year}${filterQuery(filter)}`);
 }
 
 type UpdateEntryBody =

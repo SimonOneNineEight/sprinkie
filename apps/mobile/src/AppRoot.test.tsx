@@ -259,7 +259,7 @@ it('chooses a Category from the day view, and the other surfaces agree (#41)', a
   expect(screen.getByText('寫程式')).toBeTruthy();
 
   // The month view, without a relaunch: its panel drops the Entry and its
-  // dots are asked for under the Filter's complement.
+  // dots are asked for under the Filter.
   await act(async () => {
     fireEvent.press(screen.getByLabelText('返回'));
   });
@@ -267,7 +267,7 @@ it('chooses a Category from the day view, and the other surfaces agree (#41)', a
   expect(screen.queryByText('晨跑')).toBeNull();
   const monthCalls = () => api.calls().map(([u]) => String(u)).filter((u) => u.includes('/months/'));
   await waitFor(() => {
-    expect(monthCalls().at(-1)).toContain('hiddenCategories=c-sport&hiddenSubcategories=c-gym');
+    expect(monthCalls().at(-1)).toContain('?filterCategories=c-work');
   });
 
   // And the year view, whose filtering is the server's: it has to ask.
@@ -277,8 +277,45 @@ it('chooses a Category from the day view, and the other surfaces agree (#41)', a
   await screen.findByLabelText('選擇年份');
   const yearCalls = api.calls().map(([u]) => String(u)).filter((u) => u.includes('/years/'));
   expect(yearCalls.at(-1)).toContain(
-    `/years/${today.getFullYear()}?hiddenCategories=c-sport&hiddenSubcategories=c-gym`,
+    `/years/${today.getFullYear()}?filterCategories=c-work`,
   );
+});
+
+// The Filter travels as itself, never as its complement (ADR-0010): a
+// complement can only name the Categories the app has loaded, so a
+// Subcategory created elsewhere, or after the last load, would ride
+// through as "not hidden" under a Category the User left out.
+it('keeps a Subcategory the app never loaded out of the Filter (#134)', async () => {
+  const today = new Date();
+  const date = localDateString(today);
+  const entry = (id: string, position: number, title: string, categoryId: string, subcategoryId?: string) => ({
+    id, date, position, categoryId, ...(subcategoryId ? { subcategoryId } : {}), authorId: 'u1',
+    content: encodeContent({ title, note: '' }),
+  });
+  mockAuthState.session = { access_token: 'token-1', user: { id: 'u1' } };
+  api.restore();
+  api = installMockApi({
+    // No 游泳 here: the server has it, the app has not heard of it.
+    me: { userId: 'u1', journalId: 'j1', categories: [cat.work, { ...cat.sport, position: 2 }] },
+    entries: {
+      [date]: [
+        entry('e1', 1, '寫程式', 'c-work'),
+        entry('e2', 2, '晨泳', 'c-sport', 'c-swim'),
+        entry('e3', 3, '晨跑', 'c-sport'),
+      ],
+    },
+  });
+  render(<AppRoot />);
+  expect(await screen.findByText('晨泳')).toBeTruthy();
+
+  await choose('工作');
+
+  expect(screen.getByText('寫程式')).toBeTruthy();
+  expect(screen.queryByText('晨跑')).toBeNull();
+  expect(screen.queryByText('晨泳')).toBeNull();
+  const monthCalls = () => api.calls().map(([u]) => String(u)).filter((u) => u.includes('/months/'));
+  await waitFor(() => expect(monthCalls().at(-1)).toContain('?filterCategories=c-work'));
+  expect(monthCalls().at(-1)).not.toContain('hidden');
 });
 
 it('loads the world once the network returns after an offline launch, so a kept draft reopens prefilled (#100)', async () => {
@@ -748,7 +785,7 @@ describe('the Entry view (#119)', () => {
 
   it("swipes through the day's visible Entries in order, stopping at either end", async () => {
     // 寫程式 sits between the two and is outside the Filter, so the day view
-    // skips it and so does the swipe (ADR 0009: the day view is the surface).
+    // skips it and so does the swipe (ADR 0010: the day view is the surface).
     await openToday([
       entry('e1', 1, 'c-sport', '晨跑'),
       entry('e2', 2, 'c-work', '寫程式'),

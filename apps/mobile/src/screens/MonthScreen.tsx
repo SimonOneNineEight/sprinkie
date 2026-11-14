@@ -9,9 +9,7 @@ import type { PanelEntry } from '../calendar/DayPanel';
 import { DayPanel } from '../calendar/DayPanel';
 import { CategoriesButton } from '../calendar/CategoriesButton';
 import type { Filter } from '../calendar/filter';
-import { isFiltering, noFilter } from '../calendar/filter';
-import type { HiddenSet } from '../calendar/hidden';
-import { entryIsVisible, hiddenParams, nothingHidden } from '../calendar/hidden';
+import { entryIsShown, filterKey, filterParams, isFiltering, noFilter } from '../calendar/filter';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
 import { MonthGrid } from '../calendar/MonthGrid';
@@ -40,8 +38,6 @@ type Props = {
   /** Land on this month instead of today's (year view tap-through, #12),
    * on `day` when given: the date a day view or form was left on (#113). */
   initialMonth?: { year: number; month: number; day?: number };
-  /** The Filter's complement (#134, ADR-0009), owned by HomeScreen. */
-  hidden?: HiddenSet;
   filter?: Filter;
   onChangeFilter?: (filter: Filter) => void;
   /** Bump to refetch the visible month (after a save elsewhere). */
@@ -64,7 +60,6 @@ export function MonthScreen({
   onCategoriesChanged,
   onOpenYear,
   initialMonth,
-  hidden = nothingHidden,
   filter = noFilter,
   onChangeFilter,
   refresh = 0,
@@ -88,11 +83,11 @@ export function MonthScreen({
   const visible = { year: view.year, month: view.month };
   const selectedDay = view.day;
   // Dots carry the request they answer (#40 item 8), not just the month.
-  // Both the pager and the hidden-set move the grid out from under an
+  // Both the pager and the Filter move the grid out from under an
   // in-flight fetch: the pager moves `visible` the instant a swipe settles,
-  // and hiding a Category refetches the same month. Untagged, the last
+  // and changing the Filter refetches the same month. Untagged, the last
   // answer keeps painting onto a grid it never described — the month you
-  // just left, or the Categories you just hid. null means nothing fetched.
+  // just left, or the Categories you just filtered out. null means nothing fetched.
   const [dots, setDots] = useState<{ key: string | null; byDay: Record<number, string[]> }>({
     key: null,
     byDay: {},
@@ -100,15 +95,15 @@ export function MonthScreen({
   const [panelEntries, setPanelEntries] = useState<PanelEntry[]>([]);
 
   const visibleKey = monthKey(visible.year, visible.month);
-  // What the dots on screen have to answer: this month, under this hidden-set.
-  const dotsKey = `${visibleKey}|${hidden.categoryIds.join(',')}|${hidden.subcategoryIds.join(',')}`;
+  // What the dots on screen have to answer: this month, under this Filter.
+  const dotsKey = `${visibleKey}|${filterKey(filter)}`;
   const selectedDate = dateString(visible.year, visible.month, selectedDay);
   const categoryOf = (categoryId: string) => categories.find((c) => c.id === categoryId);
   const colorOf = (categoryId: string) => categoryOf(categoryId)?.color ?? theme.colors.iconMuted;
 
   useEffect(() => {
     let active = true;
-    getMonth(accessToken, visibleKey, hiddenParams(hidden))
+    getMonth(accessToken, visibleKey, filterParams(filter))
       .then((month) => {
         if (!active) return;
         const byDay: Record<number, string[]> = {};
@@ -125,7 +120,7 @@ export function MonthScreen({
     };
     // colorOf changes only with categories, which arrive with the token.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, visible.year, visible.month, categories, refresh, hidden]);
+  }, [accessToken, visible.year, visible.month, categories, refresh, filter]);
 
   useEffect(() => {
     let active = true;
@@ -134,7 +129,7 @@ export function MonthScreen({
         if (!active) return;
         setPanelEntries(
           list.entries
-            .filter((entry) => entryIsVisible(entry, hidden))
+            .filter((entry) => entryIsShown(entry, filter))
             .map((entry) => ({
             id: entry.id,
             title: decodeContent(entry.content)?.title ?? strings.day.unreadable,
@@ -152,7 +147,7 @@ export function MonthScreen({
     };
     // refresh is an intentional extra trigger, not a data dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, selectedDate, categories, refresh, hidden]);
+  }, [accessToken, selectedDate, categories, refresh, filter]);
 
   // Functional update: consecutive chevron presses (or a fast swipe after a
   // press) must each move from the latest month, not a stale closure.

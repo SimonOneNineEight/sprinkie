@@ -21,14 +21,24 @@ where journal_id = $1::uuid
     (subcategory_id is null and category_id = any($4::uuid[]))
     or (subcategory_id is not null and subcategory_id = any($5::uuid[]))
   )
+  and (
+    (cardinality($6::uuid[]) = 0
+      and cardinality($7::uuid[]) = 0)
+    or (subcategory_id is null and category_id = any($6::uuid[]))
+    or (subcategory_id is not null
+      and (category_id = any($6::uuid[]))
+        <> (subcategory_id = any($7::uuid[])))
+  )
 `
 
 type CountYearEntriesParams struct {
-	JournalID            string
-	FirstDay             pgtype.Date
-	NextYear             pgtype.Date
-	HiddenCategoryIds    []string
-	HiddenSubcategoryIds []string
+	JournalID                     string
+	FirstDay                      pgtype.Date
+	NextYear                      pgtype.Date
+	HiddenCategoryIds             []string
+	HiddenSubcategoryIds          []string
+	FilterCategoryIds             []string
+	FilterSubcategoryExceptionIds []string
 }
 
 func (q *Queries) CountYearEntries(ctx context.Context, arg CountYearEntriesParams) (int64, error) {
@@ -38,6 +48,8 @@ func (q *Queries) CountYearEntries(ctx context.Context, arg CountYearEntriesPara
 		arg.NextYear,
 		arg.HiddenCategoryIds,
 		arg.HiddenSubcategoryIds,
+		arg.FilterCategoryIds,
+		arg.FilterSubcategoryExceptionIds,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -56,15 +68,25 @@ where journal_id = $1::uuid
     (subcategory_id is null and category_id = any($4::uuid[]))
     or (subcategory_id is not null and subcategory_id = any($5::uuid[]))
   )
+  and (
+    (cardinality($6::uuid[]) = 0
+      and cardinality($7::uuid[]) = 0)
+    or (subcategory_id is null and category_id = any($6::uuid[]))
+    or (subcategory_id is not null
+      and (category_id = any($6::uuid[]))
+        <> (subcategory_id = any($7::uuid[])))
+  )
 order by entry_date, position
 `
 
 type ListYearFirstCategoriesParams struct {
-	JournalID            string
-	FirstDay             pgtype.Date
-	NextYear             pgtype.Date
-	HiddenCategoryIds    []string
-	HiddenSubcategoryIds []string
+	JournalID                     string
+	FirstDay                      pgtype.Date
+	NextYear                      pgtype.Date
+	HiddenCategoryIds             []string
+	HiddenSubcategoryIds          []string
+	FilterCategoryIds             []string
+	FilterSubcategoryExceptionIds []string
 }
 
 type ListYearFirstCategoriesRow struct {
@@ -78,6 +100,7 @@ type ListYearFirstCategoriesRow struct {
 // Under the hidden-set (#30) the distinct-on picks the first VISIBLE entry,
 // so a day wears its topmost visible color; none visible, no row. A refined
 // Entry follows its Subcategory, an unrefined one its Category.
+// The Filter (#134, ADR-0010) narrows the same way; see months.sql.
 func (q *Queries) ListYearFirstCategories(ctx context.Context, arg ListYearFirstCategoriesParams) ([]ListYearFirstCategoriesRow, error) {
 	rows, err := q.db.Query(ctx, listYearFirstCategories,
 		arg.JournalID,
@@ -85,6 +108,8 @@ func (q *Queries) ListYearFirstCategories(ctx context.Context, arg ListYearFirst
 		arg.NextYear,
 		arg.HiddenCategoryIds,
 		arg.HiddenSubcategoryIds,
+		arg.FilterCategoryIds,
+		arg.FilterSubcategoryExceptionIds,
 	)
 	if err != nil {
 		return nil, err

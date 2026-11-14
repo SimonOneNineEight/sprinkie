@@ -5,8 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category } from '../api/client';
 import type { Filter } from '../calendar/filter';
-import { hiddenFor, noFilter } from '../calendar/filter';
-import { forgetStoredHidden } from '../calendar/hidden';
+import { forgetStoredHidden, isFiltering, noFilter } from '../calendar/filter';
 import { hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
 import { useReminder } from '../reminder/useReminder';
@@ -46,11 +45,15 @@ export function HomeScreen({
 }: Props) {
   const [route, setRoute] = useState<Route>({ name: 'month' });
   const [monthRefresh, setMonthRefresh] = useState(0);
-  // The Filter (#134): one choice across every calendar surface, which
-  // apply its complement (ADR-0009). It lasts until the app is closed, so it
-  // is never stored, and a second account starts with none.
+  // The Filter (#134): one choice across every calendar surface, each
+  // applying it as itself (ADR-0010). It lasts until the app is closed, so
+  // it is never stored, and a second account starts with none. A Filter
+  // whose every choice has since been deleted is no Filter.
   const [filter, setFilter] = useState<Filter>(noFilter);
-  const hidden = useMemo(() => hiddenFor(filter, categories), [filter, categories]);
+  const shown = useMemo(
+    () => (isFiltering(filter, categories) ? filter : noFilter),
+    [filter, categories],
+  );
   const { resync: resyncReminder } = useReminder();
   // An Entry was saved, deleted or moved: the month reloads, and today's
   // Reminder follows whether today now holds an Entry (#137).
@@ -97,8 +100,7 @@ export function HomeScreen({
         accessToken={accessToken}
         categories={categories}
         date={route.date}
-        hidden={hidden}
-        filter={filter}
+        filter={shown}
         onChangeFilter={setFilter}
         onBack={() => setRoute({ name: 'month', focus: focusOn(route.date) })}
         onChangeDate={(date) => setRoute({ name: 'day', date })}
@@ -113,10 +115,9 @@ export function HomeScreen({
       <YearScreen
         accessToken={accessToken}
         categories={categories}
-        hidden={hidden}
         initialFocus={route.focus}
         refresh={monthRefresh}
-        filter={filter}
+        filter={shown}
         onChangeFilter={setFilter}
         onCategoriesChanged={onCategoriesChanged}
         onOpenMonth={(year, month) => setRoute({ name: 'month', focus: { year, month } })}
@@ -158,8 +159,7 @@ export function HomeScreen({
           categories={categories}
           refresh={monthRefresh}
           initialMonth={route.focus}
-          hidden={hidden}
-          filter={filter}
+          filter={shown}
           onChangeFilter={setFilter}
           onOpenDay={(date) => setRoute({ name: 'day', date })}
           onAddEntry={(date) => setRoute({ name: 'form', date })}

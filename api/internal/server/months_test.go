@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -152,6 +153,58 @@ func TestMonthHiddenSet(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("malformed hidden ids status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestMonthFilter(t *testing.T) {
+	ts := newTestServer(t)
+	token := signUpTestUser(t)
+	me := decodeMe(t, postMe(t, ts, token))
+	work, sport := me.Categories[0].ID, me.Categories[1].ID
+	meeting := decodeCategory(t, createCategory(t, ts, token, map[string]string{
+		"name": "會議", "color": me.Categories[0].Color, "parentId": work,
+	}))
+	gym := decodeCategory(t, createCategory(t, ts, token, map[string]string{
+		"name": "健身房", "color": me.Categories[1].Color, "parentId": sport,
+	}))
+
+	mustCreateEntry(t, ts, token, "2026-05-01", work)
+	createEntry(t, ts, token, map[string]string{
+		"date": "2026-05-02", "categoryId": work, "subcategoryId": meeting.ID, "content": "x",
+	}).Body.Close()
+	mustCreateEntry(t, ts, token, "2026-05-03", sport)
+	createEntry(t, ts, token, map[string]string{
+		"date": "2026-05-04", "categoryId": sport, "subcategoryId": gym.ID, "content": "x",
+	}).Body.Close()
+
+	days := func(query string) []string {
+		month := decodeMonth(t, getMonth(t, ts, token, "2026-05?"+query))
+		out := make([]string, len(month.Days))
+		for i, day := range month.Days {
+			out[i] = day.Date
+		}
+		return out
+	}
+	want := func(name string, got []string, dates ...string) {
+		t.Helper()
+		if strings.Join(got, ",") != strings.Join(dates, ",") {
+			t.Errorf("%s: days = %v, want %v", name, got, dates)
+		}
+	}
+
+	// A chosen Category brings every Subcategory, named or not (#134): the
+	// app never lists them, so one it has not heard of still follows.
+	want("chosen work", days("filterCategories="+work), "2026-05-01", "2026-05-02")
+	// A Subcategory listed under a chosen Category drops out on its own.
+	want("work minus 會議", days("filterCategories="+work+"&filterSubcategoryExceptions="+meeting.ID), "2026-05-01")
+	// Listed under an unchosen Category it is chosen alone, without the
+	// Category's unrefined Entries.
+	want("健身房 alone", days("filterSubcategoryExceptions="+gym.ID), "2026-05-04")
+
+	resp := getMonth(t, ts, token, "2026-05?filterCategories=not-a-uuid")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("malformed filter ids status = %d, want 400", resp.StatusCode)
 	}
 }
 
