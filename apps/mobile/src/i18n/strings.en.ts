@@ -195,6 +195,7 @@ export const en: StringCatalog = {
   },
   categories: {
     title: 'Categories',
+    titleFiltered: 'Categories, filtered',
     add: 'Add category',
     editTitle: 'Edit category',
     save: 'Save',
@@ -216,8 +217,7 @@ export const en: StringCatalog = {
       'Entries already use this category. Renaming carries them along, so deleting isn’t offered.',
     hasChildrenExplanation: 'Delete its subcategories first.',
     saveFailed: 'Save failed. Please try again',
-    hideAll: 'Hide all',
-    showAll: 'Show all',
+    all: 'All',
   },
   year: {
     title: (year: number) => `${year}`,

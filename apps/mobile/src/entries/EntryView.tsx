@@ -68,7 +68,7 @@ export function EntryView({
   // level in. Flings only recognize fast horizontal movement, so the page's
   // vertical scroll keeps working underneath; the photo viewer is a Modal,
   // its own window, so its pager never meets these. Never across days:
-  // that would make this a fourth surface applying Hidden (ADR 0005).
+  // that would make this a fourth surface applying the Filter (ADR 0009).
   const flingNext = Gesture.Fling()
     .direction(Directions.LEFT)
     .runOnJS(true)

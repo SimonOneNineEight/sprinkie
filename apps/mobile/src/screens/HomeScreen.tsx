@@ -1,11 +1,12 @@
 import * as Sentry from '@sentry/react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category } from '../api/client';
-import type { HiddenSet } from '../calendar/hidden';
-import { loadHidden, nothingHidden, saveHidden } from '../calendar/hidden';
+import type { Filter } from '../calendar/filter';
+import { hiddenFor, noFilter } from '../calendar/filter';
+import { forgetStoredHidden } from '../calendar/hidden';
 import { hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
 import { useReminder } from '../reminder/useReminder';
@@ -45,9 +46,11 @@ export function HomeScreen({
 }: Props) {
   const [route, setRoute] = useState<Route>({ name: 'month' });
   const [monthRefresh, setMonthRefresh] = useState(0);
-  // The hidden-set (#30): one visibility state across every calendar
-  // surface, persisted so it survives launches.
-  const [hidden, setHidden] = useState<HiddenSet>(nothingHidden);
+  // The Filter (#134): one choice across every calendar surface, which
+  // apply its complement (ADR-0009). It lasts until the app is closed, so it
+  // is never stored, and a second account starts with none.
+  const [filter, setFilter] = useState<Filter>(noFilter);
+  const hidden = useMemo(() => hiddenFor(filter, categories), [filter, categories]);
   const { resync: resyncReminder } = useReminder();
   // An Entry was saved, deleted or moved: the month reloads, and today's
   // Reminder follows whether today now holds an Entry (#137).
@@ -67,13 +70,7 @@ export function HomeScreen({
   const inviteFinished = useCallback(() => setInviteDue(false), []);
 
   useEffect(() => {
-    let active = true;
-    void loadHidden().then((stored) => {
-      if (active) setHidden(stored);
-    });
-    return () => {
-      active = false;
-    };
+    void forgetStoredHidden();
   }, []);
 
   // A tapped Reminder lands on the Entry form for its date, on top of the
@@ -94,11 +91,6 @@ export function HomeScreen({
     if (reminderTap) onReminderTapOpened?.();
   }, [reminderTap, onReminderTapOpened]);
 
-  const changeHidden = (next: HiddenSet) => {
-    setHidden(next);
-    void saveHidden(next);
-  };
-
   if (route.name === 'day') {
     return (
       <DayScreen
@@ -106,7 +98,8 @@ export function HomeScreen({
         categories={categories}
         date={route.date}
         hidden={hidden}
-        onChangeHidden={changeHidden}
+        filter={filter}
+        onChangeFilter={setFilter}
         onBack={() => setRoute({ name: 'month', focus: focusOn(route.date) })}
         onChangeDate={(date) => setRoute({ name: 'day', date })}
         onEntrySaved={(change) => (change === 'saved' ? entrySaved() : bumpMonth())}
@@ -123,7 +116,8 @@ export function HomeScreen({
         hidden={hidden}
         initialFocus={route.focus}
         refresh={monthRefresh}
-        onChangeHidden={changeHidden}
+        filter={filter}
+        onChangeFilter={setFilter}
         onCategoriesChanged={onCategoriesChanged}
         onOpenMonth={(year, month) => setRoute({ name: 'month', focus: { year, month } })}
       />
@@ -165,7 +159,8 @@ export function HomeScreen({
           refresh={monthRefresh}
           initialMonth={route.focus}
           hidden={hidden}
-          onChangeHidden={changeHidden}
+          filter={filter}
+          onChangeFilter={setFilter}
           onOpenDay={(date) => setRoute({ name: 'day', date })}
           onAddEntry={(date) => setRoute({ name: 'form', date })}
           onOpenSettings={() => setRoute({ name: 'settings' })}

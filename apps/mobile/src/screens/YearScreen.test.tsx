@@ -43,7 +43,7 @@ function renderScreen(overrides: Partial<React.ComponentProps<typeof YearScreen>
       categories={categories}
       today={today}
       onOpenMonth={jest.fn()}
-      onChangeHidden={jest.fn()}
+      onChangeFilter={jest.fn()}
       {...overrides}
     />,
   );
@@ -133,7 +133,7 @@ it('refetches when an Entry is saved elsewhere', async () => {
       categories={categories}
       today={today}
       onOpenMonth={jest.fn()}
-      onChangeHidden={jest.fn()}
+      onChangeFilter={jest.fn()}
       refresh={1}
     />,
   );

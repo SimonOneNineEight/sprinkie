@@ -1,4 +1,4 @@
-import { ChevronLeft, Settings, Tags } from 'lucide-react-native';
+import { ChevronLeft, Settings } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
@@ -7,6 +7,9 @@ import type { Category } from '../api/client';
 import { getMonth, listEntries } from '../api/client';
 import type { PanelEntry } from '../calendar/DayPanel';
 import { DayPanel } from '../calendar/DayPanel';
+import { CategoriesButton } from '../calendar/CategoriesButton';
+import type { Filter } from '../calendar/filter';
+import { isFiltering, noFilter } from '../calendar/filter';
 import type { HiddenSet } from '../calendar/hidden';
 import { entryIsVisible, hiddenParams, nothingHidden } from '../calendar/hidden';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
@@ -37,9 +40,10 @@ type Props = {
   /** Land on this month instead of today's (year view tap-through, #12),
    * on `day` when given: the date a day view or form was left on (#113). */
   initialMonth?: { year: number; month: number; day?: number };
-  /** The persistent hidden-set (#30), owned by HomeScreen. */
+  /** The Filter's complement (#134, ADR-0009), owned by HomeScreen. */
   hidden?: HiddenSet;
-  onChangeHidden?: (hidden: HiddenSet) => void;
+  filter?: Filter;
+  onChangeFilter?: (filter: Filter) => void;
   /** Bump to refetch the visible month (after a save elsewhere). */
   refresh?: number;
 };
@@ -61,7 +65,8 @@ export function MonthScreen({
   onOpenYear,
   initialMonth,
   hidden = nothingHidden,
-  onChangeHidden,
+  filter = noFilter,
+  onChangeFilter,
   refresh = 0,
 }: Props) {
   const strings = useStrings();
@@ -213,15 +218,12 @@ export function MonthScreen({
         {/* Full Apple (ratified 2026-08-20): months change by swipe alone,
             so the nav holds just the lens and the utility. */}
         <View testID="month-nav-actions" style={styles.navActions}>
-          {onChangeHidden ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={strings.categories.title}
+          {onChangeFilter ? (
+            <CategoriesButton
+              filtering={isFiltering(filter, categories)}
               style={styles.navButton}
               onPress={() => setSheetOpen(true)}
-            >
-              <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
-            </Pressable>
+            />
           ) : null}
           {onOpenSettings ? (
             <Pressable
@@ -295,12 +297,12 @@ export function MonthScreen({
         onAdd={() => onAddEntry(selectedDate)}
       />
 
-      {sheetOpen && onChangeHidden ? (
+      {sheetOpen && onChangeFilter ? (
         <CategorySheet
           accessToken={accessToken}
           categories={categories}
-          hidden={hidden}
-          onChange={onChangeHidden}
+          filter={filter}
+          onChange={onChangeFilter}
           onCategoriesChanged={() => onCategoriesChanged?.()}
           onClose={() => setSheetOpen(false)}
         />

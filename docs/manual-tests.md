@@ -130,7 +130,7 @@ Throwaway User, phone language Traditional Chinese.
 | --- | --- | --- |
 | J3.1 | Swipe back three months and forward again | Months page one per swipe; dots match each month **[API]** |
 | J3.2 | Tap ‹ 2026年 (the year under the month title), pick a month from a past year | Year view opens, then that month **[API]** |
-| J3.3 | Hide a Category from 類別, walk month → day → year | It is absent on all three **[API]** |
+| J3.3 | Choose one Category from 類別, walk month → day → year | Only it shows on all three **[API]** |
 | J3.4 | Show it again | It returns on all three **[API]** |
 
 ### J4 — Organizing
@@ -233,12 +233,12 @@ Keyboard cases are in **KB**.
 | MO.16 | Tap the floating + | Entry form opens for the **selected** day, not today **[auto]** |
 | MO.17 | Tap ‹ 2026年 (the year under the month title) | The year ribbon opens on the month you were viewing, including after swiping across a year boundary (YR.21) **[auto]** |
 | MO.18 | Tap the 設定 (gear) icon | Settings opens **[auto]** |
-| MO.19 | Tap the 類別 (tag) icon | The visibility sheet opens **[auto]** |
+| MO.19 | Tap the 類別 (tag) icon | The 類別 sheet opens **[auto]** |
 | MO.20 | Airplane mode, swipe months | Dots are absent, not wrong; no error wall, no crash **[auto]** |
 | MO.21 | A month holding no Entries at all | Grid renders with no dots anywhere **[API]** **[auto]** |
 | MO.22 | Swipe months away, tap the floating 今天 | This month, with today selected **[API]** **[auto]** |
 | MO.23 | Tap 今天 while already on this month | Selection returns to today; nothing else moves **[auto]** |
-| MO.24 | Hide a Category while its dots are on screen | The dots go; the month never briefly shows the old set **[API]** **[auto]** |
+| MO.24 | Choose a Category while other dots are on screen | The others' dots go; the month never briefly shows the old set **[API]** **[auto]** |
 | MO.25 | The nav bar | Only the 類別 and 設定 icons; 今天 floats at the bottom **[auto]** |
 | MO.26 | A day with more Entries than the panel fits | The panel scrolls, and its last row scrolls clear of the floating controls |
 | MO.27 | Scroll the day panel | Both controls fade out while scrolling and return when it stops |
@@ -257,7 +257,7 @@ Keyboard cases are in **KB**.
 | DA.1 | Open a day with Entries | Cards with title (up to three lines), Category icon, Subcategory name, note preview (up to five lines), photo thumbnails **[API]** |
 | DA.2 | A day with none: today, then any other date | Today reads 今天還沒有紀錄; every other date reads 這天沒有紀錄 **[auto]** |
 | DA.3 | Tap a card | The Entry view opens on it (EV), not the form **[auto]** |
-| DA.4 | On a day with nothing hidden, long-press and drag a card | It moves; the order holds on return **[API]** **[auto]** |
+| DA.4 | On a day with no Filter on, long-press and drag a card | It moves; the order holds on return **[API]** **[auto]** |
 | DA.5 | Scroll a long list vertically | Scrolls; no accidental day change |
 | DA.6 | Swipe left / right | Previous and next date, gestures surviving the list underneath |
 | DA.7 | Swipe to another day, then the back chevron | Returns to the month view on the day you were showing, in its month, selected, not today **[auto]** |
@@ -265,7 +265,7 @@ Keyboard cases are in **KB**.
 | DA.9 | A day holding a retained Draft | A 尚未儲存 row above the cards **[auto]** |
 | DA.10 | Several Drafts on one day | All of them listed |
 | DA.11 | Tap a Draft row | The form opens prefilled from it **[auto]** |
-| DA.12 | A day where something is hidden | Hidden cards absent; long-press drag does nothing |
+| DA.12 | A day where the Filter leaves some cards out | Those cards absent; long-press drag does nothing |
 | DA.13 | Airplane mode, open a day | 無法載入紀錄, no crash **[auto]** |
 | DA.14 | An Entry whose content will not decode | The card renders （無法讀取的紀錄） rather than failing. Nothing in the app can make one, so the unit tests cover it: skip by hand |
 | DA.15 | Airplane mode, long-press and drag a card | 排序失敗，請再試一次, and the order returns to what the server holds **[API]** **[auto]** |
@@ -275,7 +275,7 @@ Keyboard cases are in **KB**.
 | DA.19 | Long-press-drag a card near the bottom | The drag works; the faded controls do not intercept it |
 | DA.20 | On a device with a home indicator | Both controls sit above the indicator, never over it |
 | DA.21 | The gap below the controls | The same on the day, month and year views |
-| DA.22 | Tap the 類別 icon in the header | The same sheet the month and year views open: the two-level tree, ✎ per row, 全部隱藏 and 新增類別 **[auto]** |
+| DA.22 | Tap the 類別 icon in the header | The same sheet the month and year views open: the two-level tree, ✎ per row, 全部 and 新增類別 **[auto]** |
 | DA.23 | An Entry whose title runs past three lines and note past five | The title stops at three lines and the note at five, each ending in …; the card grows taller but not wider, the note keeps its left edge, and the card never scrolls inside itself |
 | DA.24 | A card whose title wraps to three lines, then long-press and drag it | The icon and grip sit centered on the title block, the category line beneath it; the drag works as on a one-line card |
 
@@ -290,7 +290,7 @@ lines and three photos.
 | EV.1 | Open the Entry with the long note and three photos | Top to bottom: the Category chip (its icon on the Category's tint, 類別 · 子類別 in its ink), the title large, the date just under it in grey, the whole note, then the three photos as equal squares filling one row. Nothing is cut off with …, there is no large first photo, and the photo row does not scroll sideways |
 | EV.2 | Open any Entry | It shows its Category and Subcategory, title, date, the whole note and its photos **[auto]** |
 | EV.3 | The top bar | ‹ on the left, n / total centred, 編輯 on the right; each answers a tap across a 44pt target |
-| EV.4 | On a day where one Category is hidden, swipe left and right | One Entry per swipe in the day view's order, the hidden one skipped; the count follows, and the swipe stops at the first and the last Entry, never crossing into another day **[auto]** |
+| EV.4 | On a day where the Filter leaves one Category out, swipe left and right | One Entry per swipe in the day view's order, the filtered-out one skipped; the count follows, and the swipe stops at the first and the last Entry, never crossing into another day **[auto]** |
 | EV.5 | Scroll a long note | Scrolls; the Entry does not change |
 | EV.6 | 編輯, change the title, 儲存 | Back on the Entry view, showing the new title **[API]** **[auto]** |
 | EV.7 | 編輯, change the date, 儲存, then ‹ | The Entry view shows it on the new date; ‹ goes to the new date's day view, where it now sits **[API]** **[auto]** |
@@ -300,12 +300,12 @@ lines and three photos.
 | EV.11 | In the viewer, swipe between photos | The photos page; the Entry behind does not change |
 | EV.12 | ‹, then ‹ again | The day view, then the month view on that day |
 | EV.13 | Open an Entry saved before #44 with more than three photos | Every photo shows, wrapping onto further rows of three equal squares; nothing scrolls sideways |
-| EV.14 | 編輯, move the Entry to a hidden Category, 儲存; then show that Category again from the day view's 類別 sheet | The day view, and it stays there: the card comes back, the Entry view does not reopen by itself **[auto]** |
+| EV.14 | 編輯, move the Entry to a Category outside the Filter, 儲存; then choose that Category too from the day view's 類別 sheet | The day view, and it stays there: the card comes back, the Entry view does not reopen by itself **[auto]** |
 | EV.15 | 編輯, change the title and the date, attach a photo; airplane mode on just as 儲存 sends the photo, then 取消 | The Entry view shows the new title on the new date, as the server holds it **[API]** **[auto]** |
 
 **EV.4 never crosses days** on purpose: a swipe past the day's last Entry
-would make the Entry view a fourth surface applying Hidden, which is ADR
-0005's revisit trigger.
+would make the Entry view a fourth surface applying the Filter, which is
+ADR 0009's revisit trigger.
 
 ### EF — Entry form
 
@@ -442,7 +442,7 @@ is about scrolling rather than paging.
 | YR.15 | Scroll far away, then tap 今天 | Scrolls back to today's month and stays on the year view **[auto]** |
 | YR.16 | Swipe left or right | Nothing happens; the surface scrolls vertically now **[auto]** |
 | YR.17 | There is no back button and no chevrons | Correct; scrolling, the title and a month tap are the navigation **[auto]** |
-| YR.18 | Tap the 類別 (tag) icon | The visibility sheet opens |
+| YR.18 | Tap the 類別 (tag) icon | The 類別 sheet opens |
 | YR.20 | Airplane mode | Mini months render empty, no crash **[auto]** |
 | YR.21 | From a month in a past year, tap ‹ and its year | The ribbon opens on **that month**, not that year's January and not this year **[auto]** |
 | YR.22 | The last row of the ribbon | Clears 今天; nothing is trapped under the floating control |
@@ -468,27 +468,28 @@ deliberately unchanged until testers say whether it matters. Not a YR failure.
 
 | # | Case | Expected |
 | --- | --- | --- |
-| CS.1 | Open it | Two-level tree, Subcategories always expanded, 新增類別 last |
-| CS.2 | A visible Category | White glyph on the Category color |
-| CS.3 | Tap a Category row | The circle goes hollow; the family hides |
-| CS.4 | Tap it again | The whole family returns **[auto]** |
-| CS.5 | A Subcategory row | A check-circle in the parent's color, filled when visible |
+| CS.1 | Open it | Two-level tree under a leading 全部 row, Subcategories always expanded, 新增類別 last |
+| CS.2 | With no Filter on | 全部 checked; every Category's ring hollow; everything shows |
+| CS.3 | Tap a Category row | Its icon and its Subcategories' circles fill, 全部 unchecks; only that family shows |
+| CS.4 | Tap it again | The whole family clears; with nothing else chosen, 全部 checks and everything shows **[auto]** |
+| CS.5 | A Subcategory row | A check-circle in the parent's color, filled when chosen |
 | CS.6 | Tap a Subcategory | Only that child toggles **[auto]** |
-| CS.7 | Hide a parent, show one child | The parent's circle stays lit while any member is visible |
-| CS.8 | 全部隱藏 | Everything hides; the label flips to 全部顯示 **[auto]** |
-| CS.9 | 全部顯示 | Everything returns **[auto]** |
+| CS.7 | Choose a Category, then tap one of its children | The Category stays chosen; its Entries without a Subcategory and its other children still show |
+| CS.8 | Choose every Subcategory of a Category one by one | The Category's ring stays hollow, and its Entries without a Subcategory stay off the calendar **[auto]** |
+| CS.9 | Tap 全部 | The Filter clears: 全部 checks, every ring goes hollow, everything shows **[auto]** |
 | CS.10 | Tap ✎ on any row | The editor opens for it **[auto]** |
 | CS.11 | Tap 新增類別 | The editor opens in create mode **[auto]** |
 | CS.12 | 完成 or the scrim | Closes; changes already applied |
-| CS.13 | Reopen after closing | The same visibility state **[auto]** |
+| CS.13 | Reopen after closing | The same Filter **[auto]** |
 | CS.14 | The sheet with every Category deleted | Only 新增類別; no empty tree, no error **[auto]** |
 | CS.15 | Type a Category's name in the search field | Only that Category's family remains **[auto]** |
 | CS.16 | Type a Subcategory's name | Its parent stays as context; the parent's other children drop **[auto]** |
-| CS.17 | Clear the field | The whole tree returns, visibility unchanged **[auto]** |
+| CS.17 | Clear the field | The whole tree returns, the Filter unchanged **[auto]** |
 | CS.18 | Type something nothing matches | Only the pinned 新增類別 row remains **[auto]** |
-| CS.19 | While filtered, tap a parent row | The whole family toggles, including members the search is hiding **[auto]** |
-| CS.20 | While filtered, 全部隱藏 | Acts on every Category, not just the matches **[auto]** |
+| CS.19 | While searching, tap a parent row | The whole family toggles, including members the search is hiding **[auto]** |
+| CS.20 | While searching, tap 全部 | Clears the whole Filter, not just the matches **[auto]** |
 | CS.21 | Type a name, then 新增類別 | The editor opens with that name already in the field **[auto]** |
+| CS.22 | With a Filter on, look at the 類別 icon on the month, year and day views | Filled in ink; VoiceOver reads 類別，篩選中. With none, the outline |
 
 Keyboard cases are in **KB**.
 
@@ -602,24 +603,24 @@ account instead, which is that rule working.
 Chinese-only until #37 adds English ones (`src/legal.ts`); the row labels
 already translate. Not a failure.
 
-### VI — Visibility, across surfaces
+### VI — The Filter, across surfaces
 
 | # | Case | Expected |
 | --- | --- | --- |
-| VI.1 | Hide a Category, check the month grid | **Its dots are gone** **[API]** **[auto]** |
-| VI.2 | Check the day panel beneath | Its Entries are gone **[auto]** |
-| VI.3 | Open a day holding one | The card is absent; others remain **[auto]** |
-| VI.4 | Open the year view | **Days it colored lose their box, and the count drops** **[API]** **[auto]** |
-| VI.5 | A day whose Entries are all hidden | An empty cell, never an error **[auto]** |
-| VI.6 | A day with a hidden first Entry | The year box takes the topmost **visible** Entry's color **[API]** **[auto]** |
-| VI.7 | Hide a Subcategory, leave the parent visible | Only refined Entries go **[auto]** |
-| VI.8 | Hide a parent, leave one child visible | That child's Entries stay **[auto]** |
-| VI.9 | Change visibility on the year view, return to the month | Both agree **[API]** |
-| VI.10 | Force-quit with something hidden, relaunch | The hidden-set survived |
-| VI.11 | Create a Category while something is hidden | Born visible **[auto]** |
-| VI.12 | Delete a hidden Category | Nothing breaks; the stale id is harmless **[auto]** |
-| VI.13 | Hide a Category from the day view's 類別 sheet | Its cards leave the day at once, without closing the day **[auto]** |
-| VI.14 | Return to the month, then the year view | Both agree with the hide made on the day view, no relaunch **[API]** **[auto]** |
+| VI.1 | Choose one Category, check the month grid | **Other Categories' dots are gone** **[API]** **[auto]** |
+| VI.2 | Check the day panel beneath | Entries outside the Filter are gone **[auto]** |
+| VI.3 | Open a day holding one | Its card is absent; others remain **[auto]** |
+| VI.4 | Open the year view | **Days only other Categories colored lose their box, and the count drops** **[API]** **[auto]** |
+| VI.5 | A day whose Entries all fall outside the Filter | An empty cell, never an error **[auto]** |
+| VI.6 | A day whose first Entry falls outside the Filter | The year box takes the topmost **visible** Entry's color **[API]** **[auto]** |
+| VI.7 | Choose only a Subcategory | Only its Entries show; its Category's Entries without a Subcategory do not **[auto]** |
+| VI.8 | Choose a Category, then tap one child off | That child's Entries go; the Category's other Entries stay **[auto]** |
+| VI.9 | Change the Filter on the year view, return to the month | Both agree **[API]** |
+| VI.10 | Force-quit with a Filter on, relaunch | No Filter: everything shows, and the 類別 icon is an outline again **[auto]** |
+| VI.11 | Create a Category while a Filter is on | It is outside the Filter; a new Subcategory of a chosen Category joins it **[auto]** |
+| VI.12 | Delete the only chosen Category | The Filter empties: everything shows, 全部 checked **[auto]** |
+| VI.13 | Choose a Category from the day view's 類別 sheet | Cards outside it leave the day at once, without closing the day **[auto]** |
+| VI.14 | Return to the month, then the year view | Both agree with the choice made on the day view, no relaunch **[API]** **[auto]** |
 
 **VI.1 and VI.4 are round-2 reports #6 and #9.** They pass only when the
 deployed revision carries the hidden-set.
@@ -743,7 +744,7 @@ the real 21:00 Reminder arrive on a locked phone.
 | RM.13 | Save an Entry dated today with +, then wait past the time | Nothing arrives today; tomorrow's arrives **[auto]** |
 | RM.14 | Delete today's only Entry before the time | Today's Reminder arrives **[auto]** |
 | RM.15 | Move today's only Entry to another date before the time | Today's Reminder arrives **[auto]** |
-| RM.16 | Hide a Category in 類別, save today's Entry in it | Nothing arrives today **[auto]** |
+| RM.16 | With a Filter on, save today's Entry in a Category outside it | Nothing arrives today **[auto]** |
 | RM.17 | In airplane mode, save an Entry dated today, then wait past the time | The save fails and keeps a Draft; the Reminder arrives. Retrying the Draft before the time silences today **[auto]** |
 | RM.18 | Save an Entry for yesterday only | Today's Reminder arrives **[auto]** |
 | RM.19 | Save today's Entry, force-quit Sprinkie, open it again, wait past the time | Nothing arrives today **[auto]** |
@@ -789,7 +790,7 @@ case says otherwise.
 | # | Case | Expected |
 | --- | --- | --- |
 | AX.1 | VoiceOver on the month grid | Days are reachable and announced |
-| AX.2 | VoiceOver on the 類別 sheet | Rows announce their visibility state |
+| AX.2 | VoiceOver on the 類別 sheet | Rows announce whether they are chosen; 全部 announces selected while nothing is |
 | AX.3 | VoiceOver on the color drawer | The area and hue strip are adjustable |
 | AX.4 | Larger text sizes | Nothing clipped past legibility |
 | AX.5 | Every tap target | At least 44pt |
@@ -907,9 +908,9 @@ the tag.
 | YR.17 | `screens/YearScreen.test.tsx` |
 | YR.20 | `screens/YearScreen.test.tsx` |
 | YR.21 | `screens/YearScreen.test.tsx`, `screens/MonthScreen.test.tsx` |
-| CS.4 | `calendar/hidden.test.ts` |
+| CS.4 | `calendar/filter.test.ts`, `calendar/CategorySheet.test.tsx` |
 | CS.6 | `calendar/CategorySheet.test.tsx` |
-| CS.8 | `calendar/CategorySheet.test.tsx` |
+| CS.8 | `calendar/filter.test.ts` |
 | CS.9 | `calendar/CategorySheet.test.tsx` |
 | CS.10 | `calendar/CategorySheet.test.tsx` |
 | CS.11 | `calendar/CategorySheet.test.tsx` |
@@ -961,9 +962,10 @@ the tag.
 | VI.4 | `years_test.go` |
 | VI.5 | `months_test.go` |
 | VI.6 | `years_test.go` |
-| VI.7 | `months_test.go` |
-| VI.8 | `months_test.go` |
-| VI.11 | `calendar/hidden.test.ts` |
+| VI.7 | `months_test.go`, `calendar/filter.test.ts` |
+| VI.8 | `months_test.go`, `calendar/filter.test.ts` |
+| VI.10 | `AppRoot.test.tsx` |
+| VI.11 | `calendar/filter.test.ts` |
 | VI.12 | `AppRoot.test.tsx` |
 | VI.13 | `AppRoot.test.tsx` |
 | VI.14 | `AppRoot.test.tsx` |

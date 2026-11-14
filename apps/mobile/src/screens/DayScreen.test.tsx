@@ -425,7 +425,7 @@ it('opens the full 類別 sheet from the day header (#41)', async () => {
       accessToken="tok"
       categories={categories}
       date="2026-08-19"
-      onChangeHidden={jest.fn()}
+      onChangeFilter={jest.fn()}
     />,
   );
   await screen.findByText('這天沒有紀錄');
@@ -433,9 +433,9 @@ it('opens the full 類別 sheet from the day header (#41)', async () => {
   fireEvent.press(screen.getByLabelText('類別'));
 
   // The same sheet the month and year views open, not a thinner read-only
-  // twin: the header toggle, the two-level tree and 新增類別 all come with it
-  // (DESIGN.md §9, ratified 2026-09-12).
-  expect(screen.getByText('全部隱藏')).toBeTruthy();
+  // twin: the 全部 row, the two-level tree and 新增類別 all come with it
+  // (DESIGN.md §9, ratified 2026-09-12; 全部 since #134).
+  expect(screen.getByText('全部')).toBeTruthy();
   expect(screen.getByText('運動')).toBeTruthy();
   expect(screen.getByText('健身房')).toBeTruthy();
   expect(screen.getByText('新增類別')).toBeTruthy();

@@ -193,6 +193,8 @@ const zhTW = {
   },
   categories: {
     title: '類別',
+    // The 類別 nav button while a Filter is on (#134).
+    titleFiltered: '類別，篩選中',
     add: '新增類別',
     editTitle: '編輯類別',
     save: '儲存',
@@ -217,10 +219,9 @@ const zhTW = {
     // Derived copy: the canvas specifies only the in-use case.
     hasChildrenExplanation: '請先刪除底下的子類別。',
     saveFailed: '儲存失敗，請再試一次',
-    // The 類別 sheet's visibility toggle (#30): one header button whose
-    // label flips with the state.
-    hideAll: '全部隱藏',
-    showAll: '全部顯示',
+    // The 類別 sheet's first row (#134): selected while the Filter is empty,
+    // and tapping it clears the Filter.
+    all: '全部',
   },
   year: {
     title: (year: number) => `${year}年`,

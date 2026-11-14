@@ -1,4 +1,4 @@
-import { ChevronLeft, Tags } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import DraggableFlatList from 'react-native-draggable-flatlist';
@@ -8,6 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category, Entry } from '../api/client';
 import { listEntries, reorderDay } from '../api/client';
+import { CategoriesButton } from '../calendar/CategoriesButton';
+import type { Filter } from '../calendar/filter';
+import { isFiltering, noFilter } from '../calendar/filter';
 import type { HiddenSet } from '../calendar/hidden';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
@@ -50,14 +53,15 @@ type Props = {
   onFormState?: (form: OpenForm | null) => void;
   onCategoriesChanged?: () => void;
   /**
-   * The persistent hidden-set (#30). Hidden cards drop out; drag-reorder
-   * disables only while THIS day shows a partial list, since ordering a
-   * partial view is undefined — a fully visible day reorders freely even
-   * while other categories hide.
+   * The Filter's complement (#134, ADR-0009). Hidden cards drop out;
+   * drag-reorder disables only while THIS day shows a partial list, since
+   * ordering a partial view is undefined — a fully visible day reorders
+   * freely even while other categories are filtered out.
    */
   hidden?: HiddenSet;
   /** Opens the 類別 sheet from this header (#41). Absent, no button is drawn. */
-  onChangeHidden?: (hidden: HiddenSet) => void;
+  filter?: Filter;
+  onChangeFilter?: (filter: Filter) => void;
 };
 
 // The day view (#7): the date's Entries as cards; long-press drag reorders
@@ -74,7 +78,8 @@ export function DayScreen({
   onFormState,
   onCategoriesChanged,
   hidden = nothingHidden,
-  onChangeHidden,
+  filter = noFilter,
+  onChangeFilter,
 }: Props) {
   const strings = useStrings();
   // A loaded list carries the date it answers, as the month's dots carry
@@ -284,15 +289,12 @@ export function DayScreen({
               {/* The same 類別 icon the month and year nav bars carry, in the
                   same place and opening the same sheet: visibility is one
                   thing to learn (#41, DESIGN.md §9 as amended 2026-09-12). */}
-              {onChangeHidden ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={strings.categories.title}
+              {onChangeFilter ? (
+                <CategoriesButton
+                  filtering={isFiltering(filter, categories)}
                   style={styles.navButton}
                   onPress={() => setSheetOpen(true)}
-                >
-                  <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
-                </Pressable>
+                />
               ) : null}
             </View>
             {failed ? <Text style={styles.muted}>{strings.day.loadFailed}</Text> : null}
@@ -342,12 +344,12 @@ export function DayScreen({
             {...(onChangeDate ? { onToday: () => onChangeDate(localDateString(today)) } : {})}
             onAdd={() => setComposing(true)}
           />
-          {sheetOpen && onChangeHidden ? (
+          {sheetOpen && onChangeFilter ? (
             <CategorySheet
               accessToken={accessToken}
               categories={categories}
-              hidden={hidden}
-              onChange={onChangeHidden}
+              filter={filter}
+              onChange={onChangeFilter}
               onCategoriesChanged={() => onCategoriesChanged?.()}
               onClose={() => setSheetOpen(false)}
             />

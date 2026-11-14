@@ -5,7 +5,7 @@ import { cat } from '../testing/fixtures';
 import { isHollowRow } from '../testing/isHollowRow';
 import { installMockApi, type MockApi } from '../testing/mockApi';
 import { CategorySheet } from './CategorySheet';
-import { nothingHidden } from './hidden';
+import { noFilter } from './filter';
 
 const categories = [
   { ...cat.work, inUse: true, hasChildren: false },
@@ -31,7 +31,7 @@ function renderSheet(overrides: Partial<React.ComponentProps<typeof CategoryShee
     <CategorySheet
       accessToken="tok"
       categories={categories}
-      hidden={nothingHidden}
+      filter={noFilter}
       onChange={onChange}
       onCategoriesChanged={onCategoriesChanged}
       onClose={jest.fn()}
@@ -41,50 +41,43 @@ function renderSheet(overrides: Partial<React.ComponentProps<typeof CategoryShee
   return { onChange, onCategoriesChanged };
 }
 
-it('splits each row into a visibility zone and an edit zone (#30)', () => {
+it('splits each row into a choice zone and an edit zone (#134)', () => {
   const { onChange } = renderSheet();
 
-  // Tapping a parent row is the family master switch: the whole family
-  // hides together. Tapping ✎ opens the editor instead.
+  // Tapping a parent row chooses the whole family; ✎ opens the editor.
   fireEvent.press(screen.getByText('運動'));
-  expect(onChange).toHaveBeenCalledWith({
-    categoryIds: ['c-sport'],
-    subcategoryIds: ['c-gym'],
-  });
+  expect(onChange).toHaveBeenCalledWith({ categoryIds: ['c-sport'], subcategoryIds: [] });
 
   fireEvent.press(screen.getAllByLabelText('編輯類別')[1]);
   expect(screen.getByDisplayValue('運動')).toBeTruthy();
   expect(onChange).toHaveBeenCalledTimes(1);
 });
 
-it('a subcategory row toggles only itself (#30)', () => {
+it('a subcategory row toggles only itself (#134)', () => {
   const { onChange } = renderSheet();
 
   fireEvent.press(screen.getByText('健身房'));
   expect(onChange).toHaveBeenCalledWith({ categoryIds: [], subcategoryIds: ['c-gym'] });
 });
 
-it('the header toggle flips between 全部隱藏 and 全部顯示 (#30)', () => {
-  const { onChange } = renderSheet();
+it('rows are hollow until chosen, and 全部 is selected while nothing is (#134)', () => {
+  renderSheet();
 
-  fireEvent.press(screen.getByText('全部隱藏'));
-  expect(onChange).toHaveBeenCalledWith({
-    categoryIds: ['c-work', 'c-sport', 'c-food'],
-    subcategoryIds: ['c-gym'],
-  });
+  for (const name of ['工作', '運動', '美食']) expect(isHollowRow(name)).toBe(true);
+  expect(screen.getByRole('button', { name: '全部', selected: true })).toBeTruthy();
+  expect(screen.queryByText('全部隱藏')).toBeNull();
+  expect(screen.queryByText('全部顯示')).toBeNull();
+});
 
-  render(
-    <CategorySheet
-      accessToken="tok"
-      categories={categories}
-      hidden={{ categoryIds: ['c-work', 'c-sport', 'c-food'], subcategoryIds: ['c-gym'] }}
-      onChange={onChange}
-      onCategoriesChanged={jest.fn()}
-      onClose={jest.fn()}
-    />,
-  );
-  fireEvent.press(screen.getByText('全部顯示'));
-  expect(onChange).toHaveBeenLastCalledWith(nothingHidden);
+it('a chosen Category fills and 全部 lets go; tapping 全部 clears the Filter (#134)', () => {
+  const { onChange } = renderSheet({ filter: { categoryIds: ['c-work'], subcategoryIds: [] } });
+
+  expect(isHollowRow('工作')).toBe(false);
+  expect(isHollowRow('運動')).toBe(true);
+  expect(screen.getByRole('button', { name: '全部', selected: false })).toBeTruthy();
+
+  fireEvent.press(screen.getByText('全部'));
+  expect(onChange).toHaveBeenCalledWith(noFilter);
 });
 
 it('renames a category through the row editor', async () => {
@@ -256,17 +249,19 @@ describe('searching the sheet (#48)', () => {
   });
 
   it('still switches the whole family, including members the search hid', () => {
-    const { onChange } = renderSheet({ categories: withTwoChildren });
+    // 瑜伽 alone is chosen, then the search hides it.
+    const { onChange } = renderSheet({
+      categories: withTwoChildren,
+      filter: { categoryIds: [], subcategoryIds: ['c-yoga'] },
+    });
 
     fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '健身');
     fireEvent.press(screen.getByText('運動'));
 
-    // 瑜伽 is off screen but still in the family: a master switch that only
-    // acted on what the filter shows would leave it visible.
-    expect(onChange).toHaveBeenCalledWith({
-      categoryIds: ['c-sport'],
-      subcategoryIds: ['c-gym', 'c-yoga'],
-    });
+    // 瑜伽 is off screen but still in the family: a switch that only acted
+    // on what the search shows would leave it differing from its Category,
+    // so choosing 運動 would drop it.
+    expect(onChange).toHaveBeenCalledWith({ categoryIds: ['c-sport'], subcategoryIds: [] });
   });
 
   it('does not carry the search text into a Subcategory raised from the editor', () => {
@@ -304,15 +299,16 @@ describe('the manual pass, without a device (#109)', () => {
     expect(screen.queryAllByLabelText('編輯類別')).toHaveLength(0);
     for (const name of ['工作', '運動', '健身房', '美食']) expect(screen.queryByText(name)).toBeNull();
     expect(screen.queryByText('儲存失敗，請再試一次')).toBeNull();
-    // The sheet around it is whole: its header is all there.
-    expect(screen.getByText('全部隱藏')).toBeTruthy();
+    // The sheet around it is whole: its header is all there, and with
+    // nothing to choose there is no 全部 row either.
     expect(screen.getByText('完成')).toBeTruthy();
+    expect(screen.queryByText('全部')).toBeNull();
   });
 
   // CS.17
-  it('brings the whole tree back when the field is cleared, visibility unchanged', () => {
-    const { onChange } = renderSheet({ hidden: { categoryIds: ['c-work'], subcategoryIds: [] } });
-    expect(isHollowRow('工作')).toBe(true);
+  it('brings the whole tree back when the field is cleared, the Filter unchanged', () => {
+    const { onChange } = renderSheet({ filter: { categoryIds: ['c-work'], subcategoryIds: [] } });
+    expect(isHollowRow('工作')).toBe(false);
 
     fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '美食');
     expect(screen.queryByText('工作')).toBeNull();
@@ -322,9 +318,9 @@ describe('the manual pass, without a device (#109)', () => {
       expect(screen.getByText(name)).toBeTruthy();
     }
     expect(screen.getAllByLabelText('編輯類別')).toHaveLength(4);
-    expect(isHollowRow('工作')).toBe(true);
-    expect(isHollowRow('運動')).toBe(false);
-    expect(isHollowRow('美食')).toBe(false);
+    expect(isHollowRow('工作')).toBe(false);
+    expect(isHollowRow('運動')).toBe(true);
+    expect(isHollowRow('美食')).toBe(true);
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -340,16 +336,15 @@ describe('the manual pass, without a device (#109)', () => {
   });
 
   // CS.20
-  it('hides every Category from 全部隱藏 while filtered, not just the matches', () => {
-    const { onChange } = renderSheet();
+  it('clears the whole Filter from 全部 while searching, not just the matches', () => {
+    const { onChange } = renderSheet({
+      filter: { categoryIds: ['c-work', 'c-food'], subcategoryIds: [] },
+    });
 
     fireEvent.changeText(screen.getByPlaceholderText('搜尋類別'), '美食');
-    fireEvent.press(screen.getByText('全部隱藏'));
+    fireEvent.press(screen.getByText('全部'));
 
-    expect(onChange).toHaveBeenCalledWith({
-      categoryIds: ['c-work', 'c-sport', 'c-food'],
-      subcategoryIds: ['c-gym'],
-    });
+    expect(onChange).toHaveBeenCalledWith(noFilter);
   });
 
   // CE.20

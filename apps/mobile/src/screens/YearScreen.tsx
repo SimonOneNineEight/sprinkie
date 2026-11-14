@@ -1,4 +1,3 @@
-import { Tags } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import type { ViewToken } from 'react-native';
@@ -8,6 +7,9 @@ import type { Category } from '../api/client';
 import { getYear } from '../api/client';
 import { CalendarFloatingActions, useFloatingActions } from '../calendar/CalendarFloatingActions';
 import { CategorySheet } from '../calendar/CategorySheet';
+import { CategoriesButton } from '../calendar/CategoriesButton';
+import type { Filter } from '../calendar/filter';
+import { isFiltering, noFilter } from '../calendar/filter';
 import type { HiddenSet } from '../calendar/hidden';
 import { hiddenKey, hiddenParams, nothingHidden } from '../calendar/hidden';
 import { MiniMonth, miniMonthHeight } from '../calendar/MiniMonth';
@@ -32,9 +34,10 @@ type Props = {
   /** Open on this month rather than today's — the month view's zoom-out hands
    * over the month it was showing (#40, sharpened by #51). */
   initialFocus?: { year: number; month: number };
-  /** The persistent hidden-set (#30), owned by HomeScreen. */
+  /** The Filter's complement (#134, ADR-0009), owned by HomeScreen. */
   hidden?: HiddenSet;
-  onChangeHidden?: (hidden: HiddenSet) => void;
+  filter?: Filter;
+  onChangeFilter?: (filter: Filter) => void;
   /** Fired after the 類別 sheet changes a category, so /me refetches. */
   onCategoriesChanged?: () => void;
   /** Bump to refetch every visible year (after a save elsewhere), the shape
@@ -82,7 +85,8 @@ export function YearScreen({
   today = new Date(),
   initialFocus,
   hidden = nothingHidden,
-  onChangeHidden,
+  filter = noFilter,
+  onChangeFilter,
   onCategoriesChanged,
   refresh = 0,
   onOpenMonth,
@@ -237,15 +241,12 @@ export function YearScreen({
                 : strings.year.totalLabel(total)}
             </Text>
           </View>
-          {onChangeHidden ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={strings.categories.title}
+          {onChangeFilter ? (
+            <CategoriesButton
+              filtering={isFiltering(filter, categories)}
               style={styles.navButton}
               onPress={() => setSheetOpen(true)}
-            >
-              <Tags size={20} color={theme.colors.iconDefault} strokeWidth={2} />
-            </Pressable>
+            />
           ) : null}
         </View>
         <FlatList
@@ -313,12 +314,12 @@ export function YearScreen({
           visible={actionsVisible}
           onToday={() => scrollToMonth(thisYear, today.getMonth() + 1)}
         />
-        {sheetOpen && onChangeHidden ? (
+        {sheetOpen && onChangeFilter ? (
           <CategorySheet
             accessToken={accessToken}
             categories={categories}
-            hidden={hidden}
-            onChange={onChangeHidden}
+            filter={filter}
+            onChange={onChangeFilter}
             onCategoriesChanged={() => onCategoriesChanged?.()}
             onClose={() => setSheetOpen(false)}
           />
