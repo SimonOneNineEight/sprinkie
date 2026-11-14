@@ -38,10 +38,10 @@ type Props = {
 // leaving is a right, so 刪除帳號 closes the screen with the grace spelled
 // out.
 // When the running over-the-air update was published (#147), or null while
-// the build runs the code it shipped with. The version alone cannot say: an
-// update keeps its build's version (runtimeVersion follows appVersion). Read
-// in the phone's own time with its offset, so a tester in another zone can
-// be matched exactly against the publish.
+// the build runs the code it shipped with. The version says what the code
+// is; this says which publish it came from, so a tester can be matched to
+// an update even when two share a version. Read in the phone's own time
+// with its offset, so a tester in another zone is matched exactly.
 function runningUpdate(): Published | null {
   const at = Updates.createdAt;
   if (Updates.isEmbeddedLaunch || !at) return null;
