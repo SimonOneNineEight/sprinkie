@@ -214,9 +214,22 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
   day client-side encryption ships, `false` becomes an untrue answer to Apple —
   so whoever implements E2EE flips this and answers the export questions
   properly, rather than inheriting a declaration that was true when written.
+- **New entitlements need an Apple session.** A change that adds a capability
+  (Push Notifications for `expo-notifications`, Sign in with Apple, …) changes
+  the provisioning profile, and EAS can only regenerate it with an Apple ID
+  login; the App Store Connect API key a non-interactive build uses cannot.
+  Builds 6 and 7 (`0.10.0`) failed at signing for this, and Apple answered
+  `403 … A required agreement is missing or has expired` until the updated
+  program agreement was accepted. So: accept any pending agreement at
+  developer.apple.com, then run the production build in a real Terminal (not
+  Claude Code's `!`, which has no TTY) and log in to Apple. Answer **No** to
+  "set up Push Notifications for your project?" (an APNs key, for remote push;
+  the Reminder is local) and yes to syncing capabilities and regenerating the
+  profile.
 - **OTA updates (#57).** `expo-updates` is installed and each build profile
-  carries a channel, so a JS-only fix reaches testers with `pnpm dlx eas-cli@latest update --branch
-  production` instead of a new TestFlight build and another Beta App Review —
+  carries a channel, so a JS-only fix reaches testers with `pnpm publish:update`
+  (from `apps/mobile`) instead of a new TestFlight build and another Beta App
+  Review —
   which works because the `production` channel points at the `production`
   branch; a channel aimed at no branch delivers nothing, silently.
   Two constraints that bite if you forget them:
@@ -224,17 +237,20 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
     #149; `0.9.0` builds were on `appVersion`). An update reaches only builds
     whose native code hashes the same, whatever the version says. `eas update`
     computes the hash on the Mac that publishes, so if it differs from the
-    build's, the update lands on no phone and nothing errors: after the first
-    publish to a new build, confirm it in 設定, and compare with
-    `pnpm dlx eas-cli@latest fingerprint:compare` when it does not arrive.
+    build's, the update lands on no phone and nothing errors. `pnpm
+    publish:update` compares this checkout with the latest finished
+    production build first and refuses, listing the native sources that
+    differ, before `eas update` runs (#151). Publish from the main checkout:
+    a worktree that borrows its `node_modules` through a symlink hashes every
+    native path differently and is always refused.
   - **Native changes never travel over the air.** A new dependency with native
     code, a permission, or anything in `app.json` that lands in `Info.plist`
     needs a fresh build. The fingerprint now keeps such an update off old
     builds, where `appVersion` let it through: on 2026-11-14 an update from
     `main` would have handed build 5 JS that imports `expo-notifications`, a
-    module it does not have, and crashed it on launch. Before publishing,
-    still diff `app.json` and `package.json` against the last build's commit
-    (`eas build:list`), not just the ticket: an update ships all of `main`.
+    module it does not have, and crashed it on launch. An update ships all of
+    `main`, not just the ticket, so a refusal can name a change from an
+    earlier ticket; it means a build is due.
 
   **What a round trip looks like** (first one, #65, 2026-10-06). The update
   "The year view becomes a ribbon" was published with the command above and
