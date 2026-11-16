@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Category } from '../api/client';
 import type { Filter } from '../calendar/filter';
 import { forgetStoredHidden, isFiltering, noFilter } from '../calendar/filter';
+import { OnboardingPrototype, OnboardingReopenPill } from '../onboarding/OnboardingPrototype';
 import { hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
 import { useReminder } from '../reminder/useReminder';
@@ -71,6 +72,8 @@ export function HomeScreen({
     if (hasNoEntries(categories)) setInviteDue(true);
   };
   const inviteFinished = useCallback(() => setInviteDue(false), []);
+  // PROTOTYPE (#139): the Onboarding looks open at launch in dev builds.
+  const [onboarding, setOnboarding] = useState(__DEV__);
 
   useEffect(() => {
     void forgetStoredHidden();
@@ -93,6 +96,10 @@ export function HomeScreen({
   useEffect(() => {
     if (reminderTap) onReminderTapOpened?.();
   }, [reminderTap, onReminderTapOpened]);
+
+  if (__DEV__ && onboarding) {
+    return <OnboardingPrototype categories={categories} onClose={() => setOnboarding(false)} />;
+  }
 
   if (route.name === 'day') {
     return (
@@ -168,6 +175,7 @@ export function HomeScreen({
           onOpenYear={(year, month) => setRoute({ name: 'year', focus: { year, month } })}
         />
         {inviteDue ? <ReminderInvite onFinished={inviteFinished} /> : null}
+        {__DEV__ ? <OnboardingReopenPill onPress={() => setOnboarding(true)} /> : null}
       </View>
     </SafeAreaView>
   );
