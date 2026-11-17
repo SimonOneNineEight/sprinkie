@@ -788,6 +788,31 @@ case says otherwise.
 | RM.36 | Open + on yesterday, write nothing, then tap the Reminder from Notification Center | The form switches to today **[auto]** |
 | RM.37 | Open + on yesterday, from the month view and again from yesterday's day view, type a title, then tap the Reminder | The form stays on yesterday, the title still there **[auto]** |
 
+### OB — Onboarding
+
+Needs an account with no Entries. Sign up a new one, then sign in on a
+phone where it has never been signed in before: the "done" mark is per
+account and per phone.
+
+| # | Case | Expected |
+| --- | --- | --- |
+| OB.1 | Sign in to the new account | Page 1 of the Onboarding instead of the month view: the sample line on a white card, three dots, 一天一行，就好。, 下一步 alone at the bottom and 略過 top right **[auto]** |
+| OB.2 | 下一步, 下一步, 返回 | Page 2, page 3, then page 2 again; the dots follow, and page 3's line reads 那些以為平凡的日子，其實都很精彩。 **[auto]** |
+| OB.3 | On page 2, tap 美食, then tap it again | Only 美食's days keep dots and the other chips go hollow; the second tap brings every day back **[auto]** |
+| OB.4 | On page 1 or 2, tap 略過 | Page 4 **[auto]** |
+| OB.5 | Look at page 4 | Today's month faded at the top, a sheet below it: 寫下第一個生活片段 and today's date, the field with 今天下班去吃了好吃的拉麵 🍜 as a placeholder, the Starter Categories on one row, 稍後再寫 and 收藏這一刻 side by side. No Note, Photos or 子類別 |
+| OB.6 | Type past three lines | The field stops at 80 characters and scrolls inside three lines; the counter reads 80/80 |
+| OB.7 | Pick a Category | Today's dot in the faded month takes its color; 收藏這一刻 enables once there is a Title too |
+| OB.8 | Tap 收藏這一刻 | The month view on today, today's color showing; then 第一個生活片段，收藏好了。 and the Reminder invite (RM.21) **[API]** **[auto]** |
+| OB.9 | After OB.8, force-quit and open Sprinkie | The month view; the Onboarding never comes back **[auto]** |
+| OB.10 | On a second new account, reach page 4 and tap 稍後再寫 | The month view, nothing written and no first-save line; it never comes back, and the first Entry saved later plays RM.21 **[auto]** |
+| OB.11 | On a third new account, force-quit on page 2 or on page 4 with a Title typed, then open Sprinkie | Page 1 again **[auto]** |
+| OB.12 | Turn on airplane mode on page 4 and tap 收藏這一刻 | 儲存失敗，請再試一次 under the field; the Title and Category stay. Airplane mode off, 收藏這一刻 again saves one Entry **[auto]** |
+| OB.13 | Sign in to an account that already has Entries | The month view, no Onboarding, now or after deleting every Entry **[auto]** |
+| OB.14 | 登出 after OB.10 and sign up a fourth account on the same phone | It meets the Onboarding: the mark is per account **[auto]** |
+| OB.15 | Look at pages 1–4 against variant B on `prototype/onboarding` | The same layout, with page 4's Categories on one row |
+| OB.16 | Switch 語言 to English and repeat OB.1–OB.5 with a new account | Every page in English, nothing clipped **[#37]** |
+
 ### AX — Accessibility
 
 | # | Case | Expected |
@@ -1025,4 +1050,15 @@ the tag.
 | RM.49 | `AppRoot.test.tsx` |
 | RM.50 | `AppRoot.test.tsx` |
 | RM.52 | `AppRoot.test.tsx` |
+| OB.1 | `AppRoot.test.tsx` |
+| OB.2 | `AppRoot.test.tsx` |
+| OB.3 | `AppRoot.test.tsx` |
+| OB.4 | `AppRoot.test.tsx` |
+| OB.8 | `AppRoot.test.tsx` |
+| OB.9 | `AppRoot.test.tsx` |
+| OB.10 | `AppRoot.test.tsx` |
+| OB.11 | `AppRoot.test.tsx` |
+| OB.12 | `AppRoot.test.tsx` |
+| OB.13 | `AppRoot.test.tsx` |
+| OB.14 | `AppRoot.test.tsx` |
 | AX.6 | `screens/MonthScreen.test.tsx` |

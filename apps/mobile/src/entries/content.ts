@@ -20,3 +20,11 @@ export function decodeContent(blob: string): EntryContent | null {
     return null;
   }
 }
+
+// The title never holds a newline (#115): a line break pasted in, or
+// carried by an older title (the PM's journal was imported from Numbers,
+// whose cells can hold one), becomes a space. A restored Draft decodes
+// through the same initial title, so it is cleaned too.
+export function oneLine(text: string) {
+  return text.replace(/\r\n|[\r\n\u2028\u2029]/g, ' ');
+}

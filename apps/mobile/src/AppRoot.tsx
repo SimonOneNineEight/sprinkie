@@ -34,6 +34,9 @@ export function AppRoot() {
   // every 30s.
   const [retryTick, setRetryTick] = useState(0);
   const failedInARow = useRef(0);
+  // Whether the latest /me failed, so the Onboarding's decision (#139),
+  // which waits on /me, can give up on it for this launch.
+  const [worldFailed, setWorldFailed] = useState(false);
   // A tap on a Reminder (#140), waiting for the signed-in home to open the
   // Entry form for the day it was tapped on.
   const [reminderTap, setReminderTap] = useState<{ date: string } | null>(null);
@@ -51,6 +54,7 @@ export function AppRoot() {
       .then((me) => {
         if (!active) return;
         failedInARow.current = 0;
+        setWorldFailed(false);
         setWorld({ userId, me });
         setDeactivated(false);
       })
@@ -62,6 +66,7 @@ export function AppRoot() {
         // One report per outage, not one per retry.
         if (failedInARow.current === 0) Sentry.captureException(error);
         if (!active) return;
+        setWorldFailed(true);
         const delay = Math.min(2000 * 2 ** failedInARow.current, 30000);
         failedInARow.current += 1;
         retry = setTimeout(() => setRetryTick((n) => n + 1), delay);
@@ -111,6 +116,8 @@ export function AppRoot() {
     <ReminderProvider accessToken={session.access_token}>
       <HomeScreen
         accessToken={session.access_token}
+        userId={session.user.id}
+        world={me !== null ? 'ready' : worldFailed ? 'failed' : 'pending'}
         categories={me?.categories ?? []}
         onCategoriesChanged={() => setWorldVersion((v) => v + 1)}
         reminderTap={reminderTap}

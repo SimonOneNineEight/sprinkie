@@ -63,6 +63,8 @@ export type MockFailures = {
   monthReads: boolean;
   yearReads: boolean;
   dayReads: boolean;
+  /** GET /me fails as a network throw (#139's offline launch). */
+  meReads: boolean;
   health?: 'reject' | 'unhealthy';
 };
 
@@ -100,6 +102,7 @@ export function installMockApi(
     monthReads: false,
     yearReads: false,
     dayReads: false,
+    meReads: false,
     ...setup.failures,
   };
   // The server's idempotency memory (#17): the first 201 per key replays
@@ -151,6 +154,7 @@ export function installMockApi(
     }
     if (u.endsWith('/me') && method === 'DELETE') return ok({}, 204);
     if (u.endsWith('/me')) {
+      if (failures.meReads) network();
       if (world.deactivated) {
         return { ok: false, status: 403, json: async () => ({ message: 'account is deactivated' }) };
       }
