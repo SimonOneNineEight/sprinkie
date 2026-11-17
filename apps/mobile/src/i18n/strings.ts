@@ -128,8 +128,8 @@ const zhTW = {
   },
   // The Onboarding (#139): pages 1–3 introduce the app on made-up data,
   // page 4 writes the first Entry. Copy says 類別, never 標籤. The lines
-  // under the page 1 and 2 headlines and page 4's heading are placeholders
-  // until the PM confirms them.
+  // under the page 1 and 2 headlines and page 4's heading were written for
+  // the prototype and approved on 2026-11-16.
   onboarding: {
     next: '下一步',
     back: '返回',
