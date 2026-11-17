@@ -25,12 +25,12 @@ const VARIANTS = [
   { key: 'B', name: 'B · 卡片 swipe cards' },
   { key: 'C', name: 'C · 舞台 one live calendar' },
 ] as const;
-let lastVariant = 0;
+let lastVariant = 1; // round 2: B is chosen
 
 const COPY = [
   { title: '一天一行，就好。', body: '不用寫很多，記下今天的一件小事。' },
   { title: '想看看最近都做了什麼？', body: '點一個類別，只看那些日子。' },
-  { title: '原來，生活比想像中豐富。', body: '一年下來，每一格都是你。' },
+  { title: '原來，生活比想像中豐富。', body: '回頭看，每個顏色都是記下的一天。' },
   { title: '寫下第一個生活片段', body: '' },
 ];
 const PLACEHOLDER = '今天下班去吃了好吃的拉麵 🍜';
@@ -231,6 +231,32 @@ function CategoryTiles({ categories, value, onChange }: { categories: Category[]
   );
 }
 
+// Round 2 (#139): B is chosen; its Categories sit on one line. Five (a new
+// account's Starter Categories) share the width; more scroll sideways with
+// the next one peeking in.
+function CategoryRow({ categories, value, onChange }: { categories: Category[]; value: string | null; onChange: (id: string) => void }) {
+  const top = useTopLevel(categories);
+  const fits = top.length <= 5;
+  const tiles = top.map((c) => {
+    const on = value === c.id;
+    return (
+      <Pressable key={c.id} onPress={() => onChange(c.id)} style={[styles.tile, fits ? { flex: 1, width: undefined } : { width: 68 }, on && { borderColor: theme.colors.ink }]}>
+        <CategoryIcon icon={c.icon} color={c.color} size={36} />
+        <Text style={styles.tileText} numberOfLines={1}>
+          {c.name}
+        </Text>
+      </Pressable>
+    );
+  });
+  return fits ? (
+    <View style={{ flexDirection: 'row', gap: 6, marginTop: 16 }}>{tiles}</View>
+  ) : (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} style={{ marginTop: 16, marginHorizontal: -20 }} contentInset={{ left: 20, right: 20 }} contentOffset={{ x: -20, y: 0 }}>
+      {tiles}
+    </ScrollView>
+  );
+}
+
 function TitleField({ value, onChange, style }: { value: string; onChange: (s: string) => void; style?: object }) {
   return (
     <View>
@@ -339,7 +365,7 @@ function LookB({ nav, categories }: LookProps) {
               <Text style={[styles.headline, { textAlign: 'center', fontSize: 22, lineHeight: 30 }]}>{COPY[3].title}</Text>
               <Text style={[styles.meta, { textAlign: 'center', marginTop: 4 }]}>{todayLabel}</Text>
               <TitleField value={p4.title} onChange={p4.setTitle} style={[styles.boxedInput, { marginTop: 20 }]} />
-              <CategoryTiles categories={categories} value={p4.categoryId} onChange={p4.setCategoryId} />
+              <CategoryRow categories={categories} value={p4.categoryId} onChange={p4.setCategoryId} />
             </ScrollView>
             <View style={styles.bRow}>
               <Pressable onPress={nav.done} style={[styles.secondary, { flex: 1 }]}>
