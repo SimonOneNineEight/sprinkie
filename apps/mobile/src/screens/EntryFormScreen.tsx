@@ -25,7 +25,7 @@ import { CategoryIcon } from '../calendar/CategoryIcon';
 import { dateHeading } from '../calendar/dateLabel';
 import { DatePickerSheet } from '../calendar/DatePickerSheet';
 import { CategoryEditorSheet } from '../categories/CategoryEditorSheet';
-import { decodeContent, encodeContent } from '../entries/content';
+import { decodeContent, encodeContent, oneLine } from '../entries/content';
 import type { EntryDraft } from '../entries/drafts';
 import { newDraftId } from '../entries/drafts';
 import { saveEntry } from '../entries/save';
@@ -79,14 +79,6 @@ export type OpenForm = { date: string; dirty: boolean };
 // the server — it lives inside the opaque content blob the server never
 // parses (ADR-0004). With an entry prop the form edits instead of creating.
 // Photos arrive with #8.
-// The title never holds a newline (#115): a line break pasted in, or
-// carried by an older title (the PM's journal was imported from Numbers,
-// whose cells can hold one), becomes a space. A restored Draft decodes
-// through the same initial title, so it is cleaned too.
-function oneLine(text: string) {
-  return text.replace(/\r\n|[\r\n\u2028\u2029]/g, ' ');
-}
-
 export function EntryFormScreen({
   accessToken,
   date: openedFor,

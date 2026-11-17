@@ -6,6 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Category } from '../api/client';
 import type { Filter } from '../calendar/filter';
 import { forgetStoredHidden, isFiltering, noFilter } from '../calendar/filter';
+import { localDateString } from '../calendar/monthMath';
+import { Onboarding } from '../onboarding/Onboarding';
+import { useOnboardingDecision } from '../onboarding/useOnboardingDecision';
 import { hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
 import { useReminder } from '../reminder/useReminder';
@@ -19,6 +22,10 @@ import { YearScreen } from './YearScreen';
 
 type Props = {
   accessToken: string;
+  /** The signed-in account, whose Onboarding mark this phone keeps (#139). */
+  userId: string;
+  /** Where /me stands: the Onboarding waits on it to know the account is new. */
+  world: 'pending' | 'ready' | 'failed';
   categories: Category[];
   onCategoriesChanged?: () => void;
   /** A tapped Reminder (#140): open the Entry form for its date. */
@@ -38,6 +45,8 @@ type Route =
 // this switch when the screen graph outgrows it.
 export function HomeScreen({
   accessToken,
+  userId,
+  world,
   categories,
   onCategoriesChanged,
   reminderTap,
@@ -72,6 +81,13 @@ export function HomeScreen({
   };
   const inviteFinished = useCallback(() => setInviteDue(false), []);
 
+  // The Onboarding (#139), shown instead of everything else while due.
+  const onboarding = useOnboardingDecision(userId, world, categories);
+  const leaveOnboarding = () => {
+    onboarding.finish();
+    setRoute({ name: 'month', focus: focusOn(localDateString(new Date())) });
+  };
+
   useEffect(() => {
     void forgetStoredHidden();
   }, []);
@@ -93,6 +109,24 @@ export function HomeScreen({
   useEffect(() => {
     if (reminderTap) onReminderTapOpened?.();
   }, [reminderTap, onReminderTapOpened]);
+
+  if (onboarding.decision === 'undecided') {
+    return <View style={styles.screen} />;
+  }
+  if (onboarding.decision === 'show') {
+    return (
+      <Onboarding
+        accessToken={accessToken}
+        categories={categories}
+        onSaved={() => {
+          leaveOnboarding();
+          // The first Entry: today's color, then the line and the invite (#138).
+          entrySaved();
+        }}
+        onLater={leaveOnboarding}
+      />
+    );
+  }
 
   if (route.name === 'day') {
     return (

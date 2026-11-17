@@ -6,7 +6,7 @@ import 'react-native-gesture-handler/jestSetup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { ActionSheetIOS, Alert, AppState, Linking } from 'react-native';
+import { ActionSheetIOS, Alert, AppState, Linking, StyleSheet } from 'react-native';
 import { State } from 'react-native-gesture-handler';
 import { fireGestureHandler, getByGestureTestId } from 'react-native-gesture-handler/jest-utils';
 
@@ -14,13 +14,15 @@ import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
 import { AppLanguageProvider } from './i18n/AppLanguageProvider';
 import { processPhoto } from './photos/processPhoto';
-import { saveDraft } from './entries/drafts';
+import { listDrafts, saveDraft } from './entries/drafts';
 import { lineFadeMs, pointerFadeMs } from './reminder/ReminderInvite';
 import { fakeNotifications } from './testing/fakeNotifications';
 import { cat } from './testing/fixtures';
 import { isHollowRow } from './testing/isHollowRow';
 import { installMockApi, type MockApi, type MockEntry } from './testing/mockApi';
 import { ribbonSpan, rowOfMonth } from './calendar/ribbon';
+import { markOnboardingDone } from './onboarding/onboardingMark';
+import { theme } from './theme';
 import { AppRoot } from './AppRoot';
 
 type MockSession = { access_token: string; user: { id: string } };
@@ -85,10 +87,24 @@ jest.mock('expo-apple-authentication', () => ({
 
 let api: MockApi;
 
-beforeEach(() => {
+// Most suites sign in to worlds whose Categories report no Entries, which
+// is a new account to the Onboarding (#139). Their accounts are done with
+// it on this phone; the Onboarding's own suite starts from a bare phone.
+const accounts = ['u1', 'u2', 'u-new'];
+const finishOnboarding = async () => {
+  for (const id of accounts) await markOnboardingDone(id);
+};
+/** A cleared phone, its accounts still done with the Onboarding. */
+const resetPhone = async () => {
+  await AsyncStorage.clear();
+  await finishOnboarding();
+};
+
+beforeEach(async () => {
   mockAuthState.listeners.length = 0;
   mockAuthState.session = null;
   api = installMockApi();
+  await finishOnboarding();
 });
 
 afterEach(() => {
@@ -322,7 +338,7 @@ it('loads the world once the network returns after an offline launch, so a kept 
   // The failed /me retries on a 2s timer, which the test moves on by hand.
   jest.useFakeTimers();
   // J5.3: relaunched in airplane mode, with a draft kept from the failed save.
-  await AsyncStorage.clear();
+  await resetPhone();
   api.restore();
   api = installMockApi({ me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] } });
   await saveDraft({
@@ -400,7 +416,7 @@ it('colors the month dots once /me answers, after a launch whose first /me faile
 });
 
 it('fills a draft opened before a slow /me answered, once it does (#100)', async () => {
-  await AsyncStorage.clear();
+  await resetPhone();
   api.restore();
   api = installMockApi({ me: { userId: 'u1', journalId: 'j1', categories: [{ ...cat.sport, position: 1 }] } });
   await saveDraft({
@@ -620,7 +636,7 @@ describe('the Entry view (#119)', () => {
   };
 
   beforeEach(async () => {
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   it('opens from a card, while a Draft row still opens the form', async () => {
@@ -998,12 +1014,12 @@ describe('the manual pass, without a device (#109)', () => {
   };
 
   beforeEach(async () => {
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   afterEach(async () => {
     // The language override persists, and #30's hidden-set did; neither may leak.
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   // CS.13
@@ -1176,12 +1192,12 @@ describe('the Reminder in 設定 (#136)', () => {
   beforeEach(async () => {
     jest.useFakeTimers({ now: morning, doNotFake: [...allButDate] });
     fakeNotifications.reset();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   afterEach(async () => {
     jest.useRealTimers();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   it("asks once when switched on, then schedules a Reminder a day at 21:00 with the PM's copy", async () => {
@@ -1593,12 +1609,12 @@ describe('no Reminder on a day that already holds an Entry (#137)', () => {
   beforeEach(async () => {
     jest.useFakeTimers({ now: morning, doNotFake: [...allButDate] });
     fakeNotifications.reset();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   afterEach(async () => {
     jest.useRealTimers();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   it("removes today's Reminder once an Entry dated today is saved, and keeps tomorrow's", async () => {
@@ -1872,12 +1888,12 @@ describe('tapping a Reminder (#140)', () => {
   beforeEach(async () => {
     jest.useFakeTimers({ now: evening, doNotFake: [...allButDate] });
     fakeNotifications.reset();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   afterEach(async () => {
     jest.useRealTimers();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   it("opens today's Entry form when tapped with Sprinkie closed, and 取消 lands on today's month view", async () => {
@@ -2174,12 +2190,12 @@ describe('the Reminder invite after a first Entry (#138)', () => {
   beforeEach(async () => {
     jest.useFakeTimers({ now: morning });
     fakeNotifications.reset();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   afterEach(async () => {
     jest.useRealTimers();
-    await AsyncStorage.clear();
+    await resetPhone();
   });
 
   it("shows the line, then the sheet with the wheel at 21:00, after a zero-Entry account's first save", async () => {
@@ -2558,5 +2574,326 @@ describe('the Reminder invite after a first Entry (#138)', () => {
     await saveEntry('夜跑');
     await settle();
     expect(screen.queryByText(firstSaveLine)).toBeNull();
+  });
+});
+
+// The Onboarding (#139): a zero-Entry account's first launch after sign-in,
+// pages 1–3 introducing the app on made-up data, page 4 writing the first
+// Entry. Seen until page 4 is left (a save or 稍後再寫), per account per phone.
+describe('the Onboarding (#139)', () => {
+  const page1 = '一天一行，就好。';
+  const page2 = '想看看最近都做了什麼？';
+  const page3 = '原來，生活比想像中豐富。';
+  const page4 = '寫下第一個生活片段';
+  const placeholder = '今天下班去吃了好吃的拉麵 🍜';
+  const firstSaveLine = '第一個生活片段，收藏好了。';
+
+  /** Signs `userId` in on a world whose Category reports `inUse`. */
+  const launch = ({ userId = 'u1', inUse = false, failures = {} } = {}) => {
+    mockAuthState.session = { access_token: 'token-1', user: { id: userId } };
+    api.restore();
+    api = installMockApi({
+      me: {
+        userId,
+        journalId: 'j1',
+        categories: [
+          { ...cat.work, position: 1, inUse },
+          { ...cat.sport, position: 2, inUse: false },
+        ],
+      },
+      failures,
+    });
+    return render(<AppRoot />);
+  };
+  /** Kills the app and opens it again, signed in as the same account. */
+  const relaunch = (options: Parameters<typeof launch>[0] = {}) => {
+    screen.unmount();
+    return launch(options);
+  };
+  const press = async (label: string) => {
+    await act(async () => {
+      fireEvent.press(screen.getByText(label));
+    });
+  };
+  const keep = () => screen.getByRole('button', { name: '收藏這一刻' });
+  /** 登出 through 設定, back to the sign-in screen. */
+  const signOut = async () => {
+    fireEvent.press(await screen.findByLabelText('設定'));
+    await act(async () => {
+      fireEvent.press(await screen.findByText('登出'));
+    });
+    await screen.findByText('每天五分鐘，留下你的生活');
+  };
+  /** Another account, without Entries, signs in on this phone. */
+  const signInAnother = (userId: string) => {
+    api.restore();
+    api = installMockApi({
+      me: { userId, journalId: 'j2', categories: [{ ...cat.sport, position: 1, inUse: false }] },
+    });
+    const session = { access_token: 'token-2', user: { id: userId } };
+    mockAuthState.session = session;
+    act(() => mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session)));
+  };
+
+  beforeEach(async () => {
+    fakeNotifications.reset();
+    await AsyncStorage.clear();
+  });
+
+  afterEach(async () => {
+    await resetPhone();
+  });
+
+  it('opens on page 1 for a zero-Entry account, and pages through with 下一步 and 返回', async () => {
+    launch();
+
+    expect(await screen.findByText(page1)).toBeTruthy();
+    expect(screen.queryByLabelText('新增紀錄')).toBeNull();
+    expect(screen.getByLabelText('第 1 頁，共 3 頁')).toBeTruthy();
+    // The sample line on its card, and 略過.
+    expect(screen.getByText(placeholder)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '略過' })).toBeTruthy();
+    // Page 1 has nothing to go back to.
+    expect(screen.queryByText('返回')).toBeNull();
+
+    await press('下一步');
+    expect(screen.getByText(page2)).toBeTruthy();
+    expect(screen.getByLabelText('第 2 頁，共 3 頁')).toBeTruthy();
+    await press('下一步');
+    expect(screen.getByText(page3)).toBeTruthy();
+    expect(screen.getByText('那些以為平凡的日子，其實都很精彩。')).toBeTruthy();
+    await press('返回');
+    expect(screen.getByText(page2)).toBeTruthy();
+    await press('下一步');
+    await press('下一步');
+    expect(screen.getByText(page4)).toBeTruthy();
+    // The sample Journal is for show only.
+    expect(api.entryPosts()).toEqual([]);
+  });
+
+  it("page 2's chips light up one sample Category's days, and a second tap shows them all", async () => {
+    // Late in a month, so the sample has days enough for every Category.
+    jest.useFakeTimers({ now: new Date(2026, 10, 24, 9, 30) });
+    launch();
+    await screen.findByText(page1);
+    await press('下一步');
+
+    // What the sample month paints: every dot's color.
+    const painted = () =>
+      screen.getAllByTestId('day-dot').map((dot) => StyleSheet.flatten(dot.props.style).backgroundColor);
+    const all = painted();
+    expect(new Set(all).size).toBeGreaterThan(1);
+
+    // Whether a chip's icon is filled in its color, rather than hollow.
+    const filled = (name: string, color: string) => {
+      let chip = screen.getByText(name);
+      while (chip.props.accessibilityRole !== 'button') chip = chip.parent!;
+      return chip.findAll(
+        (node) =>
+          typeof node.type === 'string' &&
+          (StyleSheet.flatten(node.props.style) as { backgroundColor?: string } | undefined)?.backgroundColor === color,
+      ).length > 0;
+    };
+    expect(filled('工作', theme.categories.blue.base)).toBe(true);
+
+    await press('美食');
+    expect(filled('美食', theme.categories.orange.base)).toBe(true);
+    expect(filled('工作', theme.categories.blue.base)).toBe(false);
+    const food = painted();
+    expect(food.length).toBeGreaterThan(0);
+    expect(food.length).toBeLessThan(all.length);
+    expect(new Set(food)).toEqual(new Set([theme.categories.orange.base]));
+
+    await press('美食');
+    expect(painted()).toEqual(all);
+    expect(filled('工作', theme.categories.blue.base)).toBe(true);
+  });
+
+  it('略過 goes straight to page 4 from any introduction page', async () => {
+    launch();
+    await screen.findByText(page1);
+    await press('略過');
+    expect(screen.getByText(page4)).toBeTruthy();
+
+    relaunch();
+    await screen.findByText(page1);
+    await press('下一步');
+    await press('略過');
+    expect(screen.getByText(page4)).toBeTruthy();
+
+    relaunch();
+    await screen.findByText(page1);
+    await press('下一步');
+    await press('下一步');
+    await press('略過');
+    expect(screen.getByText(page4)).toBeTruthy();
+  });
+
+  it('never shows to an account that holds Entries, even after it deletes them all', async () => {
+    launch({ inUse: true });
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(screen.queryByText(page1)).toBeNull();
+
+    // Every Entry deleted since: the account is still not new on this phone.
+    relaunch({ inUse: false });
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(screen.queryByText(page1)).toBeNull();
+  });
+
+  it('starts again from page 1 on the next launch when left before page 4 is done', async () => {
+    launch();
+    await screen.findByText(page1);
+    await press('下一步');
+    expect(screen.getByText(page2)).toBeTruthy();
+
+    relaunch();
+    expect(await screen.findByText(page1)).toBeTruthy();
+    await press('略過');
+    fireEvent.changeText(screen.getByPlaceholderText(placeholder), '晨跑');
+
+    relaunch();
+    expect(await screen.findByText(page1)).toBeTruthy();
+  });
+
+  it('writes the first Entry for today, then the month reloads and plays the first-save line and the invite, once', async () => {
+    // Every timer faked, as in the invite's own suite: the line's fade runs
+    // on the test's clock. A morning, so today's Reminder time is ahead.
+    jest.useFakeTimers({ now: new Date(2026, 10, 10, 9, 30) });
+    launch();
+    await screen.findByText(page1);
+    await press('略過');
+
+    // Both a Title and a Category are needed.
+    expect(keep()).toBeDisabled();
+    fireEvent.changeText(screen.getByPlaceholderText(placeholder), '晨跑\n去河濱');
+    expect(keep()).toBeDisabled();
+    expect(screen.getByPlaceholderText(placeholder).props.maxLength).toBe(80);
+    expect(screen.getByText('6/80')).toBeTruthy();
+    await press('運動');
+    expect(keep()).toBeEnabled();
+    await press('收藏這一刻');
+
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(api.entryPosts()).toHaveLength(1);
+    const body = JSON.parse(api.entryPosts()[0][1]?.body ?? '');
+    expect(body.date).toBe(localDateString(new Date()));
+    expect(body.categoryId).toBe('c-sport');
+    expect(body.content).toBe(encodeContent({ title: '晨跑 去河濱', note: '' }));
+    // The month asked for again after the save, so today's color shows.
+    const calls = api.calls().map(([u, init]) => `${init?.method ?? 'GET'} ${String(u)}`);
+    const posted = calls.findIndex((c) => c.startsWith('POST') && c.endsWith('/entries'));
+    expect(calls.slice(posted + 1).some((c) => c.includes('/months/2026-11'))).toBe(true);
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    await act(async () => {
+      jest.advanceTimersByTime(lineFadeMs);
+    });
+    expect(screen.getByText('要不要每天提醒你記一行？')).toBeTruthy();
+    await press('先不用');
+
+    relaunch();
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(screen.queryByText(page1)).toBeNull();
+  });
+
+  it('稍後再寫 goes to the month view with nothing written and no first-save line, for good', async () => {
+    launch();
+    await screen.findByText(page1);
+    await press('略過');
+    await press('稍後再寫');
+
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(api.entryPosts()).toEqual([]);
+    expect(screen.queryByText(firstSaveLine)).toBeNull();
+
+    relaunch();
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(screen.queryByText(page1)).toBeNull();
+
+    // The first Entry, written later from +, still gets the first-save line.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    await press('運動');
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await press('儲存');
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+  });
+
+  it('a failed save keeps what was typed, and 收藏這一刻 retries it', async () => {
+    launch();
+    await screen.findByText(page1);
+    await press('略過');
+    fireEvent.changeText(screen.getByPlaceholderText(placeholder), '晨跑');
+    await press('運動');
+    api.failures.entryWrites = true;
+
+    await press('收藏這一刻');
+
+    expect(await screen.findByText('儲存失敗，請再試一次')).toBeTruthy();
+    expect(screen.getByText(page4)).toBeTruthy();
+    expect(screen.getByPlaceholderText(placeholder).props.value).toBe('晨跑');
+    expect(keep()).toBeEnabled();
+
+    api.failures.entryWrites = false;
+    await press('收藏這一刻');
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    // The retry replays the same key, so one Entry exists.
+    const keys = api.entryPosts().map(([, init]) => JSON.parse(init?.body ?? '').idempotencyKey);
+    expect(new Set(keys).size).toBe(1);
+  });
+
+  it("a save that failed before a relaunch is waiting on page 4, and its retry leaves no Draft behind", async () => {
+    launch();
+    await screen.findByText(page1);
+    await press('略過');
+    fireEvent.changeText(screen.getByPlaceholderText(placeholder), '晨跑');
+    await press('運動');
+    api.failures.entryWrites = true;
+    await press('收藏這一刻');
+    await screen.findByText('儲存失敗，請再試一次');
+    const failedKey = JSON.parse(api.entryPosts()[0][1]?.body ?? '').idempotencyKey;
+
+    // Killed and reopened: the Onboarding starts over, page 4 holds the try.
+    relaunch();
+    await screen.findByText(page1);
+    await press('略過');
+    await waitFor(() => expect(screen.getByPlaceholderText(placeholder).props.value).toBe('晨跑'));
+    expect(keep()).toBeEnabled();
+
+    await press('收藏這一刻');
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(JSON.parse(api.entryPosts()[0][1]?.body ?? '').idempotencyKey).toBe(failedKey);
+    expect(await listDrafts(localDateString(new Date()))).toEqual([]);
+  });
+
+  it('a second account signing in on the same phone after 登出 still meets it', async () => {
+    launch({ userId: 'u1' });
+    await screen.findByText(page1);
+    await press('略過');
+    await press('稍後再寫');
+    await screen.findByLabelText('新增紀錄');
+    await signOut();
+
+    signInAnother('u2');
+    expect(await screen.findByText(page1)).toBeTruthy();
+  });
+
+  it("offers it to the next account after 登出, whatever the last account's /me did", async () => {
+    // The first account's /me never answered, so it skipped the Onboarding.
+    launch({ failures: { meReads: true } });
+    await screen.findByLabelText('新增紀錄');
+    await signOut();
+
+    signInAnother('u2');
+    expect(await screen.findByText(page1)).toBeTruthy();
+  });
+
+  it('opens the month view when /me cannot be reached, and offers it on a later launch', async () => {
+    launch({ failures: { meReads: true } });
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(screen.queryByText(page1)).toBeNull();
+
+    relaunch();
+    expect(await screen.findByText(page1)).toBeTruthy();
   });
 });

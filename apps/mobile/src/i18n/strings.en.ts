@@ -138,6 +138,23 @@ export const en: StringCatalog = {
     turnOn: 'Set Reminder',
     laterInSettings: 'You can turn on the daily reminder in Settings later.',
   },
+  onboarding: {
+    next: 'Next',
+    back: 'Back',
+    skip: 'Skip',
+    pages: [
+      { title: 'One line a day, that is enough.', body: 'No need to write much. Note one small thing from today.' },
+      { title: 'Want to see what you have been up to?', body: 'Tap a category to see only those days.' },
+      { title: 'Life turns out richer than you thought.', body: 'The days you thought were ordinary were full of moments.' },
+    ],
+    progress: (page: number, total: number) => `Page ${page} of ${total}`,
+    sampleLine: 'Had great ramen after work today 🍜',
+    sampleCategories: { work: 'Work', food: 'Food', move: 'Exercise', friends: 'Friends', read: 'Reading' },
+    firstEntryTitle: 'Write your first moment',
+    titleCount: (n: number, max: number) => `${n}/${max}`,
+    keep: 'Keep This Moment',
+    later: 'Write Later',
+  },
   month: {
     title: (month: number) => monthsFull[month - 1],
     accessibleTitle: (year: number, month: number) => `${monthsFull[month - 1]} ${year}`,

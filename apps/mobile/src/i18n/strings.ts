@@ -126,6 +126,28 @@ const zhTW = {
     // Notifications already blocked: the sheet closes with this pointer.
     laterInSettings: '之後可以到設定開啟每日提醒。',
   },
+  // The Onboarding (#139): pages 1–3 introduce the app on made-up data,
+  // page 4 writes the first Entry. Copy says 類別, never 標籤. The lines
+  // under the page 1 and 2 headlines and page 4's heading were written for
+  // the prototype and approved on 2026-11-16.
+  onboarding: {
+    next: '下一步',
+    back: '返回',
+    skip: '略過',
+    pages: [
+      { title: '一天一行，就好。', body: '不用寫很多，記下今天的一件小事。' },
+      { title: '想看看最近都做了什麼？', body: '點一個類別，只看那些日子。' },
+      { title: '原來，生活比想像中豐富。', body: '那些以為平凡的日子，其實都很精彩。' },
+    ],
+    progress: (page: number, total: number) => `第 ${page} 頁，共 ${total} 頁`,
+    // Page 1's sample line, and page 4's placeholder.
+    sampleLine: '今天下班去吃了好吃的拉麵 🍜',
+    sampleCategories: { work: '工作', food: '美食', move: '運動', friends: '朋友', read: '閱讀' },
+    firstEntryTitle: '寫下第一個生活片段',
+    titleCount: (n: number, max: number) => `${n}/${max}`,
+    keep: '收藏這一刻',
+    later: '稍後再寫',
+  },
   month: {
     title: (month: number) => `${month}月`,
     // The title as VoiceOver reads it: the year sits in a separate label (#18).
