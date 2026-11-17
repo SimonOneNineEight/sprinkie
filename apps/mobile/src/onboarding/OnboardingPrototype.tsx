@@ -559,7 +559,7 @@ const styles = createStyles((t) => ({
   bCard: {
     marginHorizontal: 20,
     marginTop: 8,
-    height: 400,
+    minHeight: 400,
     borderRadius: t.radius.sheet,
     backgroundColor: t.colors.surface,
     padding: 16,
