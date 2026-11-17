@@ -205,7 +205,8 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
   - **After launch** every App Store release needs a higher version than the
     last one Apple released.
   - **TestFlight shows the build's version, 設定 the running code's.** After a
-    `0.11.0` update to a `0.10.0` build the two differ; 設定 is the truth.
+    `0.11.1` update to a `0.11.0` build the two differ; 設定 is the truth.
+    This works because the fingerprint leaves the version out (#154).
 - **Export compliance.** ADR-0004 confirms there is no client-side encryption,
   only TLS, which is exempt — so `app.json` declares
   `ITSAppUsesNonExemptEncryption: false`. Without it every single upload stops
@@ -237,7 +238,13 @@ Tell the PM to skip the year view. #51 replaces that surface outright.
     #149; `0.9.0` builds were on `appVersion`). An update reaches only builds
     whose native code hashes the same, whatever the version says. `eas update`
     computes the hash on the Mac that publishes, so if it differs from the
-    build's, the update lands on no phone and nothing errors. `pnpm
+    build's, the update lands on no phone and nothing errors.
+    `apps/mobile/fingerprint.config.js` (#154) keeps out of the hash what is
+    not native: `expo.version`, the `package.json` scripts, and a local
+    prebuilt `ios/` or `android/`. Without it each version bump and each new
+    script needed a build: 0.11.0 and #151's `publish:update` script both cut
+    build 8 off. A change to that file changes the hash itself, so it ships
+    in a build. `pnpm
     publish:update` compares this checkout with the latest finished
     production build first and refuses, listing the native sources that
     differ, before `eas update` runs (#151). Publish from the main checkout:
