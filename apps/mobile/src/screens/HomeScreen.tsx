@@ -8,7 +8,7 @@ import type { Filter } from '../calendar/filter';
 import { forgetStoredHidden, isFiltering, noFilter } from '../calendar/filter';
 import { localDateString } from '../calendar/monthMath';
 import { Onboarding } from '../onboarding/Onboarding';
-import { markOnboardingDone, onboardingDone } from '../onboarding/onboardingMark';
+import { useOnboardingDecision } from '../onboarding/useOnboardingDecision';
 import { hasNoEntries } from '../reminder/firstEntryInvite';
 import { ReminderInvite } from '../reminder/ReminderInvite';
 import { useReminder } from '../reminder/useReminder';
@@ -81,37 +81,10 @@ export function HomeScreen({
   };
   const inviteFinished = useCallback(() => setInviteDue(false), []);
 
-  // The Onboarding (#139), decided once per launch: shown to a zero-Entry
-  // account not yet done with it on this phone. Until /me answers, a new
-  // account cannot be told from an existing one, so nothing shows; a
-  // failed /me gives up for this launch and opens the month view. An
-  // account seen holding Entries is marked done, so it never waits again.
-  const [doneHere, setDoneHere] = useState<boolean | null>(null);
-  const [onboarding, setOnboarding] = useState<'undecided' | 'show' | 'skip'>('undecided');
-  useEffect(() => {
-    let active = true;
-    void onboardingDone(userId).then((done) => {
-      if (active) setDoneHere(done);
-    });
-    return () => {
-      active = false;
-    };
-  }, [userId]);
-  if (onboarding === 'undecided') {
-    if (doneHere === true || world === 'failed') {
-      setOnboarding('skip');
-    } else if (doneHere === false && world === 'ready') {
-      setOnboarding(hasNoEntries(categories) ? 'show' : 'skip');
-    }
-  }
-  const seenWithEntries =
-    doneHere === false && world === 'ready' && categories.some((category) => category.inUse === true);
-  useEffect(() => {
-    if (seenWithEntries) void markOnboardingDone(userId);
-  }, [seenWithEntries, userId]);
+  // The Onboarding (#139), shown instead of everything else while due.
+  const onboarding = useOnboardingDecision(userId, world, categories);
   const leaveOnboarding = () => {
-    void markOnboardingDone(userId);
-    setOnboarding('skip');
+    onboarding.finish();
     setRoute({ name: 'month', focus: focusOn(localDateString(new Date())) });
   };
 
@@ -137,10 +110,10 @@ export function HomeScreen({
     if (reminderTap) onReminderTapOpened?.();
   }, [reminderTap, onReminderTapOpened]);
 
-  if (onboarding === 'undecided') {
+  if (onboarding.decision === 'undecided') {
     return <View style={styles.screen} />;
   }
-  if (onboarding === 'show') {
+  if (onboarding.decision === 'show') {
     return (
       <Onboarding
         accessToken={accessToken}

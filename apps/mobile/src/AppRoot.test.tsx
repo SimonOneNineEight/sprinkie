@@ -14,7 +14,7 @@ import { localDateString } from './calendar/monthMath';
 import { encodeContent } from './entries/content';
 import { AppLanguageProvider } from './i18n/AppLanguageProvider';
 import { processPhoto } from './photos/processPhoto';
-import { saveDraft } from './entries/drafts';
+import { listDrafts, saveDraft } from './entries/drafts';
 import { lineFadeMs, pointerFadeMs } from './reminder/ReminderInvite';
 import { fakeNotifications } from './testing/fakeNotifications';
 import { cat } from './testing/fixtures';
@@ -2616,6 +2616,24 @@ describe('the Onboarding (#139)', () => {
     });
   };
   const keep = () => screen.getByRole('button', { name: '收藏這一刻' });
+  /** 登出 through 設定, back to the sign-in screen. */
+  const signOut = async () => {
+    fireEvent.press(await screen.findByLabelText('設定'));
+    await act(async () => {
+      fireEvent.press(await screen.findByText('登出'));
+    });
+    await screen.findByText('每天五分鐘，留下你的生活');
+  };
+  /** Another account, without Entries, signs in on this phone. */
+  const signInAnother = (userId: string) => {
+    api.restore();
+    api = installMockApi({
+      me: { userId, journalId: 'j2', categories: [{ ...cat.sport, position: 1, inUse: false }] },
+    });
+    const session = { access_token: 'token-2', user: { id: userId } };
+    mockAuthState.session = session;
+    act(() => mockAuthState.listeners.forEach((listener) => listener('SIGNED_IN', session)));
+  };
 
   beforeEach(async () => {
     fakeNotifications.reset();
@@ -2632,6 +2650,9 @@ describe('the Onboarding (#139)', () => {
     expect(await screen.findByText(page1)).toBeTruthy();
     expect(screen.queryByLabelText('新增紀錄')).toBeNull();
     expect(screen.getByLabelText('第 1 頁，共 3 頁')).toBeTruthy();
+    // The sample line on its card, and 略過.
+    expect(screen.getByText(placeholder)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '略過' })).toBeTruthy();
     // Page 1 has nothing to go back to.
     expect(screen.queryByText('返回')).toBeNull();
 
@@ -2663,7 +2684,21 @@ describe('the Onboarding (#139)', () => {
     const all = painted();
     expect(new Set(all).size).toBeGreaterThan(1);
 
+    // Whether a chip's icon is filled in its color, rather than hollow.
+    const filled = (name: string, color: string) => {
+      let chip = screen.getByText(name);
+      while (chip.props.accessibilityRole !== 'button') chip = chip.parent!;
+      return chip.findAll(
+        (node) =>
+          typeof node.type === 'string' &&
+          (StyleSheet.flatten(node.props.style) as { backgroundColor?: string } | undefined)?.backgroundColor === color,
+      ).length > 0;
+    };
+    expect(filled('工作', theme.categories.blue.base)).toBe(true);
+
     await press('美食');
+    expect(filled('美食', theme.categories.orange.base)).toBe(true);
+    expect(filled('工作', theme.categories.blue.base)).toBe(false);
     const food = painted();
     expect(food.length).toBeGreaterThan(0);
     expect(food.length).toBeLessThan(all.length);
@@ -2671,6 +2706,7 @@ describe('the Onboarding (#139)', () => {
 
     await press('美食');
     expect(painted()).toEqual(all);
+    expect(filled('工作', theme.categories.blue.base)).toBe(true);
   });
 
   it('略過 goes straight to page 4 from any introduction page', async () => {
@@ -2681,6 +2717,13 @@ describe('the Onboarding (#139)', () => {
 
     relaunch();
     await screen.findByText(page1);
+    await press('下一步');
+    await press('略過');
+    expect(screen.getByText(page4)).toBeTruthy();
+
+    relaunch();
+    await screen.findByText(page1);
+    await press('下一步');
     await press('下一步');
     await press('略過');
     expect(screen.getByText(page4)).toBeTruthy();
@@ -2700,6 +2743,11 @@ describe('the Onboarding (#139)', () => {
   it('starts again from page 1 on the next launch when left before page 4 is done', async () => {
     launch();
     await screen.findByText(page1);
+    await press('下一步');
+    expect(screen.getByText(page2)).toBeTruthy();
+
+    relaunch();
+    expect(await screen.findByText(page1)).toBeTruthy();
     await press('略過');
     fireEvent.changeText(screen.getByPlaceholderText(placeholder), '晨跑');
 
@@ -2707,7 +2755,10 @@ describe('the Onboarding (#139)', () => {
     expect(await screen.findByText(page1)).toBeTruthy();
   });
 
-  it('writes the first Entry for today, then shows the month with the first-save line, once', async () => {
+  it('writes the first Entry for today, then the month reloads and plays the first-save line and the invite, once', async () => {
+    // Every timer faked, as in the invite's own suite: the line's fade runs
+    // on the test's clock. A morning, so today's Reminder time is ahead.
+    jest.useFakeTimers({ now: new Date(2026, 10, 10, 9, 30) });
     launch();
     await screen.findByText(page1);
     await press('略過');
@@ -2728,7 +2779,16 @@ describe('the Onboarding (#139)', () => {
     expect(body.date).toBe(localDateString(new Date()));
     expect(body.categoryId).toBe('c-sport');
     expect(body.content).toBe(encodeContent({ title: '晨跑 去河濱', note: '' }));
+    // The month asked for again after the save, so today's color shows.
+    const calls = api.calls().map(([u, init]) => `${init?.method ?? 'GET'} ${String(u)}`);
+    const posted = calls.findIndex((c) => c.startsWith('POST') && c.endsWith('/entries'));
+    expect(calls.slice(posted + 1).some((c) => c.includes('/months/2026-11'))).toBe(true);
     expect(await screen.findByText(firstSaveLine)).toBeTruthy();
+    await act(async () => {
+      jest.advanceTimersByTime(lineFadeMs);
+    });
+    expect(screen.getByText('要不要每天提醒你記一行？')).toBeTruthy();
+    await press('先不用');
 
     relaunch();
     expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
@@ -2748,6 +2808,15 @@ describe('the Onboarding (#139)', () => {
     relaunch();
     expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
     expect(screen.queryByText(page1)).toBeNull();
+
+    // The first Entry, written later from +, still gets the first-save line.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('新增紀錄'));
+    });
+    await press('運動');
+    fireEvent.changeText(screen.getByPlaceholderText('標題'), '晨跑');
+    await press('儲存');
+    expect(await screen.findByText(firstSaveLine)).toBeTruthy();
   });
 
   it('a failed save keeps what was typed, and 收藏這一刻 retries it', async () => {
@@ -2773,14 +2842,49 @@ describe('the Onboarding (#139)', () => {
     expect(new Set(keys).size).toBe(1);
   });
 
-  it('a second account on the same phone still meets it', async () => {
+  it("a save that failed before a relaunch is waiting on page 4, and its retry leaves no Draft behind", async () => {
+    launch();
+    await screen.findByText(page1);
+    await press('略過');
+    fireEvent.changeText(screen.getByPlaceholderText(placeholder), '晨跑');
+    await press('運動');
+    api.failures.entryWrites = true;
+    await press('收藏這一刻');
+    await screen.findByText('儲存失敗，請再試一次');
+    const failedKey = JSON.parse(api.entryPosts()[0][1]?.body ?? '').idempotencyKey;
+
+    // Killed and reopened: the Onboarding starts over, page 4 holds the try.
+    relaunch();
+    await screen.findByText(page1);
+    await press('略過');
+    await waitFor(() => expect(screen.getByPlaceholderText(placeholder).props.value).toBe('晨跑'));
+    expect(keep()).toBeEnabled();
+
+    await press('收藏這一刻');
+    expect(await screen.findByLabelText('新增紀錄')).toBeTruthy();
+    expect(JSON.parse(api.entryPosts()[0][1]?.body ?? '').idempotencyKey).toBe(failedKey);
+    expect(await listDrafts(localDateString(new Date()))).toEqual([]);
+  });
+
+  it('a second account signing in on the same phone after 登出 still meets it', async () => {
     launch({ userId: 'u1' });
     await screen.findByText(page1);
     await press('略過');
     await press('稍後再寫');
     await screen.findByLabelText('新增紀錄');
+    await signOut();
 
-    relaunch({ userId: 'u2' });
+    signInAnother('u2');
+    expect(await screen.findByText(page1)).toBeTruthy();
+  });
+
+  it("offers it to the next account after 登出, whatever the last account's /me did", async () => {
+    // The first account's /me never answered, so it skipped the Onboarding.
+    launch({ failures: { meReads: true } });
+    await screen.findByLabelText('新增紀錄');
+    await signOut();
+
+    signInAnother('u2');
     expect(await screen.findByText(page1)).toBeTruthy();
   });
 
