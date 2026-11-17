@@ -30,7 +30,7 @@ let lastVariant = 1; // round 2: B is chosen
 const COPY = [
   { title: '一天一行，就好。', body: '不用寫很多，記下今天的一件小事。' },
   { title: '想看看最近都做了什麼？', body: '點一個類別，只看那些日子。' },
-  { title: '原來，生活比想像中豐富。', body: '回頭看，每個顏色都是記下的一天。' },
+  { title: '原來，生活比想像中豐富。', body: '那些以為平凡的日子，其實都很精彩。' },
   { title: '寫下第一個生活片段', body: '' },
 ];
 const PLACEHOLDER = '今天下班去吃了好吃的拉麵 🍜';
