@@ -415,3 +415,137 @@ describe('while a request runs', () => {
     expect(mockCalls).toEqual([['resetPasswordForEmail', 'pm@wlog.local']]);
   });
 });
+
+// #145: an eye inside each password field shows what was typed.
+describe('the password eye', () => {
+  const field = (placeholder: string) => screen.getByPlaceholderText(placeholder);
+  const masked = (placeholder: string) => field(placeholder).props.secureTextEntry;
+
+  it('shows the password, then masks it again, its label naming the next action', () => {
+    openEmailPage();
+    type('密碼', 'secret-123');
+    expect(masked('密碼')).toBe(true);
+
+    fireEvent.press(screen.getByRole('button', { name: '顯示密碼' }));
+    expect(masked('密碼')).toBe(false);
+
+    fireEvent.press(screen.getByRole('button', { name: '隱藏密碼' }));
+    expect(masked('密碼')).toBe(true);
+    expect(screen.getByRole('button', { name: '顯示密碼' })).toBeTruthy();
+  });
+
+  const reveal = () => fireEvent.press(screen.getByRole('button', { name: '顯示密碼' }));
+
+  it('masks it again after switching between sign-in and sign-up', () => {
+    openEmailPage();
+    reveal();
+
+    fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
+    expect(masked('密碼')).toBe(true);
+
+    reveal();
+    fireEvent.press(screen.getByText('已有帳戶？登入'));
+    expect(masked('密碼')).toBe(true);
+  });
+
+  it('masks it again on returning to the form', async () => {
+    openEmailPage();
+    reveal();
+
+    await press('忘記密碼？');
+    fireEvent.press(screen.getByLabelText('返回'));
+
+    expect(masked('密碼')).toBe(true);
+  });
+
+  it('starts the new password masked, though the form showed its own, and shows it too', async () => {
+    openEmailPage();
+    reveal();
+    await press('忘記密碼？');
+    type('電子郵件', 'pm@wlog.local');
+    await press('寄送驗證碼');
+    type('驗證碼', '123456');
+    await press('下一步');
+
+    expect(masked('新密碼')).toBe(true);
+    reveal();
+    expect(masked('新密碼')).toBe(false);
+  });
+
+  const hide = () => fireEvent.press(screen.getByRole('button', { name: '隱藏密碼' }));
+  const signInWith = async () => {
+    type('電子郵件', 'pm@wlog.local');
+    await press('登入');
+    return mockCalls.at(-1);
+  };
+
+  it('keeps what was typed through a toggle, and typing after it appends', async () => {
+    openEmailPage();
+    type('密碼', 'secret');
+    reveal();
+    expect(screen.getByDisplayValue('secret')).toBeTruthy();
+    type('密碼', 'secret-1');
+    hide();
+    type('密碼', 'secret-12');
+
+    expect(await signInWith()).toEqual([
+      'signInWithPassword',
+      { email: 'pm@wlog.local', password: 'secret-12' },
+    ]);
+  });
+
+  // UIKit clears a secure field on the first edit after it is masked again:
+  // a typed character replaces the whole text, and a backspace empties it.
+  describe("survives iOS clearing a field that was masked again", () => {
+    it('a typed character lands after the text', async () => {
+      openEmailPage();
+      type('密碼', 'secret-12');
+      reveal();
+      hide();
+      type('密碼', '3');
+
+      expect(await signInWith()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'secret-123' },
+      ]);
+    });
+
+    it('a backspace takes one character', async () => {
+      openEmailPage();
+      type('密碼', 'secret-123');
+      reveal();
+      hide();
+      type('密碼', '');
+
+      expect(await signInWith()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'secret-12' },
+      ]);
+    });
+  });
+
+  it('leaves the autofill purpose as it is, shown or masked', async () => {
+    const autofill = (placeholder: string) => {
+      const { autoComplete, textContentType } = field(placeholder).props;
+      return { autoComplete, textContentType };
+    };
+    openEmailPage();
+    expect(autofill('密碼')).toEqual({ autoComplete: 'current-password', textContentType: undefined });
+    reveal();
+    expect(autofill('密碼')).toEqual({ autoComplete: 'current-password', textContentType: undefined });
+    fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
+    expect(autofill('密碼')).toEqual({ autoComplete: 'new-password', textContentType: undefined });
+    reveal();
+    expect(autofill('密碼')).toEqual({ autoComplete: 'new-password', textContentType: undefined });
+
+    fireEvent.press(screen.getByText('已有帳戶？登入'));
+    await press('忘記密碼？');
+    type('電子郵件', 'pm@wlog.local');
+    await press('寄送驗證碼');
+    type('驗證碼', '123456');
+    await press('下一步');
+    expect(autofill('新密碼')).toEqual({ autoComplete: 'new-password', textContentType: 'newPassword' });
+    reveal();
+    expect(autofill('新密碼')).toEqual({ autoComplete: 'new-password', textContentType: 'newPassword' });
+  });
+});

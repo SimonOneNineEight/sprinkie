@@ -186,6 +186,7 @@ Exhaustive. Every control, every state, including the ones no journey reaches.
 | SI.11 | Empty email or password, submit | Nothing happens; no request fired **[auto]** |
 | SI.12 | Airplane mode, submit | Plain error, no crash |
 | SI.13 | Password field | Masked, and offers the right autofill (current vs new) per mode |
+| SI.29 | The eye in each password field: 登入, 建立帳戶, and 忘記密碼's new password. Type, tap the eye, tap it again, type more | Each field opens masked, the eye at its trailing edge, the placeholder clear of it. The tap shows the text and the eye gains a slash; the second masks it, and what follows is added on rather than replacing the text. A backspace right after masking takes one character. Switching 登入 ⇄ 建立帳戶, or reaching the new password, masks again. VoiceOver reads 顯示密碼 / 隱藏密碼 |
 | SI.14 | The home screen | The Sprinkie icon (seven rounded colored squares on a three-by-three layout, the centre and bottom-right empty) labelled Sprinkie |
 | SI.15 | Every screen's background | Warm off-white (#FAF7F2), never pure white. Cards, sheets and buttons are white on it by design |
 | SI.16 | Email page, 忘記密碼？ under the password field, enter the email, 寄送驗證碼 | Still titled 重設密碼, the code step reads 已寄送 6 位數驗證碼至 and the address; an email from Sprinkie arrives carrying a 6-digit code **[API]** |

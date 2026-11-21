@@ -1,6 +1,6 @@
-import { Check, ChevronLeft } from 'lucide-react-native';
+import { Check, ChevronLeft, Eye, EyeOff } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, TextInput, type TextInputProps, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -39,6 +39,10 @@ export function EmailSignInScreen({ onBack }: Props) {
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [registering, setRegistering] = useState(false);
+  // Whether the password field on screen shows its text (#145). Only one is
+  // ever on screen, and every step and mode change masks it again, so a
+  // shown password never carries over.
+  const [passwordShown, setPasswordShown] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The primary button's spinner. Two taps can land inside one render pass,
   // before busy has caught up, so the request in flight is also held where
@@ -87,6 +91,7 @@ export function EmailSignInScreen({ onBack }: Props) {
 
   const go = (next: Step) => {
     setError(null);
+    setPasswordShown(false);
     setStep(next);
   };
 
@@ -252,13 +257,12 @@ export function EmailSignInScreen({ onBack }: Props) {
         {step === 'form' ? (
           <>
             {emailField}
-            <TextInput
-              style={styles.field}
+            <PasswordField
               placeholder={strings.signIn.passwordPlaceholder}
-              placeholderTextColor={styles.placeholder.color}
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              shown={passwordShown}
+              onToggle={() => setPasswordShown((shown) => !shown)}
               autoComplete={registering ? 'new-password' : 'current-password'}
             />
             {registering ? null : (
@@ -278,7 +282,10 @@ export function EmailSignInScreen({ onBack }: Props) {
             <Pressable
               accessibilityRole="button"
               style={styles.toggle}
-              onPress={() => setRegistering((r) => !r)}
+              onPress={() => {
+                setPasswordShown(false);
+                setRegistering((r) => !r);
+              }}
             >
               <Text style={styles.toggleLabel}>
                 {registering ? strings.signIn.toggleToSignIn : strings.signIn.toggleToSignUp}
@@ -338,13 +345,12 @@ export function EmailSignInScreen({ onBack }: Props) {
               <Check size={16} color={theme.colors.textSecondary} strokeWidth={2} />
               <Text style={styles.verifiedEmail}>{email.trim()}</Text>
             </View>
-            <TextInput
-              style={styles.field}
+            <PasswordField
               placeholder={strings.signIn.newPasswordPlaceholder}
-              placeholderTextColor={styles.placeholder.color}
               value={newPassword}
               onChangeText={setNewPassword}
-              secureTextEntry
+              shown={passwordShown}
+              onToggle={() => setPasswordShown((shown) => !shown)}
               textContentType="newPassword"
               autoComplete="new-password"
               autoFocus
@@ -355,6 +361,58 @@ export function EmailSignInScreen({ onBack }: Props) {
         ) : null}
       </KeyboardAwareScrollView>
     </SafeAreaView>
+  );
+}
+
+type PasswordFieldProps = Pick<TextInputProps, 'placeholder' | 'autoComplete' | 'textContentType' | 'autoFocus'> & {
+  value: string;
+  onChangeText: (text: string) => void;
+  shown: boolean;
+  onToggle: () => void;
+};
+
+// A password field with an eye at its trailing edge (#145), so a typo is
+// seen before it is submitted. Only the masking changes; the autofill props
+// pass through untouched in both states.
+function PasswordField({ value, onChangeText, shown, onToggle, ...input }: PasswordFieldProps) {
+  const strings = useStrings();
+  // UIKit clears a secure field on its first edit after being masked again:
+  // a typed character replaces the whole text, a backspace empties it. That
+  // first edit is put back onto the text the field held.
+  const remasked = useRef(false);
+  const wasShown = useRef(shown);
+  useEffect(() => {
+    if (wasShown.current && !shown) remasked.current = true;
+    wasShown.current = shown;
+  }, [shown]);
+
+  const change = (text: string) => {
+    const cleared = remasked.current && text.length <= 1 && text !== value.slice(0, -1);
+    remasked.current = false;
+    if (Platform.OS === 'ios' && cleared) onChangeText(text === '' ? value.slice(0, -1) : value + text);
+    else onChangeText(text);
+  };
+
+  const EyeIcon = shown ? EyeOff : Eye;
+  return (
+    <View>
+      <TextInput
+        {...input}
+        style={[styles.field, styles.passwordField]}
+        placeholderTextColor={styles.placeholder.color}
+        value={value}
+        onChangeText={change}
+        secureTextEntry={!shown}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={shown ? strings.signIn.hidePassword : strings.signIn.showPassword}
+        style={styles.eye}
+        onPress={onToggle}
+      >
+        <EyeIcon size={20} color={theme.colors.iconDefault} strokeWidth={2} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -414,6 +472,19 @@ const styles = createStyles((t) => ({
     borderWidth: t.border.hairline,
     borderColor: t.colors.lineSeparatorStrong,
     paddingHorizontal: t.spacing.cardPadding,
+  },
+  // The text stops short of the eye rather than running under it.
+  passwordField: {
+    paddingRight: t.spacing.hitMin,
+  },
+  eye: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    width: t.spacing.hitMin,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Spaced digits read as a code, not a word.
   codeField: {
