@@ -378,19 +378,29 @@ function PasswordField({ value, onChangeText, shown, onToggle, ...input }: Passw
   const strings = useStrings();
   // UIKit clears a secure field on its first edit after being masked again:
   // a typed character replaces the whole text, a backspace empties it. That
-  // first edit is put back onto the text the field held.
+  // first edit is put back onto the text the field held. It is told apart
+  // by the caret: collapsed at the end, a real edit only appends or takes
+  // the last character, so a result of one character or none is the clear.
+  // A selection or a caret inside the text leaves the edit as typed.
   const remasked = useRef(false);
   const wasShown = useRef(shown);
+  const selection = useRef<{ start: number; end: number } | null>(null);
   useEffect(() => {
     if (wasShown.current && !shown) remasked.current = true;
     wasShown.current = shown;
   }, [shown]);
 
   const change = (text: string) => {
-    const cleared = remasked.current && text.length <= 1 && text !== value.slice(0, -1);
+    const caretAtEnd =
+      selection.current?.start === value.length && selection.current.end === value.length;
+    const cleared =
+      Platform.OS === 'ios' &&
+      remasked.current &&
+      caretAtEnd &&
+      text.length <= 1 &&
+      text !== value.slice(0, -1);
     remasked.current = false;
-    if (Platform.OS === 'ios' && cleared) onChangeText(text === '' ? value.slice(0, -1) : value + text);
-    else onChangeText(text);
+    onChangeText(cleared ? (text === '' ? value.slice(0, -1) : value + text) : text);
   };
 
   const EyeIcon = shown ? EyeOff : Eye;
@@ -402,6 +412,10 @@ function PasswordField({ value, onChangeText, shown, onToggle, ...input }: Passw
         placeholderTextColor={styles.placeholder.color}
         value={value}
         onChangeText={change}
+        onSelectionChange={(event) => (selection.current = event.nativeEvent.selection)}
+        // Refocusing a secure field clears it on the first key on every
+        // iOS field, the eye's or not, so that one is left to UIKit.
+        onBlur={() => (remasked.current = false)}
         secureTextEntry={!shown}
       />
       <Pressable

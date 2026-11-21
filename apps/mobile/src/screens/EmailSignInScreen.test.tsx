@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { SignInScreen } from './SignInScreen';
@@ -418,8 +418,22 @@ describe('while a request runs', () => {
 
 // #145: an eye inside each password field shows what was typed.
 describe('the password eye', () => {
+  // Reads the masking and autofill props, a departure from #45's testing
+  // rule like expectSingleLineField's: jest draws no mask dots and offers no
+  // autofill, so the prop is as close to the screen as these suites get.
+  // SI.29 in docs/manual-tests.md is where it is really checked.
   const field = (placeholder: string) => screen.getByPlaceholderText(placeholder);
   const masked = (placeholder: string) => field(placeholder).props.secureTextEntry;
+  const reveal = () => fireEvent.press(screen.getByRole('button', { name: '顯示密碼' }));
+  const hide = () => fireEvent.press(screen.getByRole('button', { name: '隱藏密碼' }));
+  // Where the caret sits, as iOS reports it after every move and edit.
+  const caret = (placeholder: string, start: number, end = start) =>
+    fireEvent(field(placeholder), 'selectionChange', { nativeEvent: { selection: { start, end } } });
+  const submittedSignIn = async () => {
+    type('電子郵件', 'pm@wlog.local');
+    await press('登入');
+    return mockCalls.at(-1);
+  };
 
   it('shows the password, then masks it again, its label naming the next action', () => {
     openEmailPage();
@@ -433,8 +447,6 @@ describe('the password eye', () => {
     expect(masked('密碼')).toBe(true);
     expect(screen.getByRole('button', { name: '顯示密碼' })).toBeTruthy();
   });
-
-  const reveal = () => fireEvent.press(screen.getByRole('button', { name: '顯示密碼' }));
 
   it('masks it again after switching between sign-in and sign-up', () => {
     openEmailPage();
@@ -472,13 +484,6 @@ describe('the password eye', () => {
     expect(masked('新密碼')).toBe(false);
   });
 
-  const hide = () => fireEvent.press(screen.getByRole('button', { name: '隱藏密碼' }));
-  const signInWith = async () => {
-    type('電子郵件', 'pm@wlog.local');
-    await press('登入');
-    return mockCalls.at(-1);
-  };
-
   it('keeps what was typed through a toggle, and typing after it appends', async () => {
     openEmailPage();
     type('密碼', 'secret');
@@ -486,9 +491,10 @@ describe('the password eye', () => {
     expect(screen.getByDisplayValue('secret')).toBeTruthy();
     type('密碼', 'secret-1');
     hide();
+    caret('密碼', 8);
     type('密碼', 'secret-12');
 
-    expect(await signInWith()).toEqual([
+    expect(await submittedSignIn()).toEqual([
       'signInWithPassword',
       { email: 'pm@wlog.local', password: 'secret-12' },
     ]);
@@ -496,30 +502,80 @@ describe('the password eye', () => {
 
   // UIKit clears a secure field on the first edit after it is masked again:
   // a typed character replaces the whole text, and a backspace empties it.
-  describe("survives iOS clearing a field that was masked again", () => {
-    it('a typed character lands after the text', async () => {
+  // The caret sits at the end of the text when that happens.
+  describe('survives iOS clearing a field that was masked again', () => {
+    afterEach(() => jest.restoreAllMocks());
+    const remaskedWith = (text: string) => {
       openEmailPage();
-      type('密碼', 'secret-12');
+      type('密碼', text);
+      caret('密碼', text.length);
       reveal();
       hide();
+    };
+
+    it('a typed character lands after the text', async () => {
+      remaskedWith('secret-12');
       type('密碼', '3');
 
-      expect(await signInWith()).toEqual([
+      expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
         { email: 'pm@wlog.local', password: 'secret-123' },
       ]);
     });
 
     it('a backspace takes one character', async () => {
-      openEmailPage();
-      type('密碼', 'secret-123');
-      reveal();
-      hide();
+      remaskedWith('secret-123');
       type('密碼', '');
 
-      expect(await signInWith()).toEqual([
+      expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
         { email: 'pm@wlog.local', password: 'secret-12' },
+      ]);
+    });
+
+    // These edits produce the same short text a clear would, but with a
+    // selection or a caret short of the end they are the User's own.
+    it('leaves a select-all replacement as typed', async () => {
+      remaskedWith('secret-123');
+      caret('密碼', 0, 10);
+      type('密碼', 'x');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'x' },
+      ]);
+    });
+
+    it('leaves a backspace inside the text as typed', async () => {
+      remaskedWith('ab');
+      caret('密碼', 1);
+      type('密碼', 'b');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'b' },
+      ]);
+    });
+
+    it('repairs only the first edit after masking, and none after the field loses focus', async () => {
+      remaskedWith('secret');
+      fireEvent(field('密碼'), 'blur');
+      type('密碼', '1');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: '1' },
+      ]);
+    });
+
+    it('leaves the text alone off iOS', async () => {
+      jest.replaceProperty(Platform, 'OS', 'android');
+      remaskedWith('secret-12');
+      type('密碼', '3');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: '3' },
       ]);
     });
   });
