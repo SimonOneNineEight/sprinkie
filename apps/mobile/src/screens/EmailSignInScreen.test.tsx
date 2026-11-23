@@ -500,11 +500,15 @@ describe('the password eye', () => {
     ]);
   });
 
-  // UIKit clears a secure field on the first edit after it is masked again:
-  // a typed character replaces the whole text, and a backspace empties it.
-  // The caret sits at the end of the text when that happens.
+  // UIKit clears a secure field on the first key after it is masked again.
+  // Seen on the iOS 26.5 simulator (#145): the key arrives as two changes in
+  // one instant, the field emptied and then the key alone, both before React
+  // renders. A backspace sends only the first.
   describe('survives iOS clearing a field that was masked again', () => {
-    afterEach(() => jest.restoreAllMocks());
+    afterEach(() => {
+      jest.restoreAllMocks();
+      jest.useRealTimers();
+    });
     const remaskedWith = (text: string) => {
       openEmailPage();
       type('密碼', text);
@@ -512,10 +516,15 @@ describe('the password eye', () => {
       reveal();
       hide();
     };
+    const clearedThenTyped = (text: string) =>
+      act(() => {
+        fireEvent.changeText(field('密碼'), '');
+        fireEvent.changeText(field('密碼'), text);
+      });
 
     it('a typed character lands after the text', async () => {
       remaskedWith('secret-12');
-      type('密碼', '3');
+      clearedThenTyped('3');
 
       expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
@@ -533,12 +542,24 @@ describe('the password eye', () => {
       ]);
     });
 
-    // These edits produce the same short text a clear would, but with a
-    // selection or a caret short of the end they are the User's own.
+    it('a key typed later, after a backspace emptied the field, starts afresh', async () => {
+      jest.useFakeTimers();
+      remaskedWith('a');
+      type('密碼', '');
+      act(() => jest.advanceTimersByTime(1000));
+      type('密碼', 'x');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'x' },
+      ]);
+    });
+
+    // With a selection or a caret short of the end, the edit is the User's own.
     it('leaves a select-all replacement as typed', async () => {
       remaskedWith('secret-123');
       caret('密碼', 0, 10);
-      type('密碼', 'x');
+      clearedThenTyped('x');
 
       expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
@@ -557,10 +578,10 @@ describe('the password eye', () => {
       ]);
     });
 
-    it('repairs only the first edit after masking, and none after the field loses focus', async () => {
+    it('repairs only the first key after masking, and none after the field loses focus', async () => {
       remaskedWith('secret');
       fireEvent(field('密碼'), 'blur');
-      type('密碼', '1');
+      clearedThenTyped('1');
 
       expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
@@ -571,7 +592,7 @@ describe('the password eye', () => {
     it('leaves the text alone off iOS', async () => {
       jest.replaceProperty(Platform, 'OS', 'android');
       remaskedWith('secret-12');
-      type('密碼', '3');
+      clearedThenTyped('3');
 
       expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
