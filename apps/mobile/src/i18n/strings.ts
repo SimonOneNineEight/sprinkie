@@ -136,7 +136,7 @@ const zhTW = {
     skip: '略過',
     pages: [
       { title: '一天一行，就好。', body: '不用寫很多，記下今天的一件小事。' },
-      { title: '想看看最近都做了什麼？', body: '點一個類別，只看那些日子。' },
+      { title: '👆 點選一個類別標籤看看', body: '有記錄這個類別的日子，都會顯示在月曆上喔！' },
       { title: '原來，生活比想像中豐富。', body: '那些以為平凡的日子，其實都很精彩。' },
     ],
     progress: (page: number, total: number) => `第 ${page} 頁，共 ${total} 頁`,

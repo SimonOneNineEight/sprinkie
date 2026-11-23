@@ -2582,7 +2582,7 @@ describe('the Reminder invite after a first Entry (#138)', () => {
 // Entry. Seen until page 4 is left (a save or 稍後再寫), per account per phone.
 describe('the Onboarding (#139)', () => {
   const page1 = '一天一行，就好。';
-  const page2 = '想看看最近都做了什麼？';
+  const page2 = '👆 點選一個類別標籤看看';
   const page3 = '原來，生活比想像中豐富。';
   const page4 = '寫下第一個生活片段';
   const placeholder = '今天下班去吃了好吃的拉麵 🍜';
