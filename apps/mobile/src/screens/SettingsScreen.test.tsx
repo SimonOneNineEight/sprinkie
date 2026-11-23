@@ -363,7 +363,7 @@ describe('連結帳戶 (#20)', () => {
 // is (semver, #149); when the running update was published tells a tester
 // it arrived, even one that forgot to bump. It reads in the phone's
 // own time, with its offset, so a tester elsewhere can be compared exactly.
-// 0.11.0 is app.json's version, written out rather than read back. Jest
+// 0.12.0 is app.json's version, written out rather than read back. Jest
 // runs in UTC (jest.global-setup.js), so the screen reads GMT+0; the
 // offsets a tester abroad would see are checked on zoneLabel.
 describe('the version line (#147)', () => {
@@ -373,7 +373,7 @@ describe('the version line (#147)', () => {
 
   it('shows only the version while the build runs its own code', async () => {
     await renderSettings();
-    expect(screen.getByText('版本 0.11.0')).toBeTruthy();
+    expect(screen.getByText('版本 0.12.0')).toBeTruthy();
   });
 
   it('adds when the running update was published, in local time with its offset', async () => {
@@ -383,7 +383,7 @@ describe('the version line (#147)', () => {
       updateId: '0b7c2f9e-41aa-4c55-9d1e-3f0a8c6b2d11',
     });
     await renderSettings();
-    expect(screen.getByText('版本 0.11.0 · 11月14日 15:05 (GMT+0) 更新')).toBeTruthy();
+    expect(screen.getByText('版本 0.12.0 · 11月14日 15:05 (GMT+0) 更新')).toBeTruthy();
   });
 
   it('names the offset east and west of UTC, half hours included', () => {
