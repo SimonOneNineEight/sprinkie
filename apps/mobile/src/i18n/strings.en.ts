@@ -51,6 +51,8 @@ export const en: StringCatalog = {
     emailTitle: 'Email sign-in',
     emailPlaceholder: 'Email',
     passwordPlaceholder: 'Password',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     signInAction: 'Sign in',
     signUpAction: 'Create account',
     toggleToSignUp: 'No account yet? Sign up',

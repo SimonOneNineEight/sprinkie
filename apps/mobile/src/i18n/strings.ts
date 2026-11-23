@@ -19,6 +19,9 @@ const zhTW = {
     emailTitle: '電子郵件登入',
     emailPlaceholder: '電子郵件',
     passwordPlaceholder: '密碼',
+    // The eye inside a password field (#145), labelled as the action it takes.
+    showPassword: '顯示密碼',
+    hidePassword: '隱藏密碼',
     signInAction: '登入',
     signUpAction: '建立帳戶',
     toggleToSignUp: '還沒有帳戶？註冊',

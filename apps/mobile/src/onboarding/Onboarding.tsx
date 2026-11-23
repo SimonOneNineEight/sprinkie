@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category } from '../api/client';
@@ -16,6 +16,7 @@ import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles } from '../theme';
 
+import { Animated, useAnimatedStyle, useSharedValue } from './reanimated';
 import { sampleCategories, sampleMonth, sampleYearMonth } from './sample';
 
 type Props = {
@@ -213,6 +214,16 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
+  // The month folds away in step with the keyboard (progress runs 0 to 1
+  // on the UI thread, frame by frame), so the sheet rises with it instead of
+  // being squeezed, and gets all the room the keyboard leaves (#158). Its
+  // natural height comes from the grid inside, which never shrinks.
+  const keyboard = useReanimatedKeyboardAnimation();
+  const monthHeight = useSharedValue<number | null>(null);
+  const monthGivesWay = useAnimatedStyle(() => {
+    const natural = monthHeight.get();
+    return natural === null ? {} : { maxHeight: natural * (1 - keyboard.progress.get()) };
+  });
   // One Draft slot for every retry, which doubles as the create's retry key.
   const [draftId, setDraftId] = useState(newDraftId);
   const inFlight = useRef(false);
@@ -309,75 +320,85 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <View style={styles.fadedMonth} pointerEvents="none">
-        <MonthGrid
-          year={year}
-          month={month}
-          days={category ? { [day]: [category.color] } : {}}
-          today={day}
-          onSelectDay={() => {}}
-        />
-      </View>
-      <KeyboardAvoidingView behavior="padding" style={styles.sheet}>
-        <SafeAreaView edges={['bottom']} style={styles.fill}>
-          <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
-            <Text accessibilityRole="header" style={[styles.headline, styles.sheetHeadline]}>
-              {strings.onboarding.firstEntryTitle}
-            </Text>
-            <Text style={[styles.meta, styles.centred]}>{dateHeading(strings, date)}</Text>
-            <View style={styles.titleBox}>
-              <TextInput
-                style={styles.titleInput}
-                // The placeholder is page 1's sample line, as the spec asks.
-                placeholder={strings.onboarding.sampleLine}
-                placeholderTextColor={styles.placeholder.color}
-                multiline
-                maxLength={TITLE_MAX}
-                value={title}
-                onChangeText={(text) => {
-                  touched.current = true;
-                  setTitle(oneLine(text));
-                }}
-              />
-            </View>
-            <Text style={styles.counter}>{strings.onboarding.titleCount(title.length, TITLE_MAX)}</Text>
-            {fits ? (
-              <View style={styles.tileRow}>{tiles}</View>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tileScroll}
-                contentContainerStyle={styles.tileScrollContent}
-              >
-                {tiles}
-              </ScrollView>
-            )}
-            {failed ? <Text style={styles.error}>{strings.entryForm.saveFailed}</Text> : null}
-          </ScrollView>
-          <View style={styles.buttonRow}>
-            <Pressable
-              accessibilityRole="button"
-              disabled={saving}
-              onPress={onLater}
-              style={[styles.pill, styles.secondary]}
-            >
-              <Text style={[styles.pillText, styles.secondaryText]}>{strings.onboarding.later}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canSave }}
-              feedback="scale"
-              disabled={!canSave}
-              onPress={() => void save()}
-              style={[styles.pill, looksDisabled ? styles.primaryOff : styles.primary]}
-            >
-              <Text style={[styles.pillText, looksDisabled ? styles.primaryTextOff : styles.primaryText]}>
-                {saving ? strings.entryForm.saving : strings.onboarding.keep}
-              </Text>
-            </Pressable>
+      {/* The keyboard's padding goes under the whole page, as in
+          CategorySheet; inside the sheet it squeezed the title out of sight
+          under a month that stayed put (#158). */}
+      <KeyboardAvoidingView behavior="padding" style={styles.fill}>
+        <Animated.View
+          style={[styles.fadedMonth, monthGivesWay]}
+          pointerEvents="none"
+        >
+          <View onLayout={(event) => monthHeight.set(event.nativeEvent.layout.height)}>
+            <MonthGrid
+              year={year}
+              month={month}
+              days={category ? { [day]: [category.color] } : {}}
+              today={day}
+              onSelectDay={() => {}}
+            />
           </View>
-        </SafeAreaView>
+        </Animated.View>
+        <View style={styles.sheet}>
+          <SafeAreaView edges={['bottom']} style={styles.fill}>
+            <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
+              <Text accessibilityRole="header" style={[styles.headline, styles.sheetHeadline]}>
+                {strings.onboarding.firstEntryTitle}
+              </Text>
+              <Text style={[styles.meta, styles.centred]}>{dateHeading(strings, date)}</Text>
+              <View style={styles.titleBox}>
+                <TextInput
+                  style={styles.titleInput}
+                  // The placeholder is page 1's sample line, as the spec asks.
+                  placeholder={strings.onboarding.sampleLine}
+                  placeholderTextColor={styles.placeholder.color}
+                  multiline
+                  maxLength={TITLE_MAX}
+                  value={title}
+                  onChangeText={(text) => {
+                    touched.current = true;
+                    setTitle(oneLine(text));
+                  }}
+                />
+              </View>
+              <Text style={styles.counter}>{strings.onboarding.titleCount(title.length, TITLE_MAX)}</Text>
+              {fits ? (
+                <View style={styles.tileRow}>{tiles}</View>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.tileScroll}
+                  contentContainerStyle={styles.tileScrollContent}
+                >
+                  {tiles}
+                </ScrollView>
+              )}
+              {failed ? <Text style={styles.error}>{strings.entryForm.saveFailed}</Text> : null}
+            </ScrollView>
+            <View style={styles.buttonRow}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={saving}
+                onPress={onLater}
+                style={[styles.pill, styles.secondary]}
+              >
+                <Text style={[styles.pillText, styles.secondaryText]}>{strings.onboarding.later}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSave }}
+                feedback="scale"
+                disabled={!canSave}
+                onPress={() => void save()}
+                style={[styles.pill, looksDisabled ? styles.primaryOff : styles.primary]}
+              >
+                <Text style={[styles.pillText, looksDisabled ? styles.primaryTextOff : styles.primaryText]}>
+                  {saving ? strings.entryForm.saving : strings.onboarding.keep}
+                </Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -461,7 +482,7 @@ const styles = createStyles((t) => ({
   primaryTextOff: { color: t.colors.controlDisabledFg },
   secondary: { backgroundColor: t.colors.controlSecondaryBg },
   secondaryText: { color: t.colors.controlSecondaryFg },
-  fadedMonth: { paddingHorizontal: t.spacing.screenGutter, opacity: 0.55 },
+  fadedMonth: { paddingHorizontal: t.spacing.screenGutter, opacity: 0.55, overflow: 'hidden' },
   sheet: {
     flex: 1,
     marginTop: t.spacing.space6,
