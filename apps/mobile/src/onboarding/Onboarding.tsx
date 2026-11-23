@@ -217,7 +217,7 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
   // The month folds away in step with the keyboard (progress runs 0 to 1
   // on the UI thread, frame by frame), so the sheet rises with it instead of
   // being squeezed, and gets all the room the keyboard leaves (#158). Its
-  // natural height is read while no keyboard is up.
+  // natural height comes from the grid inside, which never shrinks.
   const keyboard = useReanimatedKeyboardAnimation();
   const monthHeight = useSharedValue<number | null>(null);
   const monthGivesWay = useAnimatedStyle(() => {
@@ -327,17 +327,16 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
         <Animated.View
           style={[styles.fadedMonth, monthGivesWay]}
           pointerEvents="none"
-          onLayout={(event) => {
-            if (keyboard.progress.get() === 0) monthHeight.set(event.nativeEvent.layout.height);
-          }}
         >
-          <MonthGrid
-            year={year}
-            month={month}
-            days={category ? { [day]: [category.color] } : {}}
-            today={day}
-            onSelectDay={() => {}}
-          />
+          <View onLayout={(event) => monthHeight.set(event.nativeEvent.layout.height)}>
+            <MonthGrid
+              year={year}
+              month={month}
+              days={category ? { [day]: [category.color] } : {}}
+              today={day}
+              onSelectDay={() => {}}
+            />
+          </View>
         </Animated.View>
         <View style={styles.sheet}>
           <SafeAreaView edges={['bottom']} style={styles.fill}>
