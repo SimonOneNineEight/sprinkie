@@ -503,12 +503,11 @@ describe('the password eye', () => {
   // UIKit clears a secure field on the first key after it is masked again.
   // Seen on the iOS 26.5 simulator (#145): the key arrives as two changes in
   // one instant, the field emptied and then the key alone, both before React
-  // renders. A backspace sends only the first.
+  // renders. A backspace sends only the first. These tests build that event
+  // sequence by hand, a departure from #45's testing rule: jest has no UIKit,
+  // and the sequence is the one the simulator logged.
   describe('survives iOS clearing a field that was masked again', () => {
-    afterEach(() => {
-      jest.restoreAllMocks();
-      jest.useRealTimers();
-    });
+    afterEach(() => jest.restoreAllMocks());
     const remaskedWith = (text: string) => {
       openEmailPage();
       type('密碼', text);
@@ -542,16 +541,39 @@ describe('the password eye', () => {
       ]);
     });
 
-    it('a key typed later, after a backspace emptied the field, starts afresh', async () => {
-      jest.useFakeTimers();
-      remaskedWith('a');
+    // After the backspace React puts the shortened text back in the field,
+    // so the next key arrives on the end of it, however soon it follows.
+    it('a key right after a backspace lands on the shortened text', async () => {
+      remaskedWith('123456');
       type('密碼', '');
-      act(() => jest.advanceTimersByTime(1000));
-      type('密碼', 'x');
+      type('密碼', '123458');
 
       expect(await submittedSignIn()).toEqual([
         'signInWithPassword',
-        { email: 'pm@wlog.local', password: 'x' },
+        { email: 'pm@wlog.local', password: '123458' },
+      ]);
+    });
+
+    // A paste or a Keychain fill is more than one key: it keeps what iOS gives.
+    it('leaves a paste after the wipe as iOS gives it', async () => {
+      remaskedWith('123456');
+      clearedThenTyped('secret');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'secret' },
+      ]);
+    });
+
+    it('repairs nothing once the password is shown again', async () => {
+      remaskedWith('a');
+      reveal();
+      type('密碼', '');
+      type('密碼', 'b');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'b' },
       ]);
     });
 

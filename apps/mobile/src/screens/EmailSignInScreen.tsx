@@ -18,9 +18,6 @@ const MIN_PASSWORD_LENGTH = 6;
 // The wait between emailed codes, so a tap that seems to do nothing is not
 // repeated into the mailer's rate limit.
 const RESEND_COOLDOWN_SECONDS = 30;
-// iOS sends a masked field's clear and the key that caused it together; a
-// key this long after the clear is a new one (#145).
-const KEY_AFTER_CLEAR_MS = 100;
 
 // Where the page is: the sign-in form, a step of 忘記密碼, or a sign-up
 // waiting on its emailed code.
@@ -380,32 +377,36 @@ type PasswordFieldProps = Pick<TextInputProps, 'placeholder' | 'autoComplete' | 
 function PasswordField({ value, onChangeText, shown, onToggle, ...input }: PasswordFieldProps) {
   const strings = useStrings();
   // UIKit clears a secure field on its first key after being masked again.
-  // On the iOS 26.5 simulator (#145) the key arrives as two changes in one
-  // instant, before React renders between them: the field emptied, then the
-  // key alone. The emptying is taken as a backspace, the last character
-  // gone; when the key follows at once, it lands after the text instead.
-  // Only with the caret collapsed at the end, where a real edit can't empty
-  // a longer text; a selection or a caret inside the text is the User's own.
+  // On the iOS 26.5 simulator (#145) the key arrives as two changes: the
+  // field emptied, then the key alone. The emptying is taken as a backspace,
+  // the last character gone. A single character next is the key, typed into
+  // the emptied field, and lands after the text instead: after a real
+  // backspace the shortened text is back in the field, so the next key
+  // arrives on the end of it. More than one character is a paste or a
+  // Keychain fill, and stays as iOS gives it. All of this only with the
+  // caret collapsed at the end, where a real edit can't empty a longer text;
+  // a selection or a caret inside the text is the User's own.
   const remasked = useRef(false);
   const wasShown = useRef(shown);
   const selection = useRef<{ start: number; end: number } | null>(null);
-  const emptied = useRef<{ text: string; at: number } | null>(null);
+  const wipedText = useRef<string | null>(null);
   useEffect(() => {
-    if (wasShown.current && !shown) remasked.current = true;
+    if (shown) remasked.current = false;
+    else if (wasShown.current) remasked.current = true;
     wasShown.current = shown;
   }, [shown]);
 
-  const change = (text: string) => {
-    const before = emptied.current;
-    emptied.current = null;
-    if (before && Date.now() - before.at < KEY_AFTER_CLEAR_MS) {
-      onChangeText(before.text + text);
+  const repairWipe = (text: string) => {
+    const wiped = wipedText.current;
+    wipedText.current = null;
+    if (wiped !== null && wiped.length > 1 && text.length === 1) {
+      onChangeText(wiped + text);
       return;
     }
     const caretAtEnd =
       selection.current?.start === value.length && selection.current.end === value.length;
     if (Platform.OS === 'ios' && remasked.current && caretAtEnd && text === '' && value !== '') {
-      emptied.current = { text: value, at: Date.now() };
+      wipedText.current = value;
       text = value.slice(0, -1);
     }
     remasked.current = false;
@@ -420,7 +421,7 @@ function PasswordField({ value, onChangeText, shown, onToggle, ...input }: Passw
         style={[styles.field, styles.passwordField]}
         placeholderTextColor={styles.placeholder.color}
         value={value}
-        onChangeText={change}
+        onChangeText={repairWipe}
         onSelectionChange={(event) => (selection.current = event.nativeEvent.selection)}
         // Refocusing a secure field clears it on the first key on every
         // iOS field, the eye's or not, so that one is left to UIKit.
