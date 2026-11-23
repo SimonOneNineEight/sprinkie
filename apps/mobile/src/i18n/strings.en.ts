@@ -146,7 +146,7 @@ export const en: StringCatalog = {
     skip: 'Skip',
     pages: [
       { title: 'One line a day, that is enough.', body: 'No need to write much. Note one small thing from today.' },
-      { title: 'Want to see what you have been up to?', body: 'Tap a category to see only those days.' },
+      { title: '👆 Tap a category', body: 'Days with that category show on the calendar!' },
       { title: 'Life turns out richer than you thought.', body: 'The days you thought were ordinary were full of moments.' },
     ],
     progress: (page: number, total: number) => `Page ${page} of ${total}`,

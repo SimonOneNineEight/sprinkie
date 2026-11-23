@@ -130,16 +130,18 @@ const zhTW = {
     laterInSettings: '之後可以到設定開啟每日提醒。',
   },
   // The Onboarding (#139): pages 1–3 introduce the app on made-up data,
-  // page 4 writes the first Entry. Copy says 類別, never 標籤. The lines
-  // under the page 1 and 2 headlines and page 4's heading were written for
-  // the prototype and approved on 2026-11-16.
+  // page 4 writes the first Entry. Copy says 類別, never 標籤. The line
+  // under page 1's headline and page 4's heading were written for the
+  // prototype and approved on 2026-11-16. Page 2's two lines are the PM's
+  // (#159): they tell a first-time User the chips can be tapped, and the 👆
+  // and 喔！ are a deliberate exception to DESIGN.md ban 10 for this page.
   onboarding: {
     next: '下一步',
     back: '返回',
     skip: '略過',
     pages: [
       { title: '一天一行，就好。', body: '不用寫很多，記下今天的一件小事。' },
-      { title: '想看看最近都做了什麼？', body: '點一個類別，只看那些日子。' },
+      { title: '👆 點選一個類別看看', body: '有記錄這個類別的日子，都會顯示在月曆上喔！' },
       { title: '原來，生活比想像中豐富。', body: '那些以為平凡的日子，其實都很精彩。' },
     ],
     progress: (page: number, total: number) => `第 ${page} 頁，共 ${total} 頁`,
