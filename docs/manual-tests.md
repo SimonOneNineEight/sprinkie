@@ -658,7 +658,7 @@ section is only ever verified here.
 | KB.11 | Dismiss by tapping empty ground, then refocus | Drops and rises again cleanly, no stuck padding |
 | KB.12 | The smallest device you have, color drawer, hex field | The drawer's 取消 and 完成 stay reachable |
 | KB.13 | 類別 sheet, tap the search field | The sheet makes room; the filtered tree stays readable beneath it |
-| KB.14 | Onboarding page 4 (OB.5), tap the field, on the smallest device you have too | The whole sheet rises over the faded month: the field, the counter, the Categories and both buttons stay above the keyboard. Dismissed, page 4 looks as OB.5 |
+| KB.14 | Onboarding page 4 (OB.5), tap the field, on the smallest device you have too | The faded month folds away as the keyboard rises and the sheet rises with it, smoothly, no jump: the field, the counter, the Categories and both buttons stay above the keyboard. Dismissed, the month unfolds the same way and page 4 looks as OB.5 |
 
 KB.12 is the one to watch. The drawer is the tallest sheet and its body does
 not scroll, so a short screen is where rising runs out of room.

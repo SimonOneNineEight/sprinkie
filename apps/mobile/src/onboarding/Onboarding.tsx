@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
-import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { Category } from '../api/client';
@@ -16,6 +16,7 @@ import { useStrings } from '../i18n/AppLanguageProvider';
 import { Pressable } from '../theme/press';
 import { createStyles } from '../theme';
 
+import { Animated, useAnimatedStyle, useSharedValue } from './reanimated';
 import { sampleCategories, sampleMonth, sampleYearMonth } from './sample';
 
 type Props = {
@@ -213,7 +214,16 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  const lifted = useKeyboardState((state) => state.isVisible);
+  // The month folds away in step with the keyboard (progress runs 0 to 1
+  // on the UI thread, frame by frame), so the sheet rises with it instead of
+  // being squeezed, and gets all the room the keyboard leaves (#158). Its
+  // natural height is read while no keyboard is up.
+  const keyboard = useReanimatedKeyboardAnimation();
+  const monthHeight = useSharedValue<number | null>(null);
+  const monthGivesWay = useAnimatedStyle(() => {
+    const natural = monthHeight.get();
+    return natural === null ? {} : { maxHeight: natural * (1 - keyboard.progress.get()) };
+  });
   // One Draft slot for every retry, which doubles as the create's retry key.
   const [draftId, setDraftId] = useState(newDraftId);
   const inFlight = useRef(false);
@@ -310,11 +320,17 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      {/* While the keyboard is up, the whole sheet rises over the month, as
-          in CategorySheet; padding inside the sheet would squeeze the title
-          out of sight under a month that stays put (#158). */}
+      {/* The keyboard's padding goes under the whole page, as in
+          CategorySheet; inside the sheet it squeezed the title out of sight
+          under a month that stayed put (#158). */}
       <KeyboardAvoidingView behavior="padding" style={styles.fill}>
-        <View style={[styles.fadedMonth, lifted && styles.monthGivesWay]} pointerEvents="none">
+        <Animated.View
+          style={[styles.fadedMonth, monthGivesWay]}
+          pointerEvents="none"
+          onLayout={(event) => {
+            if (keyboard.progress.get() === 0) monthHeight.set(event.nativeEvent.layout.height);
+          }}
+        >
           <MonthGrid
             year={year}
             month={month}
@@ -322,9 +338,9 @@ function FirstEntryPage({ accessToken, categories, onSaved, onLater }: Props) {
             today={day}
             onSelectDay={() => {}}
           />
-        </View>
-        <View style={[styles.sheet, lifted && styles.sheetLifted]}>
-          <SafeAreaView edges={['bottom']} style={lifted ? styles.sheetFill : styles.fill}>
+        </Animated.View>
+        <View style={styles.sheet}>
+          <SafeAreaView edges={['bottom']} style={styles.fill}>
             <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">
               <Text accessibilityRole="header" style={[styles.headline, styles.sheetHeadline]}>
                 {strings.onboarding.firstEntryTitle}
@@ -467,7 +483,7 @@ const styles = createStyles((t) => ({
   primaryTextOff: { color: t.colors.controlDisabledFg },
   secondary: { backgroundColor: t.colors.controlSecondaryBg },
   secondaryText: { color: t.colors.controlSecondaryFg },
-  fadedMonth: { paddingHorizontal: t.spacing.screenGutter, opacity: 0.55 },
+  fadedMonth: { paddingHorizontal: t.spacing.screenGutter, opacity: 0.55, overflow: 'hidden' },
   sheet: {
     flex: 1,
     marginTop: t.spacing.space6,
@@ -475,15 +491,6 @@ const styles = createStyles((t) => ({
     borderTopRightRadius: t.radius.sheet,
     backgroundColor: t.colors.surface,
   },
-  // Keyboard up: the month gives up its height first, clipped from the
-  // bottom; the sheet keeps its own (flex: 0 undoes sheet's flex: 1, which
-  // starts it from zero), capped at the space above the keyboard with no
-  // margin outside the cap, and fills whatever the month leaves.
-  monthGivesWay: { flexShrink: 1, minHeight: 0, overflow: 'hidden' },
-  sheetLifted: { flex: 0, flexGrow: 1, flexShrink: 0, maxHeight: '100%', marginTop: 0 },
-  // Grows and shrinks from its content's height (flex: 1 would start from
-  // zero), so the lifted sheet knows how tall it wants to be.
-  sheetFill: { flexGrow: 1, flexShrink: 1 },
   sheetBody: { padding: t.spacing.space7 },
   sheetHeadline: { fontSize: 22, lineHeight: 30, marginTop: 0 },
   titleBox: {
