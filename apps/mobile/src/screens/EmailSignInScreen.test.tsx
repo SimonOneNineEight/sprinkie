@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 import { expectSingleLineField } from '../testing/expectSingleLineField';
 import { SignInScreen } from './SignInScreen';
@@ -413,5 +413,238 @@ describe('while a request runs', () => {
     });
 
     expect(mockCalls).toEqual([['resetPasswordForEmail', 'pm@wlog.local']]);
+  });
+});
+
+// #145: an eye inside each password field shows what was typed.
+describe('the password eye', () => {
+  // Reads the masking and autofill props, a departure from #45's testing
+  // rule like expectSingleLineField's: jest draws no mask dots and offers no
+  // autofill, so the prop is as close to the screen as these suites get.
+  // SI.29 in docs/manual-tests.md is where it is really checked.
+  const field = (placeholder: string) => screen.getByPlaceholderText(placeholder);
+  const masked = (placeholder: string) => field(placeholder).props.secureTextEntry;
+  const reveal = () => fireEvent.press(screen.getByRole('button', { name: '顯示密碼' }));
+  const hide = () => fireEvent.press(screen.getByRole('button', { name: '隱藏密碼' }));
+  // Where the caret sits, as iOS reports it after every move and edit.
+  const caret = (placeholder: string, start: number, end = start) =>
+    fireEvent(field(placeholder), 'selectionChange', { nativeEvent: { selection: { start, end } } });
+  const submittedSignIn = async () => {
+    type('電子郵件', 'pm@wlog.local');
+    await press('登入');
+    return mockCalls.at(-1);
+  };
+
+  it('shows the password, then masks it again, its label naming the next action', () => {
+    openEmailPage();
+    type('密碼', 'secret-123');
+    expect(masked('密碼')).toBe(true);
+
+    fireEvent.press(screen.getByRole('button', { name: '顯示密碼' }));
+    expect(masked('密碼')).toBe(false);
+
+    fireEvent.press(screen.getByRole('button', { name: '隱藏密碼' }));
+    expect(masked('密碼')).toBe(true);
+    expect(screen.getByRole('button', { name: '顯示密碼' })).toBeTruthy();
+  });
+
+  it('masks it again after switching between sign-in and sign-up', () => {
+    openEmailPage();
+    reveal();
+
+    fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
+    expect(masked('密碼')).toBe(true);
+
+    reveal();
+    fireEvent.press(screen.getByText('已有帳戶？登入'));
+    expect(masked('密碼')).toBe(true);
+  });
+
+  it('masks it again on returning to the form', async () => {
+    openEmailPage();
+    reveal();
+
+    await press('忘記密碼？');
+    fireEvent.press(screen.getByLabelText('返回'));
+
+    expect(masked('密碼')).toBe(true);
+  });
+
+  it('starts the new password masked, though the form showed its own, and shows it too', async () => {
+    openEmailPage();
+    reveal();
+    await press('忘記密碼？');
+    type('電子郵件', 'pm@wlog.local');
+    await press('寄送驗證碼');
+    type('驗證碼', '123456');
+    await press('下一步');
+
+    expect(masked('新密碼')).toBe(true);
+    reveal();
+    expect(masked('新密碼')).toBe(false);
+  });
+
+  it('keeps what was typed through a toggle, and typing after it appends', async () => {
+    openEmailPage();
+    type('密碼', 'secret');
+    reveal();
+    expect(screen.getByDisplayValue('secret')).toBeTruthy();
+    type('密碼', 'secret-1');
+    hide();
+    caret('密碼', 8);
+    type('密碼', 'secret-12');
+
+    expect(await submittedSignIn()).toEqual([
+      'signInWithPassword',
+      { email: 'pm@wlog.local', password: 'secret-12' },
+    ]);
+  });
+
+  // UIKit clears a secure field on the first key after it is masked again.
+  // Seen on the iOS 26.5 simulator (#145): the key arrives as two changes in
+  // one instant, the field emptied and then the key alone, both before React
+  // renders. A backspace sends only the first. These tests build that event
+  // sequence by hand, a departure from #45's testing rule: jest has no UIKit,
+  // and the sequence is the one the simulator logged.
+  describe('survives iOS clearing a field that was masked again', () => {
+    afterEach(() => jest.restoreAllMocks());
+    const remaskedWith = (text: string) => {
+      openEmailPage();
+      type('密碼', text);
+      caret('密碼', text.length);
+      reveal();
+      hide();
+    };
+    const clearedThenTyped = (text: string) =>
+      act(() => {
+        fireEvent.changeText(field('密碼'), '');
+        fireEvent.changeText(field('密碼'), text);
+      });
+
+    it('a typed character lands after the text', async () => {
+      remaskedWith('secret-12');
+      clearedThenTyped('3');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'secret-123' },
+      ]);
+    });
+
+    it('a backspace takes one character', async () => {
+      remaskedWith('secret-123');
+      type('密碼', '');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'secret-12' },
+      ]);
+    });
+
+    // After the backspace React puts the shortened text back in the field,
+    // so the next key arrives on the end of it, however soon it follows.
+    it('a key right after a backspace lands on the shortened text', async () => {
+      remaskedWith('123456');
+      type('密碼', '');
+      type('密碼', '123458');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: '123458' },
+      ]);
+    });
+
+    // A paste or a Keychain fill is more than one key: it keeps what iOS gives.
+    it('leaves a paste after the wipe as iOS gives it', async () => {
+      remaskedWith('123456');
+      clearedThenTyped('secret');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'secret' },
+      ]);
+    });
+
+    it('repairs nothing once the password is shown again', async () => {
+      remaskedWith('a');
+      reveal();
+      type('密碼', '');
+      type('密碼', 'b');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'b' },
+      ]);
+    });
+
+    // With a selection or a caret short of the end, the edit is the User's own.
+    it('leaves a select-all replacement as typed', async () => {
+      remaskedWith('secret-123');
+      caret('密碼', 0, 10);
+      clearedThenTyped('x');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'x' },
+      ]);
+    });
+
+    it('leaves a backspace inside the text as typed', async () => {
+      remaskedWith('ab');
+      caret('密碼', 1);
+      type('密碼', 'b');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: 'b' },
+      ]);
+    });
+
+    it('repairs only the first key after masking, and none after the field loses focus', async () => {
+      remaskedWith('secret');
+      fireEvent(field('密碼'), 'blur');
+      clearedThenTyped('1');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: '1' },
+      ]);
+    });
+
+    it('leaves the text alone off iOS', async () => {
+      jest.replaceProperty(Platform, 'OS', 'android');
+      remaskedWith('secret-12');
+      clearedThenTyped('3');
+
+      expect(await submittedSignIn()).toEqual([
+        'signInWithPassword',
+        { email: 'pm@wlog.local', password: '3' },
+      ]);
+    });
+  });
+
+  it('leaves the autofill purpose as it is, shown or masked', async () => {
+    const autofill = (placeholder: string) => {
+      const { autoComplete, textContentType } = field(placeholder).props;
+      return { autoComplete, textContentType };
+    };
+    openEmailPage();
+    expect(autofill('密碼')).toEqual({ autoComplete: 'current-password', textContentType: undefined });
+    reveal();
+    expect(autofill('密碼')).toEqual({ autoComplete: 'current-password', textContentType: undefined });
+    fireEvent.press(screen.getByText('還沒有帳戶？註冊'));
+    expect(autofill('密碼')).toEqual({ autoComplete: 'new-password', textContentType: undefined });
+    reveal();
+    expect(autofill('密碼')).toEqual({ autoComplete: 'new-password', textContentType: undefined });
+
+    fireEvent.press(screen.getByText('已有帳戶？登入'));
+    await press('忘記密碼？');
+    type('電子郵件', 'pm@wlog.local');
+    await press('寄送驗證碼');
+    type('驗證碼', '123456');
+    await press('下一步');
+    expect(autofill('新密碼')).toEqual({ autoComplete: 'new-password', textContentType: 'newPassword' });
+    reveal();
+    expect(autofill('新密碼')).toEqual({ autoComplete: 'new-password', textContentType: 'newPassword' });
   });
 });
