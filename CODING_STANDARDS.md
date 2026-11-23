@@ -32,6 +32,6 @@ was observed (device or simulator, OS version, keyboard), and its tests
 replay that recorded sequence. Review it by asking where the sequence came
 from, and whether each test fails on the code before the fix.
 
-The #145 iOS secure-field repair went through three versions: the first two
-matched a guessed event order and passed their tests, and an on-screen log
-in the simulator showed the real one.
+The #145 iOS secure-field repair went through four versions: the first two
+matched a guessed event order and passed their tests, until a log drawn on
+screen in the simulator showed the real one.

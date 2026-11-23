@@ -382,10 +382,10 @@ function PasswordField({ value, onChangeText, shown, onToggle, ...input }: Passw
   // taken as a backspace, the last character gone. A single character next
   // is the key, typed into the emptied field, and lands after the text
   // instead: after a real backspace the shortened text is back in the field,
-  // so the next key arrives on the end of it. More than one character is a paste or a
-  // Keychain fill, and stays as iOS gives it. All of this only with the
-  // caret collapsed at the end, where a real edit can't empty a longer text;
-  // a selection or a caret inside the text is the User's own.
+  // so the next key arrives on the end of it. More than one character is a
+  // paste or a Keychain fill, and stays as iOS gives it. All of this only
+  // with the caret collapsed at the end, where a real edit can't empty a
+  // longer text; a selection or a caret inside the text is the User's own.
   const remasked = useRef(false);
   const wasShown = useRef(shown);
   const selection = useRef<{ start: number; end: number } | null>(null);
