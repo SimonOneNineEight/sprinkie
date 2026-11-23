@@ -377,12 +377,12 @@ type PasswordFieldProps = Pick<TextInputProps, 'placeholder' | 'autoComplete' | 
 function PasswordField({ value, onChangeText, shown, onToggle, ...input }: PasswordFieldProps) {
   const strings = useStrings();
   // UIKit clears a secure field on its first key after being masked again.
-  // On the iOS 26.5 simulator (#145) the key arrives as two changes: the
-  // field emptied, then the key alone. The emptying is taken as a backspace,
-  // the last character gone. A single character next is the key, typed into
-  // the emptied field, and lands after the text instead: after a real
-  // backspace the shortened text is back in the field, so the next key
-  // arrives on the end of it. More than one character is a paste or a
+  // On the iOS 26.5 simulator with the Mac keyboard (#145) the key arrives
+  // as two changes: the field emptied, then the key alone. The emptying is
+  // taken as a backspace, the last character gone. A single character next
+  // is the key, typed into the emptied field, and lands after the text
+  // instead: after a real backspace the shortened text is back in the field,
+  // so the next key arrives on the end of it. More than one character is a paste or a
   // Keychain fill, and stays as iOS gives it. All of this only with the
   // caret collapsed at the end, where a real edit can't empty a longer text;
   // a selection or a caret inside the text is the User's own.
